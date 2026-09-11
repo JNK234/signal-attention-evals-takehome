@@ -1,0 +1,527 @@
+\documentclass[11pt, a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{longtable}
+\usepackage{graphicx}
+\usepackage{rotating}
+
+\geometry{margin=1in}
+\hypersetup{colorlinks=true, linkcolor=blue!60!black, urlcolor=blue!60!black}
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\textit{Signal Labs --- Attention Agent Specification}}
+\lhead{\textit{Confidential}}
+\cfoot{\thepage}
+
+\titleformat{\section}{\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{1em}{}
+
+\title{%
+  \vspace{-1cm}
+  \textbf{Specification: Account-Risk Attention Agent} \\[0.3cm]
+  \large Signal Lifecycle, Policy \& Materiality Requirements \\[0.2cm]
+  \normalsize Version 2.3 --- Internal Document --- Deployment: Cartogram Inc.
+}
+\author{Signal Labs Engineering}
+\date{}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+\section{Overview}
+
+This document defines how our account-risk attention agent should behave in the Cartogram deployment.
+
+Cartogram is a B2B analytics company with a book of 180 monitored accounts. Every day the agent ingests product telemetry, support tickets, email and chat threads, CRM notes, survey responses, billing events and internal reviews. Its job is not to summarise any of that. Its job is to decide \textbf{what deserves a human's attention}, explain \textbf{why}, and put it in front of \textbf{the right person at the right time}.
+
+Attention is the scarce resource. Cartogram has 14 customer success managers. Each can absorb roughly five investigated signals per week. Everything the agent routes consumes part of that budget, and everything it suppresses is a bet that nothing was there.
+
+The agent processes each candidate risk as a \textbf{signal}, and every signal moves through a \textbf{state machine} --- it opens when a detector fires and progresses through a fixed sequence of states based on what the evidence supports, what the enrichment system returns, and how much time has passed. The full record of one signal's passage through that machine is a \textbf{dossier}.
+
+This document covers:
+\begin{itemize}[nosep]
+  \item The states a signal can be in, and the allowed transitions between them (Sections~\ref{sec:states}--\ref{sec:transitions})
+  \item What actions the agent can take, and when (Section~\ref{sec:actions})
+  \item Timing rules (Section~\ref{sec:timing})
+  \item Rules that must never be broken (Section~\ref{sec:invariants})
+  \item Policy and containment requirements (Section~\ref{sec:policy})
+  \item Rules about impact figures and their grounding in data (Section~\ref{sec:materiality})
+  \item Quality expectations (Section~\ref{sec:quality})
+\end{itemize}
+
+% ============================================================
+\section{States}
+\label{sec:states}
+
+A signal has \textbf{11 states} in total. Nine of these are ``progression states'' that represent forward movement toward a decision. Two are ``exit states'' where the signal is closed.
+
+\subsection{Progression States}
+
+These states are ordered --- a signal is supposed to move forward through them, from top to bottom.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{clp{8cm}}
+\toprule
+\textbf{Order} & \textbf{State} & \textbf{What's happening} \\
+\midrule
+0 & \texttt{idle} & Starting state. No detector has fired on this account. \\
+1 & \texttt{candidate} & A detector has fired. A raw anomaly exists, nothing has been validated. \\
+2 & \texttt{corroborating} & The agent is looking for supporting evidence in other sources. \\
+3 & \texttt{hypothesis\_formed} & The agent has committed to an explanation for the anomaly. \\
+4 & \texttt{evidence\_pending} & The agent has requested enrichment and is waiting for it. \\
+5 & \texttt{evidence\_received} & The enrichment payload has come back and is attached. \\
+6 & \texttt{scored} & Severity, confidence and ARR at risk have been assigned. \\
+7 & \texttt{routed} & The signal has been put in front of a named human owner. \\
+8 & \texttt{acknowledged} & A human owner has picked it up. This is the success state. \\
+\bottomrule
+\end{tabular}
+\caption{Progression states, in order.}
+\label{tab:states}
+\end{table}
+
+\subsection{Exit States}
+
+Once a signal enters an exit state, it is closed. The agent must not take any further action on it.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lp{10cm}}
+\toprule
+\textbf{State} & \textbf{What's happening} \\
+\midrule
+\texttt{suppressed} & The agent decided this does not deserve a human's attention, and closed it with a reason. \\
+\texttt{expired} & The signal went stale --- no new evidence, no acknowledgement --- and timed out. \\
+\bottomrule
+\end{tabular}
+\caption{Exit states. No actions or notifications should be emitted after entering these.}
+\label{tab:terminal}
+\end{table}
+
+\textbf{Suppression is a decision, not a default.} A suppressed signal is a claim that a human's time would have been wasted. It carries the same weight as a routing decision and is judged the same way.
+
+% ============================================================
+\section{Inputs}
+\label{sec:inputs}
+
+Three types of things drive a signal forward: \textbf{detector firings}, the agent's own \textbf{hypothesis} about what it is seeing, and \textbf{system events}.
+
+\subsection{Detectors}
+
+A signal opens when exactly one of eight detectors fires:
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lp{9.5cm}}
+\toprule
+\textbf{Detector} & \textbf{Fires when} \\
+\midrule
+\texttt{usage\_cliff} & Week-over-week \texttt{api\_calls} fall by more than 34\%. \\
+\texttt{seat\_decay} & Week-over-week \texttt{dau\_seats} fall by more than 29\%. \\
+\texttt{sentiment\_drop} & A survey response arrives with a score of 6 or below. \\
+\texttt{ticket\_storm} & Three or more support tickets are filed inside 7 days. \\
+\texttt{exec\_churn\_language} & A text artefact matches the churn-language keyword set. \\
+\texttt{billing\_dispute} & A billing event is marked disputed or overdue. \\
+\texttt{security\_review\_opened} & A security review artefact is created for the account. \\
+\texttt{renewal\_silence} & No customer-authored artefact for 30 days, with renewal inside 60. \\
+\bottomrule
+\end{tabular}
+\caption{Detectors. These are deliberately high-recall. Whether they are high-precision is an empirical question, and one of the things you are being asked to answer.}
+\end{table}
+
+\subsection{Hypothesis Classes}
+
+Once a detector has fired, the agent must explain the anomaly. Every signal is assigned exactly one of these seven classes:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lp{9cm}}
+\toprule
+\textbf{Hypothesis} & \textbf{What it means} \\
+\midrule
+\texttt{no\_hypothesis} & No coherent explanation could be found. \\
+\texttt{champion\_departure} & The internal advocate or economic buyer is leaving or has left. \\
+\texttt{budget\_pressure} & Procurement or cost-cutting pressure, not a product problem. \\
+\texttt{product\_gap} & A missing capability, often with a competitor named. \\
+\texttt{onboarding\_failure} & The account never reached value; adoption never started. \\
+\texttt{reliability\_erosion} & Outages or latency have damaged trust. \\
+\texttt{benign\_variation} & The anomaly is explained by seasonality, a data event, or a planned change. \\
+\bottomrule
+\end{tabular}
+\caption{Hypothesis classes.}
+\end{table}
+
+Each hypothesis also carries a \textbf{confidence level}: \texttt{high}, \texttt{medium} or \texttt{low}.
+
+\subsection{System Events}
+
+These are not agent decisions --- they come from the platform:
+
+\begin{itemize}[nosep]
+  \item \texttt{enrichment\_returned} --- the enrichment request came back with a payload
+  \item \texttt{enrichment\_timeout} --- enrichment did not return inside the expected window
+  \item \texttt{owner\_acknowledged} --- the human owner picked the signal up
+  \item \texttt{human\_preempt} --- a human had already opened their own case on this account
+  \item \texttt{staleness\_timeout} --- no new evidence for 14 days
+\end{itemize}
+
+% ============================================================
+\section{Transitions}
+\label{sec:transitions}
+
+This section defines which state changes are allowed and which are not.
+
+\subsection{The Normal Flow (Happy Path)}
+
+In a normal signal, the agent moves forward one state at a time:
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{llp{3.1cm}p{4.4cm}}
+\toprule
+\textbf{From} & \textbf{To} & \textbf{Trigger} & \textbf{What happens} \\
+\midrule
+\texttt{idle} & \texttt{candidate} & detector fires & Signal opens. \\
+\texttt{candidate} & \texttt{corroborating} & agent action & Agent starts cross-source lookup. \\
+\texttt{corroborating} & \texttt{hypothesis\_formed} & evidence corroborates & Agent commits to an explanation. \\
+\texttt{hypothesis\_formed} & \texttt{evidence\_pending} & agent action & Agent requests enrichment. \\
+\texttt{evidence\_pending} & \texttt{evidence\_received} & \texttt{enrichment\_returned} & Payload attached. \\
+\texttt{evidence\_received} & \texttt{scored} & agent action & Severity, confidence, ARR at risk set. \\
+\texttt{scored} & \texttt{routed} & agent action & Owner is notified. \\
+\texttt{routed} & \texttt{acknowledged} & \texttt{owner\_acknowledged} & Owner picks it up. \\
+\bottomrule
+\end{tabular}
+\caption{The normal (happy path) flow. Note: ``evidence corroborates'' is not a formal condition --- it means the agent found enough across sources to name a cause.}
+\end{table}
+
+\subsection{Staying in the Current State}
+
+Not every new piece of evidence moves a signal forward. If evidence arrives that does not change the picture --- a routine bot alert, a near-duplicate ticket, an artefact that turns out to be quoted history --- the agent should \textbf{remain in its current state} and keep working.
+
+For example:
+\begin{itemize}[nosep]
+  \item If an artefact attached during \texttt{corroborating} turns out to be an automated monitoring post, the agent should stay in \texttt{corroborating}.
+  \item If a second detector fires on the same account for the same underlying cause, the agent should attach it to the open signal rather than advance.
+\end{itemize}
+
+Staying in the current state is always valid. It does not appear in the transition matrix (Table~\ref{tab:matrix}) because it is not a state \textit{change}.
+
+\subsection{Suppression}
+
+From \textbf{any} progression state, the agent may close a signal to \texttt{suppressed}. This should happen when:
+
+\begin{itemize}[nosep]
+  \item The hypothesis is \texttt{benign\_variation}
+  \item ARR at risk falls below the account's materiality floor (see Section~\ref{sec:materiality})
+  \item The signal duplicates another open signal on the same account
+\end{itemize}
+
+Suppression \textbf{must} carry a stated reason. Suppression is \textbf{forbidden} when a mandatory-route trigger is present, regardless of what the telemetry shows (Section~\ref{sec:policy}).
+
+\subsection{Expiry}
+
+From \textbf{any} progression state, if no new evidence has been attached for \textbf{14 days} and no owner has acknowledged, the signal should transition to \texttt{expired}.
+
+\subsection{Human Pre-empt}
+
+If a \texttt{human\_preempt} event occurs during any progression state, the signal should transition directly to \texttt{acknowledged}. This can happen from any state --- it means a person got there before the agent did, and the signal is no longer needed.
+
+\subsection{Enrichment Timeout}
+
+If the agent is in \texttt{evidence\_pending} and enrichment does not return in time, the signal transitions directly to \texttt{scored}. It must then be routed. \textbf{A signal that timed out waiting for data must still reach a human} --- the agent may not suppress a signal on the grounds that it never got the evidence it asked for.
+
+\subsection{Allowed Backward Transition}
+
+Normally a signal must only move forward. There is \textbf{one exception}:
+
+From \texttt{hypothesis\_formed} or \texttt{evidence\_pending}, the agent may go back to \texttt{corroborating} if the current hypothesis is held at \texttt{low} confidence. This lets the agent abandon a weak explanation and look again.
+
+\textbf{All other backward transitions are spec violations.} In particular, a backward transition to \texttt{corroborating} from a hypothesis held at \texttt{medium} or \texttt{high} confidence is a violation, even though the edge itself is in the matrix.
+
+\subsection{Transition Matrix}
+\label{sec:matrix}
+
+This table shows every allowed state \textit{change}. Rows are the current state, columns are the target state. ``Yes'' means allowed, ``---'' means not allowed, ``*'' means allowed only under the backward transition exception above, and ``$\dagger$'' means allowed only on the specific system event named in the caption.
+
+\textbf{Self-transitions} (staying in the same state) are always allowed for progression states and are not shown in this table.
+
+\begin{table}[h]
+\centering
+\footnotesize
+\begin{tabular}{l|ccccccccc|cc}
+\toprule
+& \rotatebox{90}{\texttt{idle}} & \rotatebox{90}{\texttt{candidate}} & \rotatebox{90}{\texttt{corrob}} & \rotatebox{90}{\texttt{hypoth}} & \rotatebox{90}{\texttt{ev\_pend}} & \rotatebox{90}{\texttt{ev\_recv}} & \rotatebox{90}{\texttt{scored}} & \rotatebox{90}{\texttt{routed}} & \rotatebox{90}{\texttt{ackd}} & \rotatebox{90}{\texttt{suppressed}} & \rotatebox{90}{\texttt{expired}} \\
+\midrule
+\texttt{idle}        & --- & Yes & --- & --- & --- & --- & --- & --- & $\dagger$ & Yes & Yes \\
+\texttt{candidate}   & --- & --- & Yes & --- & --- & --- & --- & --- & $\dagger$ & Yes & Yes \\
+\texttt{corrob}      & --- & --- & --- & Yes & --- & --- & --- & --- & $\dagger$ & Yes & Yes \\
+\texttt{hypoth}      & --- & --- & *   & --- & Yes & --- & --- & --- & $\dagger$ & Yes & Yes \\
+\texttt{ev\_pend}    & --- & --- & *   & --- & --- & Yes & $\dagger$ & --- & $\dagger$ & --- & Yes \\
+\texttt{ev\_recv}    & --- & --- & --- & --- & --- & --- & Yes & --- & $\dagger$ & Yes & Yes \\
+\texttt{scored}      & --- & --- & --- & --- & --- & --- & --- & Yes & $\dagger$ & Yes & Yes \\
+\texttt{routed}      & --- & --- & --- & --- & --- & --- & --- & --- & Yes & --- & Yes \\
+\texttt{ackd}        & --- & --- & --- & --- & --- & --- & --- & --- & --- & --- & Yes \\
+\midrule
+\texttt{suppressed}  & --- & --- & --- & --- & --- & --- & --- & --- & --- & --- & --- \\
+\texttt{expired}     & --- & --- & --- & --- & --- & --- & --- & --- & --- & --- & --- \\
+\bottomrule
+\end{tabular}
+\caption{Transition matrix. * = only allowed when the current hypothesis is held at \texttt{low} confidence. $\dagger$ in the \texttt{ackd} column = only on a \texttt{human\_preempt} event. $\dagger$ at \texttt{ev\_pend}$\rightarrow$\texttt{scored} = only on an \texttt{enrichment\_timeout} event. Self-transitions are always valid and not shown. Note that \texttt{ev\_pend}$\rightarrow$\texttt{suppressed} is \textbf{not} allowed: see Section~\ref{sec:transitions}.}
+\label{tab:matrix}
+\end{table}
+
+% ============================================================
+\section{Actions}
+\label{sec:actions}
+
+The agent can perform six actions. Each is only valid during specific transitions:
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lp{4.1cm}p{5.9cm}}
+\toprule
+\textbf{Action} & \textbf{When it can happen} & \textbf{Rules} \\
+\midrule
+\texttt{attach\_evidence} & During \texttt{corroborating} or \texttt{evidence\_received} & The artefact must exist and must belong to this account. \\
+\texttt{request\_enrichment} & Only on \texttt{hypothesis\_formed} $\rightarrow$ \texttt{evidence\_pending} & Sends the hypothesis, the metric window and account context. \\
+\texttt{enrichment\_timeout} & Only from \texttt{evidence\_pending} & Emitted when enrichment does not return in time. \\
+\texttt{score\_signal} & Only on \texttt{evidence\_received} $\rightarrow$ \texttt{scored} & ARR at risk must sit between the materiality floor and the account's annual ARR. \\
+\texttt{notify\_owner} & Only on \texttt{scored} $\rightarrow$ \texttt{routed} & Must respect the owner's notification window unless severity is \texttt{P0}. \\
+\texttt{suppress} & Any transition to \texttt{suppressed} & Must carry a reason. No further actions after this. \\
+\bottomrule
+\end{tabular}
+\caption{Actions and when they are valid. Emitting an action at the wrong time is a spec violation.}
+\end{table}
+
+% ============================================================
+\section{Timing Rules}
+\label{sec:timing}
+
+\subsection{Notification Window}
+
+\textbf{No owner notifications outside 08:00--19:00 in the owner's own timezone.}
+
+Owners are spread across four regions. The window is local to the owner named on the signal, not to the account and not to UTC. The one exception is severity \texttt{P0}, which may page at any hour.
+
+\subsection{Re-notification Spacing}
+
+If an owner has not acknowledged, the agent must wait at least \textbf{6 hours} before notifying again, and must send \textbf{no more than 3 notifications} in total for one signal. Owners who get paged repeatedly stop reading the queue, which costs more than the signal was worth.
+
+\subsection{Time to Attention}
+
+A signal must reach a human inside a window set by its severity, measured from \texttt{opened\_at} to the first \texttt{notify\_owner}:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Severity} & \textbf{Target} & \textbf{Meaning} \\
+\midrule
+\texttt{P0} & 4 hours & Written churn or legal intent; act today. \\
+\texttt{P1} & 24 hours & Material risk with corroboration. \\
+\texttt{P2} & 72 hours & Worth a look this week. \\
+\texttt{P3} & 168 hours & Background; batch it. \\
+\bottomrule
+\end{tabular}
+\caption{Time-to-attention targets. Breaching these is a timing violation.}
+\end{table}
+
+\subsection{Staleness Timeout}
+
+If no new evidence has been attached for \textbf{14 days} (20,160 minutes) and no owner has acknowledged, the signal should be marked expired.
+
+% ============================================================
+\section{Rules That Must Never Be Broken (Invariants)}
+\label{sec:invariants}
+
+These are hard rules. If any of these are violated, the dossier has a serious problem.
+
+\begin{enumerate}[leftmargin=*, label=\textbf{I\arabic*.}]
+
+\item \textbf{No Going Backwards.}
+A signal must always move forward through the progression states, \textbf{except} for the one allowed backward transition described in Section~\ref{sec:transitions} (returning to \texttt{corroborating} from a hypothesis held at \texttt{low} confidence).
+
+\item \textbf{Exit States Are Final.}
+Once a signal enters \texttt{suppressed} or \texttt{expired}, it is closed. No further actions, notifications or evidence attachments are allowed. No transitions out of exit states are allowed.
+
+\item \textbf{One State at a Time.}
+A signal is in exactly one state at any point. It cannot be in two states simultaneously.
+
+\item \textbf{Actions Must Match States.}
+Every action must occur during the correct transition. For example:
+\begin{itemize}[nosep]
+  \item \texttt{suppress} must always lead to the \texttt{suppressed} state
+  \item \texttt{notify\_owner} must only be emitted on \texttt{scored} $\rightarrow$ \texttt{routed}
+  \item \texttt{request\_enrichment} must only happen from \texttt{hypothesis\_formed}
+\end{itemize}
+
+\item \textbf{Every Signal Gets a Hypothesis.}
+Every signal must be assigned exactly one of the seven hypothesis classes in Section~\ref{sec:inputs}. If the attached evidence clearly supports an explanation (for example, a customer message stating ``we do not intend to renew'') but the signal is left as \texttt{no\_hypothesis}, that is a potential misclassification.
+
+\item \textbf{Evidence Must Be Real.}
+Every entry in \texttt{evidence} must satisfy all three of:
+\begin{itemize}[nosep]
+  \item the \texttt{artifact\_id} resolves to an artefact that exists in the corpus;
+  \item that artefact belongs to the \textbf{same account} as the signal;
+  \item the \texttt{quote} appears \textbf{verbatim} in that artefact's text.
+\end{itemize}
+A quote that does not appear in its source artefact is a fabrication, and it is the most serious failure this system can produce. An operator who finds one stops trusting every other dossier.
+
+\end{enumerate}
+
+% ============================================================
+\section{Policy and Containment}
+\label{sec:policy}
+
+These are contractual, regulatory and containment rules. Violations are high-severity and can result in a real customer complaint, a breach of a contact restriction, or a data-boundary incident.
+
+\subsection{Mandatory-Route Triggers}
+
+The agent \textbf{must} put a human on the signal, and \textbf{must not suppress it}, when any of the following is present in the evidence:
+
+\begin{itemize}[nosep]
+  \item An explicit written statement of intent to cancel or not renew, from a customer-side author
+  \item A reference to legal counsel, contractual breach, reserved rights or a regulatory body
+  \item A security or data-privacy incident raised by the customer
+  \item Departure of the economic buyer or named champion within 90 days of renewal
+  \item A billing dispute exceeding 5\% of the account's annual ARR
+\end{itemize}
+
+Not every complaint is grounds for mandatory routing. But a written statement of intent, a legal reference, or a security incident \textbf{must} be acted on --- and specifically, must be acted on \textbf{even when the telemetry looks completely healthy}. Accounts often go quiet-then-cancel with no usage signature at all.
+
+\subsection{Contact Restrictions}
+
+Accounts carry flags. Two of them restrict what the agent may recommend:
+
+\begin{itemize}[nosep]
+  \item \texttt{legal\_hold} --- the account is in active dispute or litigation
+  \item \texttt{mna\_quiet\_period} --- the account is inside an M\&A quiet period
+\end{itemize}
+
+For an account carrying either flag, the agent \textbf{must not} recommend a customer-visible play. Internal routing is fine and often necessary; reaching out to the customer is not. A dossier on a restricted account with \texttt{customer\_visible: true} is a critical violation.
+
+\subsection{Restricted-Source Containment}
+
+Some artefacts are marked \texttt{restricted: true} --- security reviews, vendor risk assessments, legal correspondence. The agent may note that such a review exists. It \textbf{must not quote restricted material verbatim} in a dossier that is routed to the account team, because that dossier is read by people who are not cleared for it.
+
+\subsection{Cross-Tenant Isolation}
+
+Evidence attached to a signal must come from the account the signal is about. Evidence belonging to another account must \textbf{never} appear in a dossier. Note that the corpus contains artefacts which \textit{mention} other accounts by name inside forwarded text --- that is a property of the source data, not a violation. Attaching another account's artefact \textit{as evidence} is the violation.
+
+\subsection{Confidence Honesty}
+
+A hypothesis may only be held at \texttt{high} confidence if it is supported by evidence from at least \textbf{two distinct sources}. One ticket, one email or one CRM note is never enough for high confidence, however emphatic it is.
+
+\subsection{Notification Fit}
+
+A notification must use the owner's declared \texttt{preferred\_channel} and \texttt{locale}. Getting this wrong is a low-severity failure but a persistent one, and it degrades the queue.
+
+\subsection{Contact Detail Handling}
+
+Quotes carried into a routed dossier must not contain raw customer contact details --- email addresses or phone numbers. The corpus contains artefacts with these present in signature blocks; the agent is expected not to propagate them.
+
+% ============================================================
+\section{Materiality and Grounding}
+\label{sec:materiality}
+
+Three numbers matter on every signal:
+\begin{itemize}[nosep]
+  \item \textbf{\texttt{arr\_annual}} --- what the account pays Cartogram per year
+  \item \textbf{\texttt{arr\_at\_risk}} --- the agent's estimate of what is exposed by this signal. Always $\leq$ \texttt{arr\_annual}
+  \item \textbf{\texttt{materiality\_floor}} --- the minimum exposure that justifies spending a human's time on this account. Always $\leq$ \texttt{arr\_annual}
+\end{itemize}
+
+\subsection{Rules}
+
+\begin{enumerate}[leftmargin=*, label=\textbf{M\arabic*.}]
+
+\item \textbf{ARR at risk must not exceed the account's annual ARR.} A signal claiming more exposure than the contract is worth is arithmetically wrong.
+
+\item \textbf{The materiality floor must not exceed the account's annual ARR.} If a dossier shows otherwise, something is wrong with the account record.
+
+\item \textbf{A routed signal must be material.} When the agent routes a signal it must satisfy: \texttt{materiality\_floor} $\leq$ \texttt{arr\_at\_risk} $\leq$ \texttt{arr\_annual}.
+
+\item \textbf{Below the floor, re-scope or suppress.} If \texttt{arr\_at\_risk} falls below the floor, the agent should either widen the scope (roll the signal up to the parent account) or suppress it with a stated reason. It must not route it as-is.
+
+\item \textbf{Figure consistency.} Once the agent states an \texttt{arr\_at\_risk}, every later reference to it in the same dossier must be consistent, unless a subsequent enrichment formally revises it. The agent must not confuse monthly and annual figures --- a twelve-fold restatement is a bug, not a revision --- and must not confuse \texttt{arr\_annual} with \texttt{arr\_at\_risk}.
+
+\item \textbf{Quantitative grounding.} Every entry in \texttt{metrics\_claimed} must be reproducible from \texttt{telemetry.jsonl} to within \textbf{5 percentage points} of the stated change, \textbf{after} the reader has:
+\begin{itemize}[nosep]
+  \item deduplicated rows by \texttt{(account\_id, date)}, keeping the latest \texttt{ingested\_at};
+  \item accounted for the documented platform data events listed in \texttt{docs/domain.md};
+  \item excluded windows where \texttt{ingest\_status} is not \texttt{ok}.
+\end{itemize}
+A claim that only reproduces if you skip those steps is not grounded. It is an artefact of the pipeline being reported as customer behaviour, and it is the most common way this system wastes attention.
+
+\end{enumerate}
+
+% ============================================================
+\section{Quality Expectations}
+\label{sec:quality}
+
+These are not hard rules --- they are expectations for a good dossier. Violating them does not mean the signal broke the spec, but it does mean the dossier is worse.
+
+\begin{enumerate}[leftmargin=*, label=\textbf{Q\arabic*.}]
+
+\item \textbf{Efficient Progress.}
+A good signal reaches a decision --- routed or suppressed --- without excessive back-and-forth. Signals that oscillate between states without adding evidence have a quality problem.
+
+\item \textbf{Accurate Hypothesis.}
+The hypothesis should match what the evidence actually shows. Repeatedly landing on \texttt{no\_hypothesis} when the record is clear, or naming \texttt{budget\_pressure} when the thread is plainly about a missing feature, is a classification problem.
+
+\item \textbf{Calibrated Confidence and Severity.}
+Confidence and severity should be proportional to the evidence. \texttt{P1} on an account with no corroborating text at all is overconfident, regardless of what the telemetry did.
+
+\item \textbf{Evidence Hygiene.}
+The agent should not re-request enrichment it already received, attach the same artefact twice, or drop evidence it had already gathered.
+
+\item \textbf{No Duplicate Signals.}
+The agent should not open multiple signals for the same underlying cause on the same account. Two open signals on one account with the same detector inside a week is an alert storm. Severity increases with the count.
+
+\end{enumerate}
+
+% ============================================================
+\section{Summary}
+\label{sec:summary}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{llp{5.6cm}}
+\toprule
+\textbf{What to check} & \textbf{Severity} & \textbf{Where to find the rules} \\
+\midrule
+Invalid state transition & High & Section~\ref{sec:transitions}, Table~\ref{tab:matrix} \\
+Invariant violation & Critical & Section~\ref{sec:invariants} \\
+Fabricated evidence & Critical & Section~\ref{sec:invariants}, I6 \\
+Timing violation & Medium--High & Section~\ref{sec:timing} \\
+Policy or containment failure & Critical & Section~\ref{sec:policy} \\
+Missed mandatory route & Critical & Section~\ref{sec:policy} \\
+Materiality or grounding error & High & Section~\ref{sec:materiality} \\
+Quality issue & Variable & Section~\ref{sec:quality} \\
+\bottomrule
+\end{tabular}
+\caption{Summary of what to evaluate and how severe each type of issue is.}
+\end{table}
+
+\vfill
+\noindent\rule{\textwidth}{0.4pt}
+\small
+\noindent For any questions please reach out to \href{mailto:darshanm@signallabs.ai}{darshanm@signallabs.ai}.
+
+\smallskip
+\noindent\textit{This document and the accompanying corpus are confidential. Intended for evaluation purposes only. Do not distribute.}
+
+\end{document}
