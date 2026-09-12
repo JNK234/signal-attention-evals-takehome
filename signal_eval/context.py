@@ -33,8 +33,10 @@ class Context:
         self.label_scope = label_scope       # "evidence" (artefacts cited by dossiers) or "all"
         self.label_cache_path = Path(label_cache_path) if label_cache_path else None
         self._labels = {}
+        self._indexed = set()
         self._cache_dirty = False
         self._classifier = None
+        self.labels_cover_corpus = False
         self.classifier_active = None        # None = not yet tried
         # deployment-specific telemetry events (docs/domain.md); overridable for other deployments
         self.legacy_end = legacy_double_count_end
@@ -56,6 +58,8 @@ class Context:
         self.cohort = self._cohort_baseline(self.tel)
         if self.use_classifier:
             self._label_artifacts(dossiers or [])
+        else:
+            self._update_coverage()
         self.loaded = True
         return self
 
@@ -157,43 +161,61 @@ class Context:
         return lab
 
     def label_artifact(self, artifact):
-        """Label an artefact; `stale` is decided here because it depends on who wrote it."""
+        """Label an artefact (lazily, cache-first); `stale` is decided here because it depends on who
+        wrote it. Every labelled artefact is also indexed by account for the unattached-trigger scan,
+        so artefacts first seen inside evaluate() are covered too."""
         text = ((artifact.get("subject") or "") + "\n" + (artifact.get("text") or "")).strip()
         lab = self.label_text(text, self.accounts.get(artifact.get("account_id")), bool(artifact.get("mentions_other_account")))
         if lab.get("unverifiable"):
             return lab
-        return dict(lab, stale=is_stale(lab, artifact.get("author_type")))
+        lab = dict(lab, stale=is_stale(lab, artifact.get("author_type")))
+        self._index_triggers(artifact, lab)
+        return lab
+
+    def _index_triggers(self, art, lab):
+        aid = art.get("artifact_id")
+        if not aid or aid in self._indexed or lab.get("stale") or lab.get("triggers_belong_elsewhere") or not art.get("timestamp"):
+            return
+        self._indexed.add(aid)
+        trig = set()
+        if lab.get("cancel_intent") and art.get("author_type") == "customer":
+            trig.add("cancel_intent")
+        if lab.get("legal_reference"):
+            trig.add("legal_reference")
+        if lab.get("security_incident") and art.get("author_type") == "customer":
+            trig.add("security_incident")
+        if lab.get("departure"):
+            trig.add("buyer_or_champion_departure")
+        if trig:
+            self.account_triggers[art.get("account_id")].append((ts(art["timestamp"]), aid, trig))
 
     def _label_artifacts(self, dossiers):
-        """Label the non-bot artefacts in scope (cited as evidence, or the whole corpus), then index
-        every artefact carrying a trigger by account for the unattached-trigger scan."""
+        """Pre-warm: label the non-bot artefacts in scope (cited as evidence, or the whole corpus).
+        Optional — evaluate() labels anything it meets on demand. Cache is flushed every 200 labels."""
         if self.label_scope == "all":
             ids = list(self.artifacts)
         else:
             ids = {ev.get("artifact_id") for d in dossiers for ev in d.get("evidence", []) or []}
-        for aid in ids:
+        for n, aid in enumerate(ids, 1):
             art = self.artifacts.get(aid)
-            if not art or art.get("author_type") == "bot":
-                continue
-            lab = self.label_artifact(art)
-            if lab.get("unverifiable") or lab.get("stale") or lab.get("triggers_belong_elsewhere"):
-                continue
-            trig = set()
-            if lab.get("cancel_intent") and art.get("author_type") == "customer":
-                trig.add("cancel_intent")
-            if lab.get("legal_reference"):
-                trig.add("legal_reference")
-            if lab.get("security_incident") and art.get("author_type") == "customer":
-                trig.add("security_incident")
-            if lab.get("departure"):
-                trig.add("buyer_or_champion_departure")
-            if trig and art.get("timestamp"):
-                self.account_triggers[art["account_id"]].append((ts(art["timestamp"]), aid, trig))
+            if art and art.get("author_type") != "bot":
+                self.label_artifact(art)
+            if n % 200 == 0:
+                self.save_cache()
         self.save_cache()
         if self.classifier_active is None:
             self.classifier_active = bool(self._labels)
-        non_bot = sum(1 for a in self.artifacts.values() if a.get("author_type") != "bot")
-        self.labels_cover_corpus = self.label_scope == "all" or (non_bot and len(ids) >= 0.9 * non_bot)
+        self._update_coverage()
+
+    def _update_coverage(self):
+        """Does the label cache cover (nearly) every non-bot artefact in the loaded corpus?"""
+        non_bot = [a for a in self.artifacts.values() if a.get("author_type") != "bot"]
+        if not non_bot:
+            self.labels_cover_corpus = False
+            return
+        covered = sum(1 for a in non_bot if text_key(((a.get("subject") or "") + "\n" + (a.get("text") or "")).strip(),
+                                                    self.accounts.get(a.get("account_id"))) in self._labels)
+        self.labels_cover_corpus = covered >= 0.9 * len(non_bot)
 
     # ── per-dossier lookups ──────────────────────────────────────────────────
     def account_facts(self, d):
