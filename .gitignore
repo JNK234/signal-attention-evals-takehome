@@ -1,3 +1,6 @@
-.worktrees/
 __pycache__/
+.worktrees/
 *.pyc
+analysis/.cache/
+analysis/*.out
+analysis/results.jsonl
