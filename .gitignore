@@ -4,3 +4,4 @@ __pycache__/
 analysis/.cache/
 analysis/*.out
 analysis/results.jsonl
+analysis/facts.csv
