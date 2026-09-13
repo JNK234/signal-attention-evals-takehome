@@ -4,8 +4,9 @@ ABOUTME: deserved_attention. PLACEHOLDER rubric: weights are initial judgment ca
 ABOUTME: from the facts table and the outcome / annotator analysis. Layer 1 (checks) does not depend on this.
 """
 
+from .labels import TOPIC_LABELS
 from .spec import META_RULES, RULE_SEVERITY, SEV_WEIGHT
-from .util import first_hypothesis, num
+from .util import num
 
 # multiplicative hit to quality_score per rule class (one penalty per rule id, its worst instance)
 QUALITY_PENALTY = {"critical": 0.45, "high": 0.2, "medium": 0.1, "soft": 0.05}
@@ -24,37 +25,45 @@ def quality_score(violations):
     return round(max(0.0, min(1.0, q)), 3)
 
 
+def current_customer_topic(ctx):
+    """The first non-benign topic a verified, current (check_evidence drops stale), customer-authored artefact
+    reads as at depth 0, or None. The reading's verdicts are the only witness — not the agent's hypothesis."""
+    for a in ctx.get("verified") or []:
+        if a.get("author_type") != "customer":
+            continue
+        verdict = ((a.get("_label") or {}).get("reading") or {}).get("verdict") or {}
+        for label in TOPIC_LABELS:
+            topic = label[len("topic:"):]
+            if topic != "benign_variation" and verdict.get(label) is True:
+                return topic
+    return None
+
+
 def deserved_attention(d, ctx, loaded):
-    """Did the *signal* deserve a human, independent of how well the dossier was built?
-    Ordered rules; first match wins. Returns (bool, reason)."""
-    af = ctx["acct"]
-    risk = num((d.get("scoring") or {}).get("arr_at_risk"))
-    floor = num(af.get("floor"))
-    hyp = first_hypothesis(d).get("hypothesis")
-    below_floor = risk is not None and floor is not None and risk < floor
-    if ctx.get("triggers"):
+    """Did the *signal* deserve a human, independent of how well the dossier was built? Ordered rules; first
+    match wins; returns (bool, reason). Reads only what the evidence and telemetry show — never the agent's
+    hypothesis or arr_at_risk, which would grade the agent with its own answer."""
+    src = ctx.get("trigger_source") or {}
+    confirmed, uncertain = set(src.get("confirmed") or ()), set(src.get("uncertain") or ())
+    if confirmed:
         return True, "mandatory-route trigger"
     if not loaded:
-        if below_floor:
-            return False, "below materiality floor (no context)"
-        n_ev, n_cl = len(d.get("evidence") or []), len(d.get("metrics_claimed") or [])
-        return (hyp != "benign_variation" and (n_ev + n_cl) > 0), "no context: evidence/claims present"
-    st = ctx.get("claim_status", [])
-    cust = ctx.get("has_customer_text", False)
-    real_claim = "grounded" in st
-    # a customer wrote something real and the agent did not call it benign:
-    # the agent's arr_at_risk may simply be under-scoped, so the floor does not veto
-    if cust and hyp != "benign_variation":
-        return True, "customer text with non-benign hypothesis"
-    if st and all(s in ("artifact", "unverifiable") for s in st) and not cust:
-        return False, "claims are pipeline artefacts; no customer text"
-    if below_floor:
-        return False, "below materiality floor"
-    if hyp == "benign_variation" and real_claim and not cust:
-        return False, "real decline, explained as benign"
-    if real_claim:
-        return True, "grounded account-specific decline"
-    return False, "no grounded claim and no customer text"
+        # A8: the dossier's own quotes are all there is; a depth-0 quote that reads as a trigger counts,
+        # with the author unknown it can only be an uncertain one
+        if uncertain:
+            return True, f"cold path, author unknown: quote reads as {sorted(uncertain)}"
+        return False, "no context"
+    topic = current_customer_topic(ctx)
+    if topic:
+        return True, f"current customer text: {topic}"
+    cohort = ctx.get("cohort_match")
+    if "grounded" in ctx.get("claim_status", []):
+        if not cohort:
+            return True, "grounded account-specific decline"
+        return False, f"grounded decline shared by the cohort ({cohort['key']}={cohort['value']}), no trigger, no current customer text"
+    if uncertain:
+        return False, "trigger unverifiable"
+    return False, "no trigger, no current customer text, no grounded decline"
 
 
 def risk_score(d, ctx, violations, deserved):
@@ -66,7 +75,7 @@ def risk_score(d, ctx, violations, deserved):
         r += 0.5
     if ctx.get("visible") and not deserved:
         r += 0.3
-    if "P1" in rules:
+    if "P1" in rules and (ctx.get("trigger_source") or {}).get("confirmed"):
         r += 0.4 * max(scale, 0.5)
     elif deserved and not ctx.get("reached_human"):
         r += 0.25 * max(scale, 0.5)

@@ -44,6 +44,26 @@ def trigger_kinds(rows):
     return Counter(t for r in rows for t in r["facts"].get("triggers", []))
 
 
+def trigger_split(rows):
+    """Dossiers by trigger provenance: confirmed / uncertain-only / unattached-only (the account index) / none.
+    Runs saved before the split existed have no confirmed/uncertain keys and count as 'unsplit'."""
+    c = Counter()
+    for r in rows:
+        f = r["facts"]
+        s = f.get("trigger_source") or {}
+        if "confirmed" not in s and "uncertain" not in s:
+            c["unsplit (older run)" if f.get("triggers") else "none"] += 1
+        elif s.get("confirmed"):
+            c["confirmed"] += 1
+        elif s.get("uncertain"):
+            c["uncertain only"] += 1
+        elif f.get("account_triggers_unattached"):
+            c["unattached only"] += 1
+        else:
+            c["none"] += 1
+    return c
+
+
 def annotator_agreement(rows):
     """annotator -> (agree, n) on deserved_attention, over the dossiers that annotator labelled."""
     out = {}
@@ -112,6 +132,10 @@ def main(path_a, path_b):
     print("\n=== trigger kinds A → B ===")
     for k in sorted(set(ta) | set(tb)):
         print(f"  {k:<32}{fmt_delta(ta[k], tb[k])}")
+    sa, sb = trigger_split(rows_a), trigger_split(rows_b)
+    print("\n=== trigger provenance (dossiers) A → B ===")
+    for k in sorted(set(sa) | set(sb)):
+        print(f"  {k:<32}{fmt_delta(sa[k], sb[k])}")
 
     aa, ab = annotator_agreement(rows_a), annotator_agreement(rows_b)
     if aa:

@@ -32,7 +32,7 @@ def check_evidence(d, ctx, cx):
             # cold path: the quote is all we have. Label it, mark provenance, count it as attached text.
             lab = cx.label_text(q, acct) if q else {"unverifiable": True, "reason": "empty quote"}
             if not lab.get("unverifiable"):
-                lab = dict(lab, stale=is_stale(lab, None))
+                lab = dict(lab, stale=is_stale(lab.get("reading"), None))
             f.update(status="unverified", label_source="quote", labels=lab, author_type=None, type=ev.get("source"),
                      restricted=ev.get("restricted"))
             pseudo = {"artifact_id": aid, "source": ev.get("source"), "type": ev.get("source"), "author_type": None,
@@ -67,10 +67,11 @@ def check_evidence(d, ctx, cx):
                 out.append(violation(ev.get("step"), "I6", f"quote not found in {aid}: \"{q[:80]}\""))
             continue
         # verbatim and same-account. Is the content current, or quoted history / a joke?
-        # Currency is decided by where the quote sits (docs/domain.md 'Quoted history'), then by the label.
+        # Currency is decided by where the quote sits (docs/domain.md 'Quoted history'), then by the Reading's
+        # depth-0 sarcasm verdict for a customer author.
         loc = quote_location(q, art.get("subject"), art.get("text"))
         lab = cx.label_artifact(art) if cx.use_classifier else {"unverifiable": True}
-        lab = dict(lab, stale=is_stale(lab, art.get("author_type"), quote_in_tail=loc == "tail"))
+        lab = dict(lab, stale=is_stale(lab.get("reading"), art.get("author_type"), quote_in_tail=loc == "tail"))
         f.update(labels=lab, label_source="artifact", quote_location=loc)
         art = dict(art, _label=lab)
         if lab["stale"]:

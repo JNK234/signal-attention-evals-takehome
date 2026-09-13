@@ -10,6 +10,7 @@ from datetime import date
 import pytest
 
 from conftest import ACCOUNT, ARTIFACT, OWNER, SignalEvaluator, explain, happy_dossier, rules, telemetry
+from signal_eval.labellers import TableLabeller
 from signal_eval.spec import SEV_WEIGHT, UNCERTAIN_FACTOR, violation
 
 
@@ -19,8 +20,44 @@ def only(result, rule):
 
 def test_happy_path_has_no_violations(ev_nolabeller):
     """Deterministic rules only: with a labeller that reads the evidence as nothing, Q2 (hypothesis
-    unsupported) is a correct finding on this fixture and is pinned in test_labels / test_mandatory."""
-    assert rules(ev_nolabeller.evaluate(happy_dossier())) == set()
+    unsupported) is a correct finding on this fixture and is pinned in test_labels / test_mandatory. Without
+    a labeller the only entry is the UNEVALUATED meta record (decision 7), never a spec rule."""
+    assert rules(ev_nolabeller.evaluate(happy_dossier())) == {"UNEVALUATED"}
+
+
+def test_no_labeller_adds_single_unevaluated_entry(ev, ev_nolabeller):
+    """Decision 7: the grader reads `violations`; silence must not read as a pass. One meta entry at severity 0
+    names the rules the text feeds (P1, Q2/I5, Q4) and the artefact count; the score is untouched — the same
+    dossier under a labeller that reads its text as supporting the hypothesis scores the same."""
+    from conftest import with_labels
+    from signal_eval.spec import META_RULES
+    r = explain(ev_nolabeller, happy_dossier())
+    meta = [v for v in r["violations"] if v["rule"] == "UNEVALUATED"]
+    assert len(meta) == 1 and meta[0] == {"step": -1, "rule": "UNEVALUATED", "severity": 0.0, "explanation":
+                                          "labeller unavailable (disabled): P1 (text triggers), Q2/I5 (hypothesis fit), Q4 (sarcasm) not evaluated over 1 artefact(s)"}
+    assert r["_facts"]["unevaluated"] == ["P1", "Q2", "I5", "Q4"]
+    assert "UNEVALUATED" in META_RULES and r["quality_score"] == 1.0
+    with_labels(ev, {"backfill": {"topic:budget_pressure": 0.9}})
+    read = explain(ev, happy_dossier())
+    assert read["quality_score"] == r["quality_score"] and "UNEVALUATED" not in rules(read) and read["_facts"]["unevaluated"] == []
+
+
+def test_no_labeller_with_only_bot_evidence_adds_nothing(ev_nolabeller):
+    ev_nolabeller.cx.artifacts["art_BILL"] = BILL
+    d = happy_dossier()
+    d["evidence"] = [{"step": 2, "artifact_id": "art_BILL", "source": "billing_event", "restricted": False,
+                      "attached_at": "2026-03-02T09:30:00Z", "quote": "Status: disputed by customer AP."}]
+    try:
+        r = explain(ev_nolabeller, d)
+    finally:
+        del ev_nolabeller.cx.artifacts["art_BILL"]
+    assert "UNEVALUATED" not in rules(r) and r["_facts"]["unevaluated"] == []
+
+
+def test_evaluate_still_returns_four_keys_with_unevaluated(ev_nolabeller):
+    r = ev_nolabeller.evaluate(happy_dossier())
+    assert set(r) == {"quality_score", "risk_score", "deserved_attention", "violations"}
+    assert [v["rule"] for v in r["violations"]] == ["UNEVALUATED"]
 
 
 def test_uncertain_finding_is_half_class_weight():
@@ -631,6 +668,62 @@ def test_onboarding_failure_on_unadopted_account_is_not_Q2():
     d = happy_dossier()
     d["hypotheses"][0]["hypothesis"] = "onboarding_failure"
     assert "Q2" not in rules(_evaluator_with_dau(20).evaluate(d))
+
+
+THREAD = ("Sorted, thanks. Ignore the thread below.\n\nOn 20 Sep 2025, Kenji Iyer wrote:\n"
+          "> Third time this week, loads are taking 60s or just spinning.")
+
+
+def _reliability_thread(ev, table):
+    from conftest import with_labels
+    ev.cx.artifacts["art_T1"] = dict(ARTIFACT, text=THREAD)
+    with_labels(ev, table)
+    d = happy_dossier()
+    d["hypotheses"][0]["hypothesis"] = "reliability_erosion"
+    d["evidence"][0]["quote"] = "Sorted, thanks. Ignore the thread below."
+    try:
+        return explain(ev, d)
+    finally:
+        ev.cx.artifacts["art_T1"] = ARTIFACT
+
+
+def test_evidence_topics_and_support_read_depth_zero_only(ev):
+    """spec §10 Q2 with §4.2: the quoted tail is history. A topic that scores only in the depth-1 block gives no
+    support and no topic count; the same score on the current block does."""
+    r = _reliability_thread(ev, {"Third time": {"topic:reliability_erosion": 0.9}})
+    assert r["_facts"]["evidence_topics"] == {} and r["_facts"]["hypothesis_text_support"] == 0.0
+    assert any("not supported" in v["explanation"] for v in only(r, "Q2"))
+    r = _reliability_thread(ev, {"Sorted": {"topic:reliability_erosion": 0.9}})
+    assert r["_facts"]["evidence_topics"] == {"reliability_erosion": 1} and r["_facts"]["hypothesis_text_support"] == 0.9
+    assert not any("not supported" in v["explanation"] for v in only(r, "Q2"))
+
+
+def test_benign_variation_is_supported_by_a_cohort_match():
+    """spec §10 Q2: benign_variation is a claim about the cause too. Text that does not read as planned /
+    seasonal and no cohort-wide move → unsupported; the same claim on a cohort-wide move is supported."""
+    from test_scoring import _cohort_corpus, _cohort_eval
+    e, d = _cohort_eval({})
+    r = explain(e, d)
+    assert r["_facts"]["cohort_match"] and not any("not supported" in v["explanation"] for v in only(r, "Q2"))
+    accounts, rows = _cohort_corpus(["latam", "apac", "na", "latam", "apac", "na"], peer_industry="other")
+    e = SignalEvaluator(labeller=TableLabeller({}))
+    e.load_context(accounts, [OWNER], rows, [ARTIFACT], [])
+    r = explain(e, d)
+    assert r["_facts"]["cohort_match"] is None
+    assert any("benign_variation is not supported" in v["explanation"] for v in only(r, "Q2"))
+
+
+def test_benign_while_trigger_present_needs_a_confirmed_trigger(ev):
+    from conftest import with_labels
+    d = happy_dossier()
+    d["hypotheses"][0]["hypothesis"] = "benign_variation"
+    with_labels(ev, {"backfill": {"cancel_intent": 0.5}})            # abstain: uncertain trigger
+    r = explain(ev, d)
+    assert r["_facts"]["trigger_source"]["uncertain"] == ["cancel_intent"]
+    assert not any("mandatory trigger present" in v["explanation"] for v in only(r, "Q2"))
+    with_labels(ev, {"backfill": {"cancel_intent": 0.9}})
+    r = explain(ev, d)
+    assert any("mandatory trigger present: ['cancel_intent']" in v["explanation"] for v in only(r, "Q2"))
 
 
 def test_cold_call_without_context_returns_contract_keys():

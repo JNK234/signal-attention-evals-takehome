@@ -13,6 +13,30 @@ from .util import ts
 # The dossier fields every check iterates as a list of dicts (README l.218-222: a check must see well-typed input
 # so one malformed entry cannot hide findings on the valid ones).
 LIST_FIELDS = ("lifecycle", "actions", "evidence", "notifications", "hypotheses", "metrics_claimed")
+# The rules that read artefact text through the labeller; named when it could not read anything (decision 7).
+TEXT_RULES = ["P1", "Q2", "I5", "Q4"]
+BOT_SOURCES = {"bot_alert", "billing_event"}     # cold path: the author is unknown, the source type says bot
+
+
+def _unevaluated(ctx, cx):
+    """Decision 7: when the labeller is unavailable, or every non-bot evidence artefact with text came back
+    unreadable, one severity-0 meta entry says which rules were not evaluated over how many artefacts. Silence
+    would read as a pass; the four keys and the score are untouched (scoring skips META_RULES)."""
+    read = []
+    for f in ctx.get("evidence_facts") or []:
+        bot = f.get("author_type") == "bot" or (f.get("author_type") is None and f.get("type") in BOT_SOURCES)
+        if bot or f.get("status") not in ("verified", "stale", "unverified"):
+            continue
+        lab = f.get("labels") or {}
+        if lab.get("reason") in ("empty text", "empty quote"):
+            continue
+        read.append(not lab.get("unverifiable"))
+    if not read or any(read):
+        return None
+    reason = cx.classifier_reason if cx.labeller is None else f"{cx.classifier_reason}; every current block unreadable"
+    return {"step": -1, "rule": "UNEVALUATED", "severity": 0.0,
+            "explanation": f"labeller unavailable ({reason}): P1 (text triggers), Q2/I5 (hypothesis fit), Q4 (sarcasm) "
+                           f"not evaluated over {len(read)} artefact(s)"}
 
 
 def _drop_malformed_entries(field, items, errors):
@@ -58,6 +82,8 @@ class SignalEvaluator:
 
     load_context() is optional. Without it, corpus checks (I6, P4, M6, Q5) are skipped; the model
     still reads the quotes the dossier carries, so P1/Q2 keep working with lower confidence.
+    Without a labeller, one UNEVALUATED meta entry (severity 0) in `violations` names the text rules
+    that were not evaluated (decision 7) — silence is never a pass.
     A check that throws on malformed input is recorded in _facts["errors"], not raised.
     """
 
@@ -104,6 +130,13 @@ class SignalEvaluator:
                 errors.append({"check": check.__name__, "error": repr(exc),
                                "where": traceback.format_exc(limit=1).strip().splitlines()[-1]})
         try:
+            meta = _unevaluated(ctx, cx)
+            if meta:
+                violations.append(meta)
+                ctx["unevaluated"] = list(TEXT_RULES)
+        except Exception as exc:
+            errors.append({"check": "unevaluated", "error": repr(exc)})
+        try:
             cx.save_cache()
         except Exception as exc:  # README l.225-226: a read-only host must not change the verdict
             errors.append({"check": "label_cache", "error": repr(exc)})
@@ -143,6 +176,7 @@ class SignalEvaluator:
             "classifier_active": bool(cx.classifier_active),
             "classifier_reason": cx.classifier_reason,
             "labels_cover_corpus": bool(getattr(cx, "labels_cover_corpus", False)),
+            "unevaluated": ctx.get("unevaluated", []),
             "deserved_reason": deserved_reason,
             "triggers": sorted(ctx.get("triggers", [])),
             "trigger_source": ctx.get("trigger_source"),
