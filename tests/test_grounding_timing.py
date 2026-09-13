@@ -26,14 +26,14 @@ def _by_rule(result, rule):
 # ── M6: tolerance is exactly 5.0 percentage points (spec §9 M6) ─────────────────────────────
 
 def test_claim_5_4pp_off_is_not_grounded():
-    e = _grounding_eval(telemetry([100] * 7, [60.4] * 7))          # corrected change −39.6%
+    e = _grounding_eval(telemetry([100] * 7, [60.4] * 7))          # paired change −39.6% on 7/7 pairs
     d = happy_dossier()
     d["metrics_claimed"] = [_claim("dau_seats -45% week over week")]
     r = e.evaluate(d)
     assert r["_facts"]["claim_status"] == ["wrong"]
     m6 = _by_rule(r, "M6")
     assert len(m6) == 1 and m6[0]["step"] == 2
-    assert "claimed -45%" in m6[0]["explanation"] and "corrected telemetry -40%" in m6[0]["explanation"]
+    assert "claimed -45%" in m6[0]["explanation"] and "paired -39.6% on 7/7 pairs" in m6[0]["explanation"]
 
 
 def test_claim_exactly_5pp_off_is_grounded():
