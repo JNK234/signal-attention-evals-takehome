@@ -8,7 +8,7 @@ from datetime import timedelta
 
 from ..classifier import NLI_THRESHOLD, TOPIC_LABELS
 from ..spec import ADOPTION_FULL_FRACTION, violation
-from ..util import day, first_hypothesis, mean
+from ..util import day, first_hypothesis, mean, ts
 
 TEXT_HYPOTHESES = {"champion_departure", "budget_pressure", "product_gap"}   # need text to be supported
 TOPIC_NAMES = {k[len("topic:"):] for k in TOPIC_LABELS}
@@ -37,7 +37,9 @@ def check_quality(d, ctx, cx):
         seats = ctx["acct"]["seats"]
         if vals and seats and mean(vals) >= ADOPTION_FULL_FRACTION * seats:
             out.append(violation(hstep, "Q2", f"onboarding_failure but mean dau_seats {mean(vals):.0f} ≈ {mean(vals)/seats:.0%} of {seats} contracted in prior 30d"))
-    if hyp == "reliability_erosion" and cx.p95_step:
+    # spec §10 Q2 is about the hypothesis not matching the evidence: a p95 claim that spans the docs/domain.md
+    # instrumentation step is suspect only when no verified customer-authored text backs the hypothesis.
+    if hyp == "reliability_erosion" and cx.p95_step and not ctx.get("has_customer_text"):
         p95 = [m for m in d.get("metrics_claimed") or [] if m.get("metric") == "query_p95_ms" and day(m.get("as_of"))]
         if p95 and all(day(m["as_of"]) - timedelta(days=2 * int(m.get("window_days") or 7)) < cx.p95_step <= day(m["as_of"]) for m in p95):
             out.append(violation(hstep, "Q2", f"reliability_erosion rests only on a p95 claim spanning the {cx.p95_step} instrumentation change"))
@@ -81,7 +83,12 @@ def check_quality(d, ctx, cx):
     for aid, n in Counter(ev.get("artifact_id") for ev in d.get("evidence") or []).items():
         if n > 1:
             out.append(violation(hstep, "Q4", f"{aid} attached {n} times"))
-    nreq = sum(1 for a in d.get("actions") or [] if a.get("action") == "request_enrichment")
-    if nreq > 1:
-        out.append(violation(hstep, "Q4", f"enrichment requested {nreq} times"))
+    # spec §10 Q4: "should not re-request enrichment it already received" — a request is a re-request only
+    # when it follows an enrichment_returned trigger; repeated requests with no response between are a retry.
+    returned = [ts(e.get("at")) for e in d.get("lifecycle") or [] if e.get("trigger") == "enrichment_returned" and ts(e.get("at"))]
+    for a in d.get("actions") or []:
+        at = ts(a.get("at"))
+        if a.get("action") == "request_enrichment" and at and any(r < at for r in returned):
+            out.append(violation(a.get("step") if a.get("step") is not None else hstep, "Q4",
+                                 f"enrichment requested again at {a['at']} after it was already returned"))
     return out

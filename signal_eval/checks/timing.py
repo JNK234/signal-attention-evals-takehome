@@ -58,16 +58,25 @@ def check_timing(d, ctx, cx):
             out.append(violation(routed_edge.get("step"), "T3", "routed with no notify_owner"))
     # T4 — staleness. Premature: expired with <14 idle days. Overdue: still in a progression state
     # with >14 idle days after the last evidence and no acknowledgement, judged at the last event we can see.
+    # spec §6.4 counts days since evidence was attached *before* the moment being judged: an attachment
+    # after expiry (itself an I2 breach) or after the last observed event must not shorten the idle time.
     ev_times = [ts(ev.get("attached_at")) for ev in d.get("evidence") or [] if ts(ev.get("attached_at"))]
-    last_ev = max(ev_times + ([opened] if opened else []), default=None)
+
+    def last_evidence_before(when):
+        return max([t for t in ev_times if t <= when] + ([opened] if opened else []), default=None)
+
     exp = next((e for e in life if e.get("to_state") == "expired"), None)
-    if exp and last_ev and ts(exp.get("at")):
-        idle = (ts(exp["at"]) - last_ev).days
-        if exp.get("from_state") != "acknowledged" and idle < STALENESS_DAYS:
+    exp_at = ts(exp.get("at")) if exp else None
+    if exp and exp_at:
+        last_ev = last_evidence_before(exp_at)
+        idle = (exp_at - last_ev).days if last_ev else None
+        if idle is not None and exp.get("from_state") != "acknowledged" and idle < STALENESS_DAYS:
             out.append(violation(exp.get("step"), "T4", f"expired after {idle} idle days (staleness is {STALENESS_DAYS})"))
-    elif life and last_ev and life[-1].get("to_state") not in ("acknowledged", "suppressed", "expired"):
-        last_seen = max([ts(e.get("at")) for e in life if ts(e.get("at"))] + [ts(n["at"]) for n in notes] + [last_ev])
-        idle = (last_seen - last_ev).days
-        if idle >= STALENESS_DAYS:
+    elif life and life[-1].get("to_state") not in ("acknowledged", "suppressed", "expired"):
+        observed = [ts(e.get("at")) for e in life if ts(e.get("at"))] + [ts(n["at"]) for n in notes]
+        last_seen = max(observed, default=None)
+        last_ev = last_evidence_before(last_seen) if last_seen else None
+        idle = (last_seen - last_ev).days if last_ev else None
+        if idle is not None and idle >= STALENESS_DAYS:
             out.append(violation(life[-1].get("step"), "T4", f"still open {idle} days after the last evidence with no acknowledgement; should have expired", 0.7))
     return out
