@@ -88,6 +88,16 @@ ACTION_EDGE = {
     "notify_owner":       {("scored", "routed")},
 }
 ATTACH_STATES = {"corroborating", "evidence_received"}
+# Required `params` keys per action (Table 7 "Rules" column + docs/data_dictionary.md `actions[].params`).
+# Extra keys are tolerated; a missing required key is I4 — the action did not carry what its rule says it sends.
+ACTION_PARAMS = {
+    "attach_evidence":    {"artifact_id"},                                   # "the artefact must exist…"
+    "request_enrichment": {"hypothesis", "window_days", "metrics"},          # "sends the hypothesis, the metric window…"
+    "score_signal":       {"arr_at_risk", "confidence", "severity"},         # "ARR at risk must sit between…"
+    "notify_owner":       {"channel", "locale", "owner_id", "attempt", "severity"},   # §8.6 channel/locale, §6.2 attempt
+    "suppress":           {"reason"},                                        # "must carry a reason"
+    "enrichment_timeout": {"waited_minutes"},                                # "did not return in time"
+}
 
 # ── spec §6  timing ───────────────────────────────────────────────────────────
 NOTIFY_WINDOW = (8, 19)                  # [08:00, 19:00) owner-local

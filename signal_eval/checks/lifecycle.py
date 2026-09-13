@@ -5,7 +5,7 @@ ABOUTME: A finite-state acceptor over lifecycle[]; every edge is tested against 
 
 from collections import Counter
 
-from ..spec import (ACTION_EDGE, ATTACH_STATES, BACKWARD_LOW_ONLY, EXIT_STATES, FORWARD_EDGES, RANK,
+from ..spec import (ACTION_EDGE, ACTION_PARAMS, ATTACH_STATES, BACKWARD_LOW_ONLY, EXIT_STATES, FORWARD_EDGES, RANK,
                     SUPPRESS_FORBIDDEN_FROM, TIMEOUT_EDGE, violation)
 from ..util import reached_human, ts
 
@@ -104,10 +104,52 @@ def check_transitions(d, ctx, cx):
     return out
 
 
+def state_timeline(lifecycle):
+    """Transitions in time order as [(at, step, from_state, to_state)]; entries without a parseable `at` are
+    left out because they cannot place an action in time."""
+    tl = []
+    for e in lifecycle or []:
+        at = ts(e.get("at"))
+        if at:
+            tl.append((at, e.get("step"), e.get("from_state"), e.get("to_state")))
+    tl.sort(key=lambda x: x[0])
+    return tl
+
+
+def state_at(timeline, t):
+    """The state the machine is in at instant t. A transition at exactly t has already been applied
+    (data dictionary: strictly increasing timestamps make the state at any instant unambiguous).
+    None before the first transition."""
+    state = None
+    for at, _, _, to in timeline:
+        if at <= t:
+            state = to
+        else:
+            break
+    return state
+
+
+EDGE_WORDS = {name: " or ".join(f"{f}→{t}" for f, t in sorted(edges)) for name, edges in ACTION_EDGE.items()}
+EDGE_WORDS["suppress"] = "a transition to suppressed"
+
+
 def check_actions(d, ctx, cx):
-    """I4: every action must ride its allowed edge; nothing after an exit state (I2)."""
+    """I4 — every action placed in *time* against the lifecycle (spec §5 Table 7, §7 I4). Convention:
+    - edge actions (request_enrichment, score_signal, suppress, enrichment_timeout) happen *at* a transition: a
+      lifecycle entry with the same `at`, an edge Table 7 allows for that action, and the action's declared step;
+    - notify_owner rides scored→routed but may trail it: the latest transition at or before the action must be
+      that edge, and the declared step must be its step;
+    - attach_evidence happens *during* a state: the state at the action's instant must be corroborating or
+      evidence_received, and the declared step must be the entry that leaves that state (from_state — the corpus
+      convention: attach, then advance) or enters it (to_state);
+    - `params` must carry the keys ACTION_PARAMS lists for the action (extra keys tolerated);
+    - an action name outside Table 7 is I4.
+    One I4 per action, listing every defect. Anything after an exit state is I2 first (spec §7 I2), and a
+    closed_at later than the exit edge is recorded as a fact, not a violation."""
     out = []
     exit_at = ctx.get("exit_at")
+    closed = ts(d.get("closed_at"))
+    ctx["closed_at_after_terminal"] = bool(exit_at and closed and closed > exit_at)
     # spec §7 I2: after suppressed / expired "no further actions, notifications or evidence attachments"
     if exit_at:
         for ev_ in d.get("evidence") or []:
@@ -118,32 +160,67 @@ def check_actions(d, ctx, cx):
             at = ts(n.get("at"))
             if at and at > exit_at:
                 out.append(violation(n.get("step"), "I2", f"notification attempt {n.get('attempt')} at {n['at']} after exit state"))
-    life = {e.get("step"): e for e in d.get("lifecycle") or []}
-    supp_edges = {e.get("step") for e in d.get("lifecycle") or [] if e.get("to_state") == "suppressed"}
+    life = d.get("lifecycle") or []
+    by_step = {e.get("step"): e for e in life}
+    timeline = state_timeline(life)
+    supp_edges = {e.get("step") for e in life if e.get("to_state") == "suppressed"}
     supp_actions = set()
     for a in d.get("actions") or []:
         s, name = a.get("step"), a.get("action")
-        e = life.get(s)
         at = ts(a.get("at"))
         if exit_at and at and at > exit_at:
             out.append(violation(s, "I2", f"action {name} at {a['at']} after exit state"))
             continue
-        if e is None:
-            out.append(violation(s, "I4", f"action {name} references step {s} with no lifecycle entry"))
+        if name not in ACTION_PARAMS:
+            out.append(violation(s, "I4", f"unknown action {name!r}; spec §5 Table 7 lists {sorted(ACTION_PARAMS)}"))
             continue
-        edge = (e["from_state"], e["to_state"])
-        if name == "attach_evidence":
-            if e["from_state"] not in ATTACH_STATES:
-                out.append(violation(s, "I4", f"attach_evidence during {e['from_state']} (allowed: corroborating, evidence_received)"))
-        elif name == "suppress":
-            supp_actions.add(s)
-            if e["to_state"] != "suppressed":
-                out.append(violation(s, "I4", f"suppress action on {edge[0]}→{edge[1]}, not a transition to suppressed"))
-        elif name in ACTION_EDGE:
-            if edge not in ACTION_EDGE[name]:
-                out.append(violation(s, "I4", f"{name} on {edge[0]}→{edge[1]}; allowed only on {sorted(ACTION_EDGE[name])}"))
-            if name == "score_signal" and edge == TIMEOUT_EDGE and e.get("trigger") != "enrichment_timeout":
-                out.append(violation(s, "I4", "score_signal on evidence_pending→scored without enrichment_timeout"))
+        defects = []
+        missing = ACTION_PARAMS[name] - set(a.get("params") or {})
+        if missing:
+            defects.append(f"params missing {sorted(missing)}")
+        if at is None:
+            defects.append("no parseable timestamp, so it cannot be placed against the lifecycle")
+        elif name == "attach_evidence":
+            st = state_at(timeline, at)
+            if st not in ATTACH_STATES:
+                defects.append(f"attached at {a['at']} during {st or 'no state (before the first transition)'} "
+                               f"(allowed: {', '.join(sorted(ATTACH_STATES))})")
+            e = by_step.get(s)
+            if e is None:
+                defects.append(f"declared step {s} has no lifecycle entry")
+            elif st in ATTACH_STATES and st not in (e.get("from_state"), e.get("to_state")):
+                defects.append(f"declared step {s} is {e.get('from_state')}→{e.get('to_state')}, not the stay in {st}")
+        elif name == "notify_owner":
+            prior = [x for x in timeline if x[0] <= at]
+            if not prior:
+                defects.append(f"at {a['at']} the signal had not opened; notify_owner is allowed only after scored→routed")
+            else:
+                _, last_step, f, t = prior[-1]
+                if (f, t) != ("scored", "routed"):
+                    defects.append(f"at {a['at']} the last transition was {f}→{t} (step {last_step}); "
+                                   f"notify_owner is allowed only after scored→routed")
+                elif last_step != s:
+                    defects.append(f"declared step {s} but the scored→routed edge it follows is step {last_step}")
+        else:
+            here = [x for x in timeline if x[0] == at]
+            if not here:
+                defects.append(f"at {a['at']} no transition happens (state {state_at(timeline, at)}); "
+                               f"{name} must ride {EDGE_WORDS[name]}")
+            else:
+                ok = [x for x in here if (x[3] == "suppressed" if name == "suppress" else (x[2], x[3]) in ACTION_EDGE[name])]
+                if not ok:
+                    _, _, f, t = here[0]
+                    defects.append(f"rides {f}→{t} at {a['at']}; allowed only on {EDGE_WORDS[name]}")
+                else:
+                    x = next((x for x in ok if x[1] == s), ok[0])
+                    if x[1] != s:
+                        defects.append(f"declared step {s} but the transition at {a['at']} is step {x[1]}")
+                    if name == "score_signal" and (x[2], x[3]) == TIMEOUT_EDGE and (by_step.get(x[1]) or {}).get("trigger") != "enrichment_timeout":
+                        defects.append("score_signal on evidence_pending→scored without enrichment_timeout")
+                    if name == "suppress":
+                        supp_actions.add(x[1])
+        if defects:
+            out.append(violation(s, "I4", f"{name}: " + "; ".join(defects)))
     for s in supp_edges - supp_actions:
         out.append(violation(s, "I4", "transition to suppressed without a suppress action", certain=False))
     return out

@@ -43,7 +43,7 @@ def happy_dossier():
         "metrics_claimed": [],
         "actions": [
             {"step": 2, "action": "attach_evidence", "at": "2026-03-02T09:30:00Z", "params": {"artifact_id": "art_T1"}},
-            {"step": 3, "action": "request_enrichment", "at": "2026-03-02T11:00:00Z", "params": {}},
+            {"step": 3, "action": "request_enrichment", "at": "2026-03-02T11:00:00Z", "params": {"hypothesis": "budget_pressure", "window_days": 7, "metrics": ["dau_seats"]}},
             {"step": 5, "action": "score_signal", "at": "2026-03-02T13:00:00Z", "params": {"severity": "P2", "arr_at_risk": 30_000, "confidence": "medium"}},
             {"step": 6, "action": "notify_owner", "at": "2026-03-02T14:00:00Z", "params": {"channel": "slack", "locale": "de-DE", "owner_id": "u_T", "attempt": 1, "severity": "P2"}},
         ],
