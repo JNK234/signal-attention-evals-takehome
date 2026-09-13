@@ -108,13 +108,19 @@ def assemble(sentence_scores, filled, threshold=NLI_THRESHOLD, mentions_other_ac
     return out
 
 
-def is_stale(label, author_type=None):
-    """Is the operative content not current evidence? Quoted history always; a joke only when the
-    customer wrote it (docs/domain.md: 'chat messages from friendly champions'). Internal notes with
-    'lol' are casual, not sarcastic evidence to discount."""
+def is_stale(label, author_type=None, quote_in_tail=False):
+    """Is the operative content not current evidence? Stale when the agent's quote was lifted from the
+    quoted/forwarded tail of the artefact (docs/domain.md 'Quoted history': the new message is current,
+    'the quoted text below it repeats an alarming complaint from months earlier') — a structural fact that
+    needs no model — or when the head is a joke written by the customer (docs/domain.md 'Sarcasm': 'chat
+    messages from friendly champions'). Internal notes with 'lol' are casual, not sarcastic evidence to
+    discount. The label's own `quoted_history` flag is informational: an artefact with a quoted tail is
+    still current evidence when the agent quoted its head."""
+    if quote_in_tail:
+        return True
     if not label or label.get("unverifiable"):
         return False
-    return bool(label.get("quoted_history") or (label.get("sarcasm") and author_type in ("customer", None)))
+    return bool(label.get("sarcasm") and author_type in ("customer", None))
 
 
 class TextClassifier:

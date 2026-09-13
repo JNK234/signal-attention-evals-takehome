@@ -13,7 +13,9 @@ def check_materiality(d, ctx, cx):
     sc = d.get("scoring") or {}
     risk, arr, floor = num(sc.get("arr_at_risk")), num(af["arr"]), num(af["floor"])
     step = next((a.get("step") for a in d.get("actions") or [] if a.get("action") == "score_signal"), 0)
-    routed = (d.get("decision") or {}).get("disposition") in ("routed", "acknowledged")
+    # spec §9 M3 "when the agent routes a signal" / M4 "must not route it as-is": routing is the act of
+    # taking the scored→routed edge, not the final disposition — routed then expired was still routed.
+    routed = any((e.get("from_state"), e.get("to_state")) == ("scored", "routed") for e in d.get("lifecycle") or [])
     if risk is not None and arr is not None and risk > arr:
         out.append(violation(step, "M1", f"arr_at_risk {risk:,.0f} > arr_annual {arr:,.0f}"))
     if floor is not None and arr is not None and floor > arr:

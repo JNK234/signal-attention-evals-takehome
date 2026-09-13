@@ -6,7 +6,20 @@ ABOUTME: from the bare quote if not — so the cold path still reads.
 
 from ..classifier import is_stale
 from ..spec import violation
-from ..util import norm, ts
+from ..util import norm, split_quoted, ts
+
+
+def quote_location(quote, text):
+    """Where a verbatim quote sits in the artefact: "head" (the new message), "tail" (quoted / forwarded
+    history split off by util.split_quoted), "both", or None when empty or spanning the boundary.
+    docs/domain.md 'Quoted history': only the tail repeats the old complaint; the head is current."""
+    if not quote:
+        return None
+    head, tail, _ = split_quoted(text)
+    in_head, in_tail = quote in head, quote in tail
+    if in_head and in_tail:
+        return "both"
+    return "head" if in_head else "tail" if in_tail else None
 
 
 def check_evidence(d, ctx, cx):
@@ -18,7 +31,7 @@ def check_evidence(d, ctx, cx):
     for ev in d.get("evidence") or []:
         aid = ev.get("artifact_id")
         q = ev.get("quote") or ""
-        f = {"artifact_id": aid, "step": ev.get("step"), "status": None, "label_source": None}
+        f = {"artifact_id": aid, "step": ev.get("step"), "status": None, "label_source": None, "quote_location": None}
         facts.append(f)
 
         if not cx.loaded:
@@ -52,19 +65,24 @@ def check_evidence(d, ctx, cx):
         hay = (art.get("subject") or "") + "\n" + (art.get("text") or "")
         if q and q not in hay:
             if norm(q) in norm(hay):
+                # spec §7 I6 says "verbatim": a near match is a diagnostic, not verified evidence
+                f["status"] = "near_verbatim"
                 out.append(violation(ev.get("step"), "I6", f"quote from {aid} matches only after whitespace/punctuation normalisation", 0.3))
             else:
                 f["status"] = "fabricated"
                 out.append(violation(ev.get("step"), "I6", f"quote not found in {aid}: \"{q[:80]}\""))
-                continue
+            continue
         # verbatim and same-account. Is the content current, or quoted history / a joke?
+        # Currency is decided by where the quote sits (docs/domain.md 'Quoted history'), then by the label.
+        loc = quote_location(q, hay)
         lab = cx.label_artifact(art) if cx.use_classifier else {"unverifiable": True}
-        f.update(labels=lab, label_source="artifact")
+        lab = dict(lab, stale=is_stale(lab, art.get("author_type"), quote_in_tail=loc == "tail"))
+        f.update(labels=lab, label_source="artifact", quote_location=loc)
         art = dict(art, _label=lab)
-        if not lab.get("unverifiable") and lab.get("stale"):
+        if lab["stale"]:
             f["status"] = "stale"
             stale.append(art)
-            why = "quoted history" if lab.get("quoted_history") else "sarcasm"
+            why = "quoted from the forwarded / quoted history below the current message" if loc == "tail" else "sarcasm"
             out.append(violation(ev.get("step"), "Q4", f"{aid} is {why}; spec §4.2 says stay in state rather than build on it", 0.5))
             continue
         f["status"] = "verified"
