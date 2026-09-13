@@ -192,15 +192,20 @@ class Context:
         if not aid or aid in self._indexed or lab.get("stale") or lab.get("triggers_belong_elsewhere") or not art.get("timestamp"):
             return
         self._indexed.add(aid)
+        from .checks.mandatory import departure_attributed   # same attribution rule as the per-dossier check
         trig = set()
         cust = art.get("author_type") == "customer"
+        # spec §8.1 bullet 1: "from a customer-side author"
         if lab.get("cancel_intent") and cust:
             trig.add("cancel_intent")
-        if lab.get("legal_reference") and cust:
+        # spec §8.1 bullet 2 names no author — a legal reference counts whoever wrote it
+        if lab.get("legal_reference"):
             trig.add("legal_reference")
-        if lab.get("security_incident") and art.get("author_type") == "customer":
+        # spec §8.1 bullet 3: "raised by the customer"
+        if lab.get("security_incident") and cust:
             trig.add("security_incident")
-        if lab.get("departure"):
+        # spec §8.1 bullet 4: only the economic buyer or named champion (author match or named in the text)
+        if lab.get("departure") and departure_attributed(art, self.accounts.get(art.get("account_id"))):
             trig.add("buyer_or_champion_departure")
         if trig:
             self.account_triggers[art.get("account_id")].append((ts(art["timestamp"]), aid, trig))
