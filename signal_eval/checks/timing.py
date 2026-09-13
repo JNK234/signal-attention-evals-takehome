@@ -52,8 +52,8 @@ def check_timing(d, ctx, cx):
             hours = (ts(notes[0]["at"]) - opened).total_seconds() / 3600
             target = TTA_HOURS.get(sev)
             if target and hours > target:
-                out.append(violation(notes[0].get("step"), "T3", f"first notification {hours:.1f}h after open; {sev} target {target}h",
-                                     min(1.0, 0.5 + 0.5 * (hours - target) / target)))
+                # the breach is certain; how late (hours vs target) is stated, not folded into the severity
+                out.append(violation(notes[0].get("step"), "T3", f"first notification {hours:.1f}h after open; {sev} target {target}h"))
         else:
             out.append(violation(routed_edge.get("step"), "T3", "routed with no notify_owner"))
     # T4 — staleness. Premature: expired with <14 idle days. Overdue: still in a progression state
@@ -78,5 +78,5 @@ def check_timing(d, ctx, cx):
         last_ev = last_evidence_before(last_seen) if last_seen else None
         idle = (last_seen - last_ev).days if last_ev else None
         if idle is not None and idle >= STALENESS_DAYS:
-            out.append(violation(life[-1].get("step"), "T4", f"still open {idle} days after the last evidence with no acknowledgement; should have expired", 0.7))
+            out.append(violation(life[-1].get("step"), "T4", f"still open {idle} days after the last evidence with no acknowledgement; should have expired", certain=False))
     return out

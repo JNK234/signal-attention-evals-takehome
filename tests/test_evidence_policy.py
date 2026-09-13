@@ -108,7 +108,8 @@ def test_near_verbatim_quote_is_diagnostic_only_and_not_verified(ev):
     d["evidence"][0]["quote"] = "We are planning a backfill of about  90M rows."   # extra space
     r = explain(ev, d)
     i6 = only(r, "I6")
-    assert len(i6) == 1 and i6[0]["severity"] == 0.3 and i6[0]["step"] == 2 and "normalisation" in i6[0]["explanation"]
+    # 0.5 = critical (1.0) × UNCERTAIN_FACTOR: a near match is an uncertain I6, not a bespoke 0.3 scale
+    assert len(i6) == 1 and i6[0]["severity"] == 0.5 and i6[0]["step"] == 2 and "normalisation" in i6[0]["explanation"]
     assert facts(r)["status"] == "near_verbatim" and facts(r)["quote_location"] is None
     assert r["_facts"]["verified_sources"] == [] and r["_facts"]["has_attached_text"] is False
 
@@ -163,7 +164,8 @@ def test_restricted_quote_not_reaching_human_is_partial_P3(ev):
     with_artifact(ev, restricted=True)
     r = ev.evaluate(suppressed_dossier())
     p3 = only(r, "P3")
-    assert len(p3) == 1 and p3[0]["severity"] == 0.3 and "no human" in p3[0]["explanation"]
+    # 0.5 = critical × UNCERTAIN_FACTOR: no human read it, so the leak is uncertain, not a bespoke 0.3 scale
+    assert len(p3) == 1 and p3[0]["severity"] == 0.5 and "no human" in p3[0]["explanation"]
 
 
 def test_restricted_routed_then_expired_is_still_critical_P3(ev):
@@ -185,7 +187,7 @@ def test_near_verbatim_quote_from_restricted_artifact_is_not_P3(ev):
     d = happy_dossier()
     d["evidence"][0]["quote"] = "We are planning a backfill of about  90M rows."
     r = ev.evaluate(d)
-    assert "P3" not in rules(r) and only(r, "I6")[0]["severity"] == 0.3
+    assert "P3" not in rules(r) and only(r, "I6")[0]["severity"] == 0.5     # uncertain I6, see near-verbatim test
 
 
 def test_restricted_artifact_with_empty_quote_is_not_P3(ev):

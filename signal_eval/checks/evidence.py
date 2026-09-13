@@ -67,7 +67,7 @@ def check_evidence(d, ctx, cx):
             if norm(q) in norm(hay):
                 # spec §7 I6 says "verbatim": a near match is a diagnostic, not verified evidence
                 f["status"] = "near_verbatim"
-                out.append(violation(ev.get("step"), "I6", f"quote from {aid} matches only after whitespace/punctuation normalisation", 0.3))
+                out.append(violation(ev.get("step"), "I6", f"quote from {aid} matches only after whitespace/punctuation normalisation", certain=False))
             else:
                 f["status"] = "fabricated"
                 out.append(violation(ev.get("step"), "I6", f"quote not found in {aid}: \"{q[:80]}\""))
@@ -83,7 +83,7 @@ def check_evidence(d, ctx, cx):
             f["status"] = "stale"
             stale.append(art)
             why = "quoted from the forwarded / quoted history below the current message" if loc == "tail" else "sarcasm"
-            out.append(violation(ev.get("step"), "Q4", f"{aid} is {why}; spec §4.2 says stay in state rather than build on it", 0.5))
+            out.append(violation(ev.get("step"), "Q4", f"{aid} is {why}; spec §4.2 says stay in state rather than build on it", certain=False))
             continue
         f["status"] = "verified"
         verified.append(art)

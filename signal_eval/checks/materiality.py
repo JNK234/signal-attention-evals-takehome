@@ -25,7 +25,7 @@ def check_materiality(d, ctx, cx):
     if routed and None not in (risk, floor, arr) and risk < floor:
         out.append(violation(step, "M4", f"routed with arr_at_risk {risk:,.0f} below floor {floor:,.0f}"))
     elif routed and None not in (risk, arr) and risk > arr:
-        out.append(violation(step, "M3", f"routed with arr_at_risk {risk:,.0f} above arr_annual {arr:,.0f}", 0.5))
+        out.append(violation(step, "M3", f"routed with arr_at_risk {risk:,.0f} above arr_annual {arr:,.0f}", certain=False))
     # M5 — restatements: 12× is the MRR/ARR bug; equal to arr_annual is the other named confusion
     for m in d.get("metrics_claimed") or []:
         if m.get("metric") != "arr_at_risk":

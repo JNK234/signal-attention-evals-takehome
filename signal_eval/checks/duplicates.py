@@ -5,8 +5,10 @@ ABOUTME: an earlier signal that was still open. Flagged on the later duplicate; 
 
 from datetime import timedelta
 
-from ..spec import DUPLICATE_WINDOW_DAYS, violation
+from ..spec import DUPLICATE_WINDOW_DAYS, RULE_SEVERITY, SEV_WEIGHT, violation
 from ..util import ts
+
+Q5_COUNT_CAP = 3     # spec §10 Q5 "severity increases with the count": class weight × min(count, cap) / cap
 
 
 def check_duplicates(d, ctx, cx):
@@ -25,6 +27,8 @@ def check_duplicates(d, ctx, cx):
         dups.append(sid)
     ctx["duplicates"] = sorted(dups)
     if dups:
-        return [violation(0, "Q5", f"duplicate of {sorted(dups)}: same account, same detector {d.get('detector')} within {DUPLICATE_WINDOW_DAYS} days while still open",
-                          min(5, len(dups)))]
+        v = violation(0, "Q5", f"duplicate of {sorted(dups)}: same account, same detector {d.get('detector')} within {DUPLICATE_WINDOW_DAYS} days while still open")
+        # the one count-scaled rule: spec §10 Q5 says severity increases with the count (of earlier open duplicates)
+        v["severity"] = round(SEV_WEIGHT[RULE_SEVERITY["Q5"]] * min(len(dups), Q5_COUNT_CAP) / Q5_COUNT_CAP, 3)
+        return [v]
     return []

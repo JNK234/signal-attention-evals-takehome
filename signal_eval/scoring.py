@@ -4,7 +4,7 @@ ABOUTME: deserved_attention. PLACEHOLDER rubric: weights are initial judgment ca
 ABOUTME: from the facts table and the outcome / annotator analysis. Layer 1 (checks) does not depend on this.
 """
 
-from .spec import RULE_SEVERITY, SEV_WEIGHT
+from .spec import META_RULES, RULE_SEVERITY, SEV_WEIGHT
 from .util import first_hypothesis, num
 
 # multiplicative hit to quality_score per rule class (one penalty per rule id, its worst instance)
@@ -14,6 +14,8 @@ QUALITY_PENALTY = {"critical": 0.45, "high": 0.2, "medium": 0.1, "soft": 0.05}
 def quality_score(violations):
     worst = {}
     for v in violations:
+        if v["rule"] in META_RULES:      # "not evaluated" is information, not a penalty
+            continue
         worst[v["rule"]] = max(worst.get(v["rule"], 0.0), v["severity"])
     q = 1.0
     for rid, sev in worst.items():

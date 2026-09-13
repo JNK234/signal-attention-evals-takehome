@@ -180,13 +180,14 @@ def test_sig_0015_enrichment_timeout_then_routed_late(corpus):
 
 def test_sig_0278_legacy_double_count_artifact_and_backward_move(corpus):
     """Raw facts: s3 hypothesis_formed→candidate (backward, never allowed) → I1; s4 candidate→hypothesis_formed
-    (not in matrix) → TM; notify 08:47Z = 10:47 Berlin, 91.3h vs P2 72h → T3 partial; routed with 2,500 <
+    (not in matrix) → TM; notify 08:47Z = 10:47 Berlin, 91.3h vs P2 72h → T3 at the medium class weight (the
+    breach is certain; the 19h magnitude lives in the explanation, not the severity); routed with 2,500 <
     floor 6,000 → M4; legacy collector, api_calls claim −66% with window spanning 2026-05-18: corrected mean
     −21.8%, raw sum −66.5% → artifact named 'legacy'; customer chat 'team is on holiday' is real text."""
     r = run(corpus, "sig_0278")
     assert rules(r) == {"I1", "TM", "T3", "M4", "M6"}
     assert only(r, "I1")[0]["step"] == 3 and only(r, "TM")[0]["step"] == 4
-    assert 0 < only(r, "T3")[0]["severity"] < 0.3
+    assert only(r, "T3")[0]["severity"] == 0.3 and "91.3h" in only(r, "T3")[0]["explanation"]
     assert "2,500" in only(r, "M4")[0]["explanation"]
     assert "legacy" in only(r, "M6")[0]["explanation"]
     f = r["_facts"]

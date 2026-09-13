@@ -33,7 +33,7 @@ def check_policy(d, ctx, cx):
             leaked = bool(ev.get("restricted") and q.strip())
         if leaked:
             out.append(violation(ev.get("step"), "P3", f"restricted artefact {ev.get('artifact_id')} quoted verbatim"
-                                 + ("" if human else " (no human was notified)"), 1.0 if human else 0.3))
+                                 + ("" if human else " (no human was notified)"), certain=human))
         # P7 — raw contact details carried to a human (syntactic pattern, not a phrase)
         if human and (EMAIL_RE.search(q) or has_phone(q)):
             out.append(violation(ev.get("step"), "P7", f"contact details carried in quote from {ev.get('artifact_id')}"))

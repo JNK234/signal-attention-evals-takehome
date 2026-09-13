@@ -45,14 +45,20 @@ RULE_OWNER = {rid: owner for rid, _, _, owner in RULES}
 
 # spec §11 summary table — severity reported on each violation
 SEV_WEIGHT = {"critical": 1.0, "high": 0.6, "medium": 0.3, "soft": 0.1}
+# A finding the evaluator cannot be certain of (partial evidence, unverifiable input) carries this fraction of
+# its class weight. It is the only severity modifier; magnitude (hours late, pp off) stays in the explanation.
+# Spec-backed exception: Q5 "severity increases with the count" (§10 Q5) — see checks/duplicates.py.
+UNCERTAIN_FACTOR = 0.5
+# Meta entries that ride in `violations` to say what was *not* evaluated (severity 0.0); scoring skips them.
+META_RULES = {"UNEVALUATED"}
 
 
-def violation(step, rule, explanation, scale=1.0):
-    """Build one violation record. `scale` < 1 marks a partial / lower-confidence instance."""
+def violation(step, rule, explanation, certain=True):
+    """Build one violation record. `certain=False` marks a finding the evaluator cannot be sure of."""
     return {
         "step": int(step) if step is not None else -1,
         "rule": rule,
-        "severity": round(SEV_WEIGHT[RULE_SEVERITY[rule]] * scale, 3),
+        "severity": round(SEV_WEIGHT[RULE_SEVERITY[rule]] * (1.0 if certain else UNCERTAIN_FACTOR), 3),
         "explanation": explanation,
     }
 

@@ -95,7 +95,7 @@ def check_grounding(d, ctx, cx):
                 statuses.append("unverifiable")
                 out.append(violation(m["step"], "M6", f"{metric} {claimed:+.0f}% cannot be verified under M6 (window not clean): "
                                      + ("; ".join(events) or f"{len(before)}/{len(after)} clean days")
-                                     + (" — consistent on the clean days" if clean_agrees else ""), 0.4))
+                                     + (" — consistent on the clean days" if clean_agrees else ""), certain=False))
             continue
         b_mean, a_mean = mean([r[metric] for r in before]), mean([r[metric] for r in after])
         if not b_mean:
@@ -107,7 +107,7 @@ def check_grounding(d, ctx, cx):
         if abs(real - claimed) <= GROUNDING_TOL_PP:                        # spec §9 M6: within 5pp, exactly
             # spec §9 M6 arithmetic: a rate can fall to zero (−100%) but never below it; only < −100 is impossible
             if claimed < -100:
-                out.append(violation(m["step"], "M6", f"{metric} {claimed:+.0f}% is arithmetically impossible", 0.8))
+                out.append(violation(m["step"], "M6", f"{metric} {claimed:+.0f}% is arithmetically impossible", certain=False))
             # real for this account — but is it real for the whole region on the same days?
             coh = cx.cohort.get(af["region"]) or cx.cohort.get("ALL") or {}
             days_a = [end - timedelta(days=i) for i in range(w) if (end - timedelta(days=i)) in coh]
@@ -135,6 +135,6 @@ def check_grounding(d, ctx, cx):
             rec["status"] = "wrong"
             statuses.append("wrong")
             raw_txt = f" (raw {raw_pct:+.0f}%)" if raw_pct is not None else ""
-            out.append(violation(m["step"], "M6", f"{metric} claimed {claimed:+.0f}%, corrected telemetry {real:+.0f}%{raw_txt}", 0.8 if claimed < -100 else 1.0))   # spec §9 M6: −100 is possible
+            out.append(violation(m["step"], "M6", f"{metric} claimed {claimed:+.0f}%, corrected telemetry {real:+.0f}%{raw_txt}", certain=claimed >= -100))   # spec §9 M6: −100 is possible
     ctx.update(claim_status=statuses, claim_detail=detail)
     return out

@@ -187,10 +187,10 @@ def check_mandatory_route(d, ctx, cx):
         what = ("suppressed after a human was notified" if suppressed and human
                 else f"{disp or 'closed'} without any human notified")
         out.append(violation(step, "P1", f"{what} despite mandatory-route trigger(s) {sorted(trig)}"
-                             + ("" if certain else " — structural proxy, text not read"), 1.0 if certain else 0.6))
+                             + ("" if certain else " — structural proxy, text not read"), certain=certain))
     elif missed and not human:
         step = next((e.get("step") for e in d.get("lifecycle") or [] if e.get("to_state") in ("suppressed", "expired")), 0)
         kinds = sorted({t for _, _, ts_ in missed for t in ts_})
         out.append(violation(step, "P1", f"{disp or 'closed'} without any human notified while the account carried an unattached written trigger {kinds} "
-                             f"({', '.join(aid for _, aid, _ in missed[:3])}) — cross-source lookup missed it", 0.8))
+                             f"({', '.join(aid for _, aid, _ in missed[:3])}) — cross-source lookup missed it", certain=False))
     return out

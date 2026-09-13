@@ -37,7 +37,7 @@ def check_transitions(d, ctx, cx):
         visits[t] += 1
         # I3 — timestamps strictly increasing (data dictionary: "transition timestamps are strictly increasing")
         if at and prev_at and at <= prev_at:
-            out.append(violation(s, "I3", f"transition at {e.get('at')} is not after the previous one", 0.5))
+            out.append(violation(s, "I3", f"transition at {e.get('at')} is not after the previous one", certain=False))
         prev_at = at or prev_at
         if f == t:
             # spec §4.2: staying in the *current* state is always valid. §7 I3: a signal is in exactly one
@@ -58,12 +58,12 @@ def check_transitions(d, ctx, cx):
         if edge == ("idle", "candidate"):
             # spec §4.1: a signal opens when a detector fires
             if detector and trig != f"detector:{detector}":
-                out.append(violation(s, "TM", f"opened by trigger {trig!r}, expected detector:{detector}", 0.5))
+                out.append(violation(s, "TM", f"opened by trigger {trig!r}, expected detector:{detector}", certain=False))
         elif edge in FORWARD_EDGES:
             # spec §4.1 Table: the two system-event edges must carry their event (preempt also lands on acknowledged, §4.4)
             need = FORWARD_EDGE_TRIGGER.get(edge)
             if need and trig != need and not (t == "acknowledged" and trig == PREEMPT_TRIGGER):
-                out.append(violation(s, "TM", f"{f}→{t} on trigger {trig!r}, spec §4.1 requires {need}", 0.5))
+                out.append(violation(s, "TM", f"{f}→{t} on trigger {trig!r}, spec §4.1 requires {need}", certain=False))
         elif edge in BACKWARD_LOW_ONLY:
             backward += 1
             if conf != "low":
@@ -80,14 +80,14 @@ def check_transitions(d, ctx, cx):
             if f in SUPPRESS_FORBIDDEN_FROM:
                 out.append(violation(s, "TM", f"{f}→suppressed is not an allowed edge"))
             if not (e.get("reason") or "").strip():
-                out.append(violation(s, "TM", "suppression without a stated reason", 0.5))
+                out.append(violation(s, "TM", "suppression without a stated reason", certain=False))
             if timed_out:
                 # spec §4.5: a signal that timed out waiting for data must still reach a human
                 out.append(violation(s, "TM", "suppressed after enrichment_timeout; §4.5 requires the signal to be routed"))
         elif t == "expired":
             # spec §3.3 / §6.4: expiry is the staleness_timeout system event
             if trig != "staleness_timeout":
-                out.append(violation(s, "TM", f"{f}→expired without staleness_timeout (trigger={trig})", 0.5))
+                out.append(violation(s, "TM", f"{f}→expired without staleness_timeout (trigger={trig})", certain=False))
             if timed_out and not reached_human(d):
                 # spec §4.5: "a signal that timed out waiting for data must still reach a human" — letting it
                 # expire un-routed and un-notified is the same failure as suppressing it
@@ -145,7 +145,7 @@ def check_actions(d, ctx, cx):
             if name == "score_signal" and edge == TIMEOUT_EDGE and e.get("trigger") != "enrichment_timeout":
                 out.append(violation(s, "I4", "score_signal on evidence_pending→scored without enrichment_timeout"))
     for s in supp_edges - supp_actions:
-        out.append(violation(s, "I4", "transition to suppressed without a suppress action", 0.5))
+        out.append(violation(s, "I4", "transition to suppressed without a suppress action", certain=False))
     return out
 
 

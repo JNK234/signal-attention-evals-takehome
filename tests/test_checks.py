@@ -10,7 +10,7 @@ from datetime import date
 import pytest
 
 from conftest import ACCOUNT, ARTIFACT, OWNER, SignalEvaluator, explain, happy_dossier, rules, telemetry
-from signal_eval.spec import SEV_WEIGHT
+from signal_eval.spec import SEV_WEIGHT, UNCERTAIN_FACTOR, violation
 
 
 def only(result, rule):
@@ -19,6 +19,14 @@ def only(result, rule):
 
 def test_happy_path_has_no_violations(ev):
     assert rules(ev.evaluate(happy_dossier())) == set()
+
+
+def test_uncertain_finding_is_half_class_weight():
+    """Severity is the spec §11 class weight; a finding the evaluator cannot be certain of (partial evidence,
+    unverifiable input) carries exactly UNCERTAIN_FACTOR of it — no other per-rule scaling exists."""
+    assert violation(0, "I6", "x")["severity"] == SEV_WEIGHT["critical"]
+    assert violation(0, "I6", "x", certain=False)["severity"] == SEV_WEIGHT["critical"] * UNCERTAIN_FACTOR
+    assert violation(0, "Q4", "x", certain=False)["severity"] == SEV_WEIGHT["soft"] * UNCERTAIN_FACTOR
 
 
 def test_skipping_enrichment_is_a_matrix_violation_and_misplaced_action(ev):
@@ -371,7 +379,8 @@ def test_legacy_double_count_claim_is_labelled_artifact():
 
 def test_degraded_window_is_unverifiable():
     """spec §9 M6: windows whose ingest_status is not ok are excluded; a claim over such a window cannot be
-    grounded. Reported as a partial M6 (scale 0.4 on a high-class rule) naming the degraded day."""
+    grounded. Reported as an uncertain M6 (UNCERTAIN_FACTOR of the high-class weight; the old ad-hoc 0.4 scale
+    is gone) naming the degraded day."""
     e = SignalEvaluator(use_classifier=False)
     rows = telemetry([100] * 7, [60] * 7)
     rows[10]["ingest_status"] = "degraded"
@@ -383,7 +392,7 @@ def test_degraded_window_is_unverifiable():
     assert r["_facts"]["claim_status"] == ["unverifiable"]
     m6 = only(r, "M6")
     assert len(m6) == 1 and m6[0]["step"] == 2
-    assert m6[0]["severity"] == pytest.approx(SEV_WEIGHT["high"] * 0.4)
+    assert m6[0]["severity"] == pytest.approx(SEV_WEIGHT["high"] * UNCERTAIN_FACTOR)
     assert "degraded" in m6[0]["explanation"]
 
 
