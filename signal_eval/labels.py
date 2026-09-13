@@ -81,8 +81,9 @@ BOT_LABELS = ("billing_dispute",)     # a bot artefact is a system record: only 
 DEFAULT_BAND = (0.35, 0.65)
 # Set by analysis/calibrate_thresholds.py on the calibration half of the recall-gate fixtures (split by
 # sha1(label | current text) % 2, 72 calib / 69 held-out rows) and pasted here after review. A band is the gap
-# midpoint ± 0.05 when the classes separate on calib, the whole overlap when they do not, and never lets a True
-# verdict below 0.35 or a False verdict above 0.65 ("guarded"). Held-out confusion under this table
+# midpoint ± 0.05 when the classes separate on calib, the whole overlap when they do not, never lets a True
+# verdict below 0.35 or a False verdict above 0.65, and never puts the low edge under the 0.05 noise floor — a band
+# that cannot say False is degenerate; a calibration positive below the floor is a recall miss ("guarded"). Held-out confusion under this table
 # (expected × got; P? / N? = abstain on a positive / negative):
 #   label                        n  TP  FN  P?  TN  FP  N?   errors
 #   cancel_intent               18   6   0   0  12   0   0
@@ -103,7 +104,7 @@ THRESHOLDS = {
         "cancel_intent": (0.533, 0.633),
         "legal_reference": (0.350, 0.650),   # uncalibrated: n too small
         "security_incident": (0.350, 0.650),   # uncalibrated: n too small
-        "departure": (0.011, 0.350),   # overlapping; guarded (raw 0.011–0.111: calib positives down to 0.119)
+        "departure": (0.050, 0.350),   # overlapping; guarded, low edge at the noise floor (raw 0.011–0.111: calib positives down to 0.119)
         "billing_dispute": (0.350, 0.650),   # uncalibrated: n too small
         "sarcasm": (0.121, 0.922),   # classes overlap: 'jk' chat at 0.13, internal 'lol' template at 0.91
         "topic:champion_departure": (0.350, 0.650),   # uncalibrated: n too small
@@ -111,7 +112,7 @@ THRESHOLDS = {
         "topic:product_gap": (0.350, 0.650),   # uncalibrated: n too small
         "topic:onboarding_failure": (0.350, 0.650),   # uncalibrated: n too small
         "topic:reliability_erosion": (0.350, 0.650),   # uncalibrated: n too small
-        "topic:benign_variation": (0.000, 0.350),   # classes overlap; guarded (raw 0.000–0.011: a positive at the noise floor)
+        "topic:benign_variation": (0.050, 0.350),   # classes overlap; guarded, low edge at the noise floor (one calib positive at 0.004 is a model miss, not an edge)
     },
 }
 

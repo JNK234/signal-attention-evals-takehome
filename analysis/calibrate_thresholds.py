@@ -17,6 +17,7 @@ from signal_eval.context import Context  # noqa: E402
 from signal_eval.labels import DEFAULT_BAND, LABEL_HYPOTHESES  # noqa: E402
 
 EPS = 0.01          # margin past the extreme calibration score on each side
+NOISE_FLOOR = 0.05      # scores below this are indistinguishable from the model saying "no"
 HALF_BAND = 0.05    # abstain half-width around the gap midpoint when the classes separate
 MIN_PER_CLASS = 2   # fewer positives or negatives than this → uncalibrated, keep DEFAULT_BAND
 
@@ -38,6 +39,11 @@ def propose(rows):
         if len(pos) < MIN_PER_CLASS or len(neg) < MIN_PER_CLASS:
             out[label] = dict(info, band=DEFAULT_BAND, flag="uncalibrated: n too small")
             continue
+        # a positive the model scores at the noise floor is a recall miss, not a band edge: excluding it keeps
+        # the False region reachable (a low edge at 0.000 can never say False); misses are reported, not hidden
+        misses = [x for x in pos if x < NOISE_FLOOR]
+        pos = [x for x in pos if x >= NOISE_FLOOR] or pos
+        info["model_misses"] = len(misses)
         high, low = max(neg) + EPS, min(pos) - EPS
         if low >= high:
             mid = (max(neg) + min(pos)) / 2
@@ -45,7 +51,7 @@ def propose(rows):
         else:
             flag = "classes overlap"
         raw = (round(max(low, 0.0), 3), round(min(high, 1.0), 3))
-        band = (min(raw[0], DEFAULT_BAND[1]), max(raw[1], DEFAULT_BAND[0]))
+        band = (min(max(raw[0], NOISE_FLOOR), DEFAULT_BAND[1]), max(raw[1], DEFAULT_BAND[0]))
         if band != raw:
             flag += "; guarded"
         out[label] = dict(info, band=band, raw=raw, flag=flag)

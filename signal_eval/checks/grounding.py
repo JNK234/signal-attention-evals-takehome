@@ -133,7 +133,7 @@ def check_grounding(d, ctx, cx):
         else:
             rec["status"] = "wrong"
             out.append(violation(m["step"], "M6", f"{metric} claimed {claimed:+.0f}%, {pair_txt}, {raw_txt}",
-                                 certain=claimed >= -100))                     # spec §9 M6: −100 is possible
+                                 certain=True))   # a claim below −100% is the most certain non-reproduction there is
         statuses.append(rec["status"])
     ctx.update(claim_status=statuses, claim_detail=detail)
     return out
