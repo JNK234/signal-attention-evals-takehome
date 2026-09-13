@@ -56,14 +56,28 @@ def happy_dossier():
     }
 
 
-def telemetry(values_before, values_after, end=date(2026, 3, 1), status="ok"):
-    """14 daily rows for acct_T ending at `end`: 7 before, 7 after."""
+def telemetry(values_before, values_after, end=date(2026, 3, 1), status="ok", account_id="acct_T"):
+    """14 daily rows for `account_id` ending at `end`: 7 before, 7 after."""
     rows = []
     for i, v in enumerate(list(values_before) + list(values_after)):
         d = end - timedelta(days=13 - i)
-        rows.append({"account_id": "acct_T", "date": d.isoformat(), "dau_seats": v, "api_calls": 1000, "query_p95_ms": 500,
+        rows.append({"account_id": account_id, "date": d.isoformat(), "dau_seats": v, "api_calls": 1000, "query_p95_ms": 500,
                      "error_rate_pct": 0.1, "dashboards_created": 1, "data_volume_gb": 1.0, "ingest_status": status,
                      "ingested_at": f"{(d + timedelta(days=1)).isoformat()}T03:00:00Z"})
+    return rows
+
+
+def drop_days(rows, *days):
+    """Rows without the given dates — a missing account-day, never a zero-filled one."""
+    gone = {d.isoformat() for d in days}
+    return [r for r in rows if r["date"] not in gone]
+
+
+def set_row(rows, d, **fields):
+    """Overwrite fields (metric values, ingest_status, ...) on the row dated `d`; returns rows."""
+    for r in rows:
+        if r["date"] == d.isoformat():
+            r.update(fields)
     return rows
 
 
