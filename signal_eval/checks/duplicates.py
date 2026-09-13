@@ -17,8 +17,10 @@ def check_duplicates(d, ctx, cx):
     for (t, det, sid) in cx.by_account.get(d.get("account_id"), []):
         if sid == d.get("signal_id") or det != d.get("detector") or not t or t > mine or (mine - t) > timedelta(days=DUPLICATE_WINDOW_DAYS):
             continue
+        # spec §10 Q5 "two open signals": the earlier one is open iff closed_at is None or closed_at > this
+        # signal's opened_at (half-open interval) — closing exactly when the later one opens is not overlap.
         earlier_closed = cx.closed_at.get(sid) if hasattr(cx, "closed_at") else None
-        if earlier_closed and earlier_closed < mine:
+        if earlier_closed is not None and earlier_closed <= mine:
             continue                      # the earlier signal was already closed — not "two open signals"
         dups.append(sid)
     ctx["duplicates"] = sorted(dups)

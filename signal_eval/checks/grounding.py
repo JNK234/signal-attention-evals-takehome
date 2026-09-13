@@ -8,7 +8,8 @@ from datetime import timedelta
 from ..spec import COHORT_MATCH_PP, COHORT_MIN_ACCOUNTS, COHORT_MIN_DROP_PCT, GROUNDING_TOL_PP, TELEMETRY_METRICS, violation
 from ..util import day, mean, num, pct
 
-ROUNDING_PP = 0.5   # claims are stated to integer precision
+# spec §9 M6: "to within 5 percentage points" — the tolerance is GROUNDING_TOL_PP exactly, with no
+# rounding allowance on top; a claim 5.4pp off the corrected telemetry is not grounded.
 
 
 def _raw_sum(rows, metric, end, w, af, cx):
@@ -69,7 +70,10 @@ def check_grounding(d, ctx, cx):
         rec["raw_pct"] = None if raw_pct is None else round(raw_pct, 1)
 
         events = _events(metric, end, w, af, cx, a_miss, b_miss, a_why + b_why)
-        rec.update(events=events, missing_days=a_miss + b_miss, bad_days=a_bad + b_bad)
+        # docs/data_dictionary.md: a backfill row is the correction that survives the M6 dedup, so it stays
+        # usable — but the writeup must be able to say how many of the 2w days rest on corrected rows.
+        backfill = sum(1 for i in range(2 * w) if (r := rows.get(end - timedelta(days=i))) and r.get("ingest_status") == "backfill")
+        rec.update(events=events, missing_days=a_miss + b_miss, bad_days=a_bad + b_bad, backfill_days=backfill)
 
         # spec M6: exclude *windows* whose ingest is not ok — a contaminated window cannot ground a claim.
         # It is an *artefact* only if the clean days that remain disagree with the claim; if they agree,
@@ -80,7 +84,7 @@ def check_grounding(d, ctx, cx):
                 cb_, ca_ = mean([r[metric] for r in before]), mean([r[metric] for r in after])
                 clean_pct = (ca_ - cb_) / cb_ * 100
                 rec["corrected_pct"] = round(clean_pct, 1)
-            clean_agrees = clean_pct is not None and abs(clean_pct - claimed) <= GROUNDING_TOL_PP + ROUNDING_PP
+            clean_agrees = clean_pct is not None and abs(clean_pct - claimed) <= GROUNDING_TOL_PP   # spec §9 M6: 5pp
             if raw_ok and not clean_agrees:
                 rec["status"] = "artifact"
                 statuses.append("artifact")
@@ -100,8 +104,9 @@ def check_grounding(d, ctx, cx):
             continue
         real = (a_mean - b_mean) / b_mean * 100
         rec["corrected_pct"] = round(real, 1)
-        if abs(real - claimed) <= GROUNDING_TOL_PP + ROUNDING_PP:
-            if claimed <= -100:
+        if abs(real - claimed) <= GROUNDING_TOL_PP:                        # spec §9 M6: within 5pp, exactly
+            # spec §9 M6 arithmetic: a rate can fall to zero (−100%) but never below it; only < −100 is impossible
+            if claimed < -100:
                 out.append(violation(m["step"], "M6", f"{metric} {claimed:+.0f}% is arithmetically impossible", 0.8))
             # real for this account — but is it real for the whole region on the same days?
             coh = cx.cohort.get(af["region"]) or cx.cohort.get("ALL") or {}
@@ -130,6 +135,6 @@ def check_grounding(d, ctx, cx):
             rec["status"] = "wrong"
             statuses.append("wrong")
             raw_txt = f" (raw {raw_pct:+.0f}%)" if raw_pct is not None else ""
-            out.append(violation(m["step"], "M6", f"{metric} claimed {claimed:+.0f}%, corrected telemetry {real:+.0f}%{raw_txt}", 0.8 if claimed <= -100 else 1.0))
+            out.append(violation(m["step"], "M6", f"{metric} claimed {claimed:+.0f}%, corrected telemetry {real:+.0f}%{raw_txt}", 0.8 if claimed < -100 else 1.0))   # spec §9 M6: −100 is possible
     ctx.update(claim_status=statuses, claim_detail=detail)
     return out
