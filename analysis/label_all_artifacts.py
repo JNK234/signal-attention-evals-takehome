@@ -5,12 +5,14 @@ ABOUTME: block-score cache so evaluate() and the account-level trigger scan neve
 
 import sys
 import time
+from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import eval_takehome as E  # noqa: E402
 from signal_eval.context import Context  # noqa: E402
 from signal_eval.labellers import default_cache_path  # noqa: E402
+from signal_eval.labels import LABEL_HYPOTHESES  # noqa: E402
 
 
 def main(limit=None):
@@ -26,18 +28,29 @@ def main(limit=None):
     print(f"model {cx.labeller.model_id}: active={cx.classifier_active} ({cx.classifier_reason}) in {t1 - t0:.0f}s; "
           f"{n_before} cached scores")
     unreadable, hist, truncated = 0, 0, 0
+    verdicts = {label: Counter() for label in LABEL_HYPOTHESES}   # depth-0 verdict per label: True / False / None
+    hist_labels = Counter()
     for i, a in enumerate(arts, 1):
         r = cx.read_artifact(a)
         unreadable += bool(r["unreadable"])
         hist += bool(r["historical"])
+        hist_labels.update(r["historical"])
         truncated += r["truncated"]
+        for label, v in r["verdict"].items():
+            verdicts[label][v] += 1
         cx.save_cache()
         if i % 100 == 0:
             print(f"  {i}/{len(arts)} artefacts, {(time.time() - t1) / i:.2f}s each", flush=True)
     cx.flush_cache()
     dt = time.time() - t1
+    path = default_cache_path(cx.labeller.model_id)
     print(f"read {len(arts)} artefacts in {dt:.0f}s ({dt / max(len(arts), 1):.2f}s each); scores {n_before} → {len(cx.cache)}; "
-          f"unreadable {unreadable}, with historical labels {hist}, truncated {truncated} → {default_cache_path(cx.labeller.model_id)}")
+          f"unreadable {unreadable}, with historical labels {hist}, truncated {truncated} → {path} "
+          f"({path.stat().st_size / 1e6:.1f} MB)" if path.exists() else "")
+    print(f"depth-0 verdicts over {len(arts)} artefacts (None = abstain, or not read: bot artefacts read billing only)")
+    print(f"  {'label':<26}{'True':>6}{'False':>7}{'None':>6}{'historical':>12}")
+    for label, c in verdicts.items():
+        print(f"  {label:<26}{c[True]:>6}{c[False]:>7}{c[None]:>6}{hist_labels[label]:>12}")
 
 
 if __name__ == "__main__":
