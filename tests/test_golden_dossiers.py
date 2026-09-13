@@ -13,6 +13,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from signal_eval import SignalEvaluator  # noqa: E402
+from signal_eval.spec import META_RULES  # noqa: E402
 
 DATA = ROOT / "data"
 pytestmark = pytest.mark.skipif(not (DATA / "signal_dossiers.jsonl").exists(), reason="corpus not present")
@@ -40,7 +41,10 @@ def run(corpus, sid):
 
 
 def rules(r):
-    return {v["rule"] for v in r["violations"]}
+    """Spec rules only. Cache-only reading: without a populated block cache the run carries the UNEVALUATED meta
+    entry (decision 7) on every dossier with non-bot text; it is not a spec finding and the closed-set
+    expectations below are about spec findings."""
+    return {v["rule"] for v in r["violations"]} - META_RULES
 
 
 def only(r, rule):

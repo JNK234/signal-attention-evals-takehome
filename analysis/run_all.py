@@ -13,7 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import eval_takehome as E  # noqa: E402
 from signal_eval import RULES, SignalEvaluator  # noqa: E402
-from signal_eval.classifier import NLI_MODEL, NLI_THRESHOLD  # noqa: E402
+from signal_eval.labels import THRESHOLDS  # noqa: E402
 from signal_eval.runlog import save_run  # noqa: E402
 
 RUNS = Path(__file__).resolve().parent / "runs"
@@ -48,11 +48,11 @@ def main():
         r["signal_id"], r["detector"], r["week"] = d["signal_id"], d["detector"], week(d["opened_at"])
         r["disposition"] = d["decision"]["disposition"]
         results[d["signal_id"]] = r
-    active = bool(ev.cx.classifier_active)
+    model_id = getattr(ev.cx.labeller, "model_id", None) if ev.cx.classifier_active else None
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-    out = RUNS / f"{stamp}_{model_slug(NLI_MODEL if active else None)}.jsonl"
-    meta = save_run(out, rows, {"model_id": NLI_MODEL if active else None, "classifier_reason": ev.cx.classifier_reason,
-                                "thresholds": {"nli": NLI_THRESHOLD}})
+    out = RUNS / f"{stamp}_{model_slug(model_id)}.jsonl"
+    meta = save_run(out, rows, {"model_id": model_id, "classifier_reason": ev.cx.classifier_reason,
+                                "thresholds": THRESHOLDS.get(model_id)})
     with open(MANIFEST, "a") as f:
         f.write(json.dumps(dict(meta, file=out.name)) + "\n")
     print(f"wrote {len(rows)} rows → {out}  (manifest: {MANIFEST})\n")
@@ -62,6 +62,8 @@ def main():
     for rid, ref, sev, _ in RULES:
         n = sum(1 for r in results.values() if any(v["rule"] == rid for v in r["violations"]))
         print(f"{rid:<4}{n:>5}  [{sev}]")
+    n_unev = sum(1 for r in results.values() if any(v["rule"] == "UNEVALUATED" for v in r["violations"]))
+    print(f"UNEVALUATED {n_unev:>5}  [meta: text rules not evaluated — labeller {ev.cx.classifier_reason}]")
     print("\n=== sub-reasons for the big ones ===")
     for rid in ("I4", "T3", "M4", "M6", "I6", "P1", "I2", "Q2"):
         c = Counter()
@@ -83,20 +85,22 @@ def main():
     for w in sorted(wk, key=lambda w: -sum(wk[w].values()))[:8]:
         print(f"  {w}: {dict(wk[w])}")
 
-    # 2b. trigger sourcing (structural vs model) and account-level misses
-    print("\n=== mandatory-route triggers: where they came from ===")
+    # 2b. trigger split (confirmed / uncertain / historical / unattributed) and account-level misses
+    print("\n=== mandatory-route triggers: confirmed / uncertain / historical / unattributed ===")
     src = Counter()
     for r in results.values():
         s = r["_facts"]["trigger_source"] or {}
-        src["proxy (no labels)" if s.get("proxy") else "model-checked"] += 1
-        for t in s.get("added_by_model", []):
-            src[f"added by model: {t}"] += 1
-        for t in s.get("removed_by_model", []):
-            src[f"removed by model: {t}"] += 1
-    for k, n in src.most_common():
+        for kind in ("confirmed", "uncertain", "historical", "unattributed"):
+            for t in s.get(kind, []):
+                src[f"{kind}: {t}"] += 1
+    for k, n in sorted(src.items()):
         print(f"  {n:>4}  {k}")
+    p1 = [r for r in results.values() if any(v["rule"] == "P1" for v in r["violations"])]
+    p1_conf = sum(1 for r in p1 if (r["_facts"]["trigger_source"] or {}).get("confirmed"))
+    p1_unatt = sum(1 for r in p1 if not r["_facts"]["triggers"] and r["_facts"]["account_triggers_unattached"])
+    print(f"  P1 dossiers: {len(p1)} = confirmed {p1_conf} + uncertain-only {len(p1) - p1_conf - p1_unatt} + unattached-only {p1_unatt}")
     trig = Counter(t for r in results.values() for t in r["_facts"]["triggers"])
-    print("  final triggers:", dict(trig))
+    print("  final triggers (confirmed ∪ uncertain):", dict(trig))
     unatt = {s: r["_facts"]["account_triggers_unattached"] for s, r in results.items() if r["_facts"]["account_triggers_unattached"]}
     print(f"\n=== account carried a written trigger the agent never attached: {len(unatt)} dossiers "
           f"(labels cover corpus: {next(iter(results.values()))['_facts']['labels_cover_corpus']}) ===")

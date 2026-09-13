@@ -19,8 +19,44 @@ def only(result, rule):
 
 def test_happy_path_has_no_violations(ev_nolabeller):
     """Deterministic rules only: with a labeller that reads the evidence as nothing, Q2 (hypothesis
-    unsupported) is a correct finding on this fixture and is pinned in test_labels / test_mandatory."""
-    assert rules(ev_nolabeller.evaluate(happy_dossier())) == set()
+    unsupported) is a correct finding on this fixture and is pinned in test_labels / test_mandatory. Without
+    a labeller the only entry is the UNEVALUATED meta record (decision 7), never a spec rule."""
+    assert rules(ev_nolabeller.evaluate(happy_dossier())) == {"UNEVALUATED"}
+
+
+def test_no_labeller_adds_single_unevaluated_entry(ev, ev_nolabeller):
+    """Decision 7: the grader reads `violations`; silence must not read as a pass. One meta entry at severity 0
+    names the rules the text feeds (P1, Q2/I5, Q4) and the artefact count; the score is untouched — the same
+    dossier under a labeller that reads its text as supporting the hypothesis scores the same."""
+    from conftest import with_labels
+    from signal_eval.spec import META_RULES
+    r = explain(ev_nolabeller, happy_dossier())
+    meta = [v for v in r["violations"] if v["rule"] == "UNEVALUATED"]
+    assert len(meta) == 1 and meta[0] == {"step": -1, "rule": "UNEVALUATED", "severity": 0.0, "explanation":
+                                          "labeller unavailable (disabled): P1 (text triggers), Q2/I5 (hypothesis fit), Q4 (sarcasm) not evaluated over 1 artefact(s)"}
+    assert r["_facts"]["unevaluated"] == ["P1", "Q2", "I5", "Q4"]
+    assert "UNEVALUATED" in META_RULES and r["quality_score"] == 1.0
+    with_labels(ev, {"backfill": {"topic:budget_pressure": 0.9}})
+    read = explain(ev, happy_dossier())
+    assert read["quality_score"] == r["quality_score"] and "UNEVALUATED" not in rules(read) and read["_facts"]["unevaluated"] == []
+
+
+def test_no_labeller_with_only_bot_evidence_adds_nothing(ev_nolabeller):
+    ev_nolabeller.cx.artifacts["art_BILL"] = BILL
+    d = happy_dossier()
+    d["evidence"] = [{"step": 2, "artifact_id": "art_BILL", "source": "billing_event", "restricted": False,
+                      "attached_at": "2026-03-02T09:30:00Z", "quote": "Status: disputed by customer AP."}]
+    try:
+        r = explain(ev_nolabeller, d)
+    finally:
+        del ev_nolabeller.cx.artifacts["art_BILL"]
+    assert "UNEVALUATED" not in rules(r) and r["_facts"]["unevaluated"] == []
+
+
+def test_evaluate_still_returns_four_keys_with_unevaluated(ev_nolabeller):
+    r = ev_nolabeller.evaluate(happy_dossier())
+    assert set(r) == {"quality_score", "risk_score", "deserved_attention", "violations"}
+    assert [v["rule"] for v in r["violations"]] == ["UNEVALUATED"]
 
 
 def test_uncertain_finding_is_half_class_weight():
