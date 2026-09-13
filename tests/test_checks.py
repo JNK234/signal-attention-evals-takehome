@@ -152,6 +152,49 @@ def test_notification_inside_owner_window_but_outside_utc_is_not_T1(ev):
     assert "T1" not in rules(ev.evaluate(d))
 
 
+def test_unknown_owner_timezone_is_unverifiable_T1(ev):
+    """spec §6.1 needs the owner's clock; an IANA name the host cannot resolve leaves the window unverifiable.
+    That is reported (uncertain T1 + an error record), never silently skipped."""
+    orig = ev.cx.owners["u_T"]["timezone"]
+    ev.cx.owners["u_T"]["timezone"] = "Mars/Olympus_Mons"
+    try:
+        r = explain(ev, happy_dossier())
+    finally:
+        ev.cx.owners["u_T"]["timezone"] = orig
+    t1 = only(r, "T1")
+    assert len(t1) == 1 and t1[0]["step"] == 6 and t1[0]["severity"] == pytest.approx(SEV_WEIGHT["medium"] * UNCERTAIN_FACTOR)
+    assert "Mars/Olympus_Mons" in t1[0]["explanation"] and "unverifiable" in t1[0]["explanation"]
+    assert any(e["check"] == "check_timing" and "Mars/Olympus_Mons" in e["error"] for e in r["_facts"]["errors"])
+
+
+def test_ts_accepts_offset_and_naive():
+    """Timestamps may arrive with any ISO offset or none at all; ts() always returns an aware datetime (naive
+    is read as UTC and reported through the optional warnings list) or None for garbage."""
+    from datetime import timezone
+    from signal_eval.util import ts
+    assert ts("2026-03-02T10:00:00+01:00") == ts("2026-03-02T09:00:00Z")
+    assert ts("2026-03-02T10:00:00-05:00").utcoffset().total_seconds() == -5 * 3600
+    warnings = []
+    naive = ts("2026-03-02T10:00:00", warnings)
+    assert naive == ts("2026-03-02T10:00:00Z") and naive.tzinfo is not None
+    assert len(warnings) == 1 and "naive" in warnings[0] and "2026-03-02T10:00:00" in warnings[0]
+    assert ts("2026-03-02T10:00:00").tzinfo == timezone.utc          # no list passed: still never naive
+    assert ts("not a time") is None and ts(None) is None and ts(20260302) is None
+
+
+def test_backfill_row_wins_by_datetime_not_string():
+    """docs/data_dictionary: the latest ingested_at supersedes. Two rows for one day whose string order
+    disagrees with their time order — '…T04:30:00Z' sorts before '…T05:00:00+01:00' as text, but 05:00+01:00
+    is 04:00Z, so the Z row is the later one and must win."""
+    from datetime import date as _date
+    rows = telemetry([100] * 7, [60] * 7)
+    early = dict(rows[9], dau_seats=60, ingested_at="2026-03-02T05:00:00+01:00", ingest_status="ok")
+    late = dict(rows[9], dau_seats=99, ingested_at="2026-03-02T04:30:00Z", ingest_status="backfill")
+    e = SignalEvaluator(use_classifier=False)
+    e.load_context([ACCOUNT], [OWNER], rows[:9] + [early, late] + rows[10:], [ARTIFACT], [])
+    assert e.cx.tel["acct_T"][_date.fromisoformat(rows[9]["date"])]["dau_seats"] == 99
+
+
 def test_wrong_channel_is_P6(ev):
     """spec §8.6: notify on the owner's declared preferred_channel."""
     d = happy_dossier()

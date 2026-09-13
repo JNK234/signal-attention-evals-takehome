@@ -18,8 +18,13 @@ def check_timing(d, ctx, cx):
     opened = ts(d.get("opened_at"))
     try:
         tz = ZoneInfo(own["tz"]) if own["tz"] else None
-    except Exception:
+    except Exception as exc:
         tz = None
+        # spec §6.1 cannot be checked without the owner's clock — say so, never skip silently
+        ctx.setdefault("errors", []).append({"check": "check_timing", "error": f"unknown owner timezone {own['tz']!r}: {exc!r}"})
+        if notes and sev != "P0":
+            out.append(violation(notes[0].get("step"), "T1", f"owner timezone {own['tz']!r} unknown; notification window unverifiable "
+                                 f"({len(notes)} notification(s), severity {sev})", certain=False))
     expected_owner = (d.get("metadata") or {}).get("owner_id")
     for n in notes:
         at = ts(n["at"])

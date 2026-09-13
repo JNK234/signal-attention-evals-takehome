@@ -7,7 +7,7 @@ ABOUTME: for any text (artefact or bare quote) through a text-hash cache.
 import json
 import os
 from collections import Counter, defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import spec
@@ -15,6 +15,7 @@ from .classifier import NLI_MODEL, NLI_THRESHOLD, TextClassifier, assemble, fill
 from .util import day, median, split_quoted, ts
 
 CACHE_FLUSH_EVERY = 50      # new labels pending before save_cache() actually writes
+_NEVER = datetime.min.replace(tzinfo=timezone.utc)   # a row with no parseable ingested_at loses every dedup tie
 
 
 def _hub_cache_dir():
@@ -118,7 +119,7 @@ class Context:
             k = (r.get("account_id"), r.get("date"))
             if None in k:
                 continue
-            if k not in latest or (r.get("ingested_at") or "") > (latest[k].get("ingested_at") or ""):
+            if k not in latest or (ts(r.get("ingested_at")) or _NEVER) > (ts(latest[k].get("ingested_at")) or _NEVER):
                 latest[k] = r
         tel = defaultdict(dict)
         for (acct, ds), r in latest.items():

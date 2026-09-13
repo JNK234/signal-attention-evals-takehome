@@ -4,7 +4,7 @@ ABOUTME: Regexes here are syntactic (percent, dollars, email, phone) — never p
 """
 
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 PCT_RE = re.compile(r"([+-]?\d+(?:\.\d+)?)\s*%")
 DOLLAR_RE = re.compile(r"\$\s?([\d,]+(?:\.\d+)?)")
@@ -14,14 +14,20 @@ PHONE_RE = re.compile(r"(?<!\d)(?:\+?\d[\d\s().-]{7,}\d)(?!\d)")
 WS_RE = re.compile(r"\s+")
 
 
-def ts(s):
-    """ISO-8601 with trailing Z → aware datetime, or None for missing / malformed."""
+def ts(s, warnings=None):
+    """ISO-8601 with any offset (or trailing Z) → aware datetime, or None for missing / malformed. A naive
+    timestamp is read as UTC and, when a `warnings` list is passed, reported there; the result is never naive."""
     if not s or not isinstance(s, str):
         return None
     try:
-        return datetime.fromisoformat(s.replace("Z", "+00:00"))
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
     except ValueError:
         return None
+    if dt.tzinfo is None:
+        if warnings is not None:
+            warnings.append(f"naive timestamp {s!r} read as UTC")
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
 
 
 def day(s):
