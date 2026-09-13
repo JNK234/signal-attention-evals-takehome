@@ -3,7 +3,7 @@ ABOUTME: Known-answer tests for evidence currency (quote location vs quoted hist
 ABOUTME: handling, P3/P5 policy conditions and M3/M4 "routed" semantics. No NLI model ever runs here.
 """
 
-from conftest import ARTIFACT, SignalEvaluator, happy_dossier, rules
+from conftest import ARTIFACT, SignalEvaluator, explain, happy_dossier, rules
 
 THREAD = ("Sorted, thanks. Ignore the thread below.\n\n"
           "On 20 Sep 2025, Kenji Iyer wrote:\n"
@@ -69,7 +69,7 @@ def test_quote_from_quoted_history_is_stale(ev):
     with_artifact(ev, text=THREAD)
     d = happy_dossier()
     d["evidence"][0]["quote"] = TAIL_QUOTE
-    r = ev.evaluate(d)
+    r = explain(ev, d)
     f = facts(r)
     assert f["status"] == "stale" and f["quote_location"] == "tail"
     q4 = only(r, "Q4")
@@ -83,7 +83,7 @@ def test_quote_from_head_is_current_even_with_quoted_tail(ev):
     with_artifact(ev, text=THREAD)
     d = happy_dossier()
     d["evidence"][0]["quote"] = HEAD_QUOTE
-    r = ev.evaluate(d)
+    r = explain(ev, d)
     f = facts(r)
     assert f["status"] == "verified" and f["quote_location"] == "head"
     assert "Q4" not in rules(r) and r["_facts"]["verified_sources"] == ["support_ticket"]
@@ -93,20 +93,20 @@ def test_quote_in_both_head_and_tail_is_current(ev):
     with_artifact(ev, text=f"{TAIL_QUOTE}\n\nOn 20 Sep 2025, Kenji Iyer wrote:\n> {TAIL_QUOTE}")
     d = happy_dossier()
     d["evidence"][0]["quote"] = TAIL_QUOTE
-    r = ev.evaluate(d)
+    r = explain(ev, d)
     assert facts(r)["quote_location"] == "both" and facts(r)["status"] == "verified"
     assert "Q4" not in rules(r)
 
 
 def test_quote_from_artifact_without_history_is_head(ev):
-    r = ev.evaluate(happy_dossier())
+    r = explain(ev, happy_dossier())
     assert facts(r)["quote_location"] == "head" and facts(r)["status"] == "verified"
 
 
 def test_near_verbatim_quote_is_diagnostic_only_and_not_verified(ev):
     d = happy_dossier()
     d["evidence"][0]["quote"] = "We are planning a backfill of about  90M rows."   # extra space
-    r = ev.evaluate(d)
+    r = explain(ev, d)
     i6 = only(r, "I6")
     assert len(i6) == 1 and i6[0]["severity"] == 0.3 and i6[0]["step"] == 2 and "normalisation" in i6[0]["explanation"]
     assert facts(r)["status"] == "near_verbatim" and facts(r)["quote_location"] is None
@@ -114,7 +114,7 @@ def test_near_verbatim_quote_is_diagnostic_only_and_not_verified(ev):
 
 
 def test_verbatim_quote_is_verified_and_not_I6(ev):
-    r = ev.evaluate(happy_dossier())
+    r = explain(ev, happy_dossier())
     assert "I6" not in rules(r) and r["_facts"]["has_attached_text"] is True
 
 
@@ -127,7 +127,7 @@ def _activate_labels(ev, monkeypatch, label):
 
 def test_customer_sarcasm_is_stale(ev, monkeypatch):
     _activate_labels(ev, monkeypatch, synthetic_label(sarcasm=True))
-    r = ev.evaluate(happy_dossier())
+    r = explain(ev, happy_dossier())
     assert facts(r)["status"] == "stale" and facts(r)["quote_location"] == "head"
     q4 = only(r, "Q4")
     assert q4 and "sarcasm" in q4[0]["explanation"]
@@ -136,7 +136,7 @@ def test_customer_sarcasm_is_stale(ev, monkeypatch):
 def test_internal_author_sarcasm_is_not_stale(ev, monkeypatch):
     with_artifact(ev, author_type="internal")
     _activate_labels(ev, monkeypatch, synthetic_label(sarcasm=True))
-    r = ev.evaluate(happy_dossier())
+    r = explain(ev, happy_dossier())
     assert facts(r)["status"] == "verified" and "Q4" not in rules(r)
 
 
@@ -145,7 +145,7 @@ def test_quoted_history_label_alone_does_not_make_head_quote_stale(ev, monkeypat
     _activate_labels(ev, monkeypatch, synthetic_label(quoted_history=True, quote_marker="(?m)^On "))
     d = happy_dossier()
     d["evidence"][0]["quote"] = HEAD_QUOTE
-    r = ev.evaluate(d)
+    r = explain(ev, d)
     assert facts(r)["status"] == "verified" and facts(r)["labels"]["quoted_history"] is True
     assert "Q4" not in rules(r)
 
@@ -224,7 +224,7 @@ def test_high_confidence_with_two_verified_sources_is_not_P5(ev):
     d["scoring"]["confidence"] = "high"
     d["evidence"].append({"step": 2, "artifact_id": "art_T2", "source": "crm_note", "restricted": False,
                           "attached_at": "2026-03-02T09:40:00Z", "quote": "Alan confirmed the budget freeze on the call."})
-    r = ev.evaluate(d)
+    r = explain(ev, d)
     assert "P5" not in rules(r) and r["_facts"]["verified_sources"] == ["crm_note", "support_ticket"]
 
 
@@ -234,7 +234,7 @@ def test_high_confidence_second_source_from_quoted_history_is_P5(ev):
     d["scoring"]["confidence"] = "high"
     d["evidence"].append({"step": 2, "artifact_id": "art_T2", "source": "crm_note", "restricted": False,
                           "attached_at": "2026-03-02T09:40:00Z", "quote": TAIL_QUOTE})
-    r = ev.evaluate(d)
+    r = explain(ev, d)
     assert "P5" in rules(r) and r["_facts"]["verified_sources"] == ["support_ticket"]
 
 

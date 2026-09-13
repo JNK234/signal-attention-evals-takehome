@@ -1,23 +1,35 @@
 """
-ABOUTME: Runs SignalEvaluator over every dossier, dumps results.jsonl, and prints the
-ABOUTME: sanity tables: rule counts, sub-reasons, weekly M6 status, outcome lifts, annotator agreement.
+ABOUTME: Runs SignalEvaluator over every dossier, saves the run under analysis/runs/ (see runlog), and prints
+ABOUTME: the sanity tables: rule counts, sub-reasons, weekly M6 status, outcome lifts, annotator agreement.
 """
 
 import json
+import re
 import sys
 from collections import Counter, defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import eval_takehome as E  # noqa: E402
 from signal_eval import RULES, SignalEvaluator  # noqa: E402
+from signal_eval.classifier import NLI_MODEL, NLI_THRESHOLD  # noqa: E402
+from signal_eval.runlog import save_run  # noqa: E402
 
-OUT = Path(__file__).resolve().parent / "results.jsonl"
+RUNS = Path(__file__).resolve().parent / "runs"
+MANIFEST = RUNS / "manifest.jsonl"
+CONTRACT_KEYS = ("quality_score", "risk_score", "deserved_attention", "violations")
 
 
 def week(ts):
     return datetime.fromisoformat(ts.replace("Z", "+00:00")).strftime("%G-W%V")
+
+
+def model_slug(model_id):
+    """'MoritzLaurer/deberta-v3-base-zeroshot-v2.0' → 'deberta-v3-base-zeroshot-v2-0'; None → 'none'."""
+    if not model_id:
+        return "none"
+    return re.sub(r"[^a-z0-9]+", "-", model_id.split("/")[-1].lower()).strip("-")
 
 
 def main():
@@ -29,15 +41,21 @@ def main():
     outcomes = {o["signal_id"]: o for o in E._load("outcomes.jsonl")}
     ann = {i: {r["signal_id"]: r for r in E._load(f"annotations/annotator_{i}.jsonl")} for i in (1, 2, 3)}
 
-    results = {}
-    with open(OUT, "w") as f:
-        for d in D:
-            r = ev.evaluate(d)
-            r["signal_id"], r["detector"], r["week"] = d["signal_id"], d["detector"], week(d["opened_at"])
-            r["disposition"] = d["decision"]["disposition"]
-            results[d["signal_id"]] = r
-            f.write(json.dumps(r) + "\n")
-    print(f"wrote {len(results)} rows → {OUT}\n")
+    results, rows = {}, []
+    for d in D:
+        r = ev.explain(d)
+        rows.append({"signal_id": d["signal_id"], "result": {k: r[k] for k in CONTRACT_KEYS}, "facts": r["_facts"]})
+        r["signal_id"], r["detector"], r["week"] = d["signal_id"], d["detector"], week(d["opened_at"])
+        r["disposition"] = d["decision"]["disposition"]
+        results[d["signal_id"]] = r
+    active = bool(ev.cx.classifier_active)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    out = RUNS / f"{stamp}_{model_slug(NLI_MODEL if active else None)}.jsonl"
+    meta = save_run(out, rows, {"model_id": NLI_MODEL if active else None, "classifier_reason": ev.cx.classifier_reason,
+                                "thresholds": {"nli": NLI_THRESHOLD}})
+    with open(MANIFEST, "a") as f:
+        f.write(json.dumps(dict(meta, file=out.name)) + "\n")
+    print(f"wrote {len(rows)} rows → {out}  (manifest: {MANIFEST})\n")
 
     # 1. rule counts + sub-reason breakdown
     print("=== rule counts (dossiers with ≥1 violation of rule) ===")

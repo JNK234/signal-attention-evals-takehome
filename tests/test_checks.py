@@ -9,7 +9,7 @@ from datetime import date
 
 import pytest
 
-from conftest import ACCOUNT, ARTIFACT, OWNER, SignalEvaluator, happy_dossier, rules, telemetry
+from conftest import ACCOUNT, ARTIFACT, OWNER, SignalEvaluator, explain, happy_dossier, rules, telemetry
 from signal_eval.spec import SEV_WEIGHT
 
 
@@ -225,7 +225,7 @@ def test_human_preempt_counts_as_reached_human(ev):
     d["lifecycle"] = d["lifecycle"][:3] + [{"step": 3, "from_state": "hypothesis_formed", "to_state": "acknowledged", "at": "2026-03-02T11:00:00Z", "trigger": "human_preempt", "reason": ""}]
     d["actions"] = d["actions"][:1]
     d["notifications"] = []
-    r = ev.evaluate(d)
+    r = explain(ev, d)
     assert "TM" not in rules(r) and r["_facts"]["reached_human"] is True
 
 
@@ -345,7 +345,7 @@ def test_grounded_claim_passes_M6():
     d = happy_dossier()
     d["metrics_claimed"] = [{"step": 2, "metric": "dau_seats", "window_days": 7, "as_of": "2026-03-01",
                              "value_before": 700, "value_after": 420, "claim": "dau_seats -40% week over week"}]
-    r = e.evaluate(d)
+    r = explain(e, d)
     assert "M6" not in rules(r) and r["_facts"]["claim_status"] == ["grounded"]
 
 
@@ -364,7 +364,7 @@ def test_legacy_double_count_claim_is_labelled_artifact():
     d = happy_dossier()
     d["metrics_claimed"] = [{"step": 2, "metric": "api_calls", "window_days": 7, "as_of": "2026-05-24",
                              "value_before": 14000, "value_after": 7000, "claim": "api_calls -50% week over week"}]
-    r = e.evaluate(d)
+    r = explain(e, d)
     assert r["_facts"]["claim_status"] == ["artifact"]
     assert any("legacy double-count" in v["explanation"] and v["step"] == 2 for v in r["violations"] if v["rule"] == "M6")
 
@@ -379,7 +379,7 @@ def test_degraded_window_is_unverifiable():
     d = happy_dossier()
     d["metrics_claimed"] = [{"step": 2, "metric": "dau_seats", "window_days": 7, "as_of": "2026-03-01",
                              "value_before": 700, "value_after": 420, "claim": "dau_seats -40% week over week"}]
-    r = e.evaluate(d)
+    r = explain(e, d)
     assert r["_facts"]["claim_status"] == ["unverifiable"]
     m6 = only(r, "M6")
     assert len(m6) == 1 and m6[0]["step"] == 2
@@ -425,7 +425,7 @@ def test_billing_dispute_suppressed_is_P1():
     d["actions"] = d["actions"][:3] + [{"step": 6, "action": "suppress", "at": "2026-03-02T14:00:00Z", "params": {"reason": "immaterial"}}]
     d["notifications"] = []
     d["decision"].update(disposition="suppressed", recommended_play="watch_only")
-    r = e.evaluate(d)
+    r = explain(e, d)
     assert "P1" in rules(r) and "billing_dispute" in r["_facts"]["triggers"]
     assert only(r, "P1")[0]["step"] == 6
 
@@ -445,7 +445,7 @@ def test_P0_with_billing_trigger_is_not_Q3():
     e.load_context([ACCOUNT], [OWNER], telemetry([50] * 7, [50] * 7), [ARTIFACT, BILL], [])
     d = _billing_dossier()
     d["scoring"]["severity"] = "P0"
-    r = e.evaluate(d)
+    r = explain(e, d)
     assert "billing_dispute" in r["_facts"]["triggers"]
     assert not any("P0 without" in v["explanation"] for v in only(r, "Q3"))
 
@@ -525,7 +525,7 @@ def test_onboarding_failure_on_unadopted_account_is_not_Q2():
 
 
 def test_cold_call_without_context_returns_contract_keys():
-    r = SignalEvaluator(use_classifier=False).evaluate(happy_dossier())
+    r = explain(SignalEvaluator(use_classifier=False), happy_dossier())
     assert set(r) >= {"quality_score", "risk_score", "deserved_attention", "violations"}
     assert r["_facts"]["context_loaded"] is False
 
@@ -545,7 +545,7 @@ def test_expired_after_notification_still_reached_a_human(ev):
     d = happy_dossier()
     d["lifecycle"][-1] = {"step": 7, "from_state": "routed", "to_state": "expired", "at": "2026-03-20T12:00:00Z", "trigger": "staleness_timeout", "reason": ""}
     d["decision"]["disposition"] = "expired"
-    r = ev.evaluate(d)
+    r = explain(ev, d)
     assert r["_facts"]["reached_human"] is True
 
 
@@ -564,7 +564,7 @@ def test_negative_days_to_renewal_is_not_near_renewal(ev):
     d["hypotheses"][0]["hypothesis"] = "champion_departure"
     ev.cx.accounts["acct_T"]["renewal_date"] = "2026-01-01"     # already passed
     try:
-        r = ev.evaluate(d)
+        r = explain(ev, d)
         assert "buyer_or_champion_departure" not in r["_facts"]["triggers"]
     finally:
         ev.cx.accounts["acct_T"].pop("renewal_date", None)
@@ -584,13 +584,13 @@ def test_negative_days_to_renewal_is_not_near_renewal(ev):
 def test_malformed_dossier_never_raises(ev, mutate):
     d = happy_dossier()
     mutate(d)
-    r = ev.evaluate(d)
+    r = explain(ev, d)
     assert set(r) >= {"quality_score", "risk_score", "deserved_attention", "violations"}
     assert r["_facts"]["errors"] == [], r["_facts"]["errors"]
 
 
 def test_malformed_dossier_never_raises_cold(ev):
-    r = SignalEvaluator(use_classifier=False).evaluate({"signal_id": "x", "account_id": "acct_T"})
+    r = explain(SignalEvaluator(use_classifier=False), {"signal_id": "x", "account_id": "acct_T"})
     assert set(r) >= {"quality_score", "risk_score", "deserved_attention", "violations"}
     assert r["_facts"]["errors"] == [], r["_facts"]["errors"]
 

@@ -53,7 +53,8 @@ def _sanitize(dossier, errors):
 
 class SignalEvaluator:
     """
-    evaluate(dossier) -> {quality_score, risk_score, deserved_attention, violations, _facts}
+    evaluate(dossier) -> {quality_score, risk_score, deserved_attention, violations}   (README §1, exactly)
+    explain(dossier)  -> the same four keys plus "_facts": every extracted fact, for analysis and tests.
 
     load_context() is optional. Without it, corpus checks (I6, P4, M6, Q5) are skipped; the model
     still reads the quotes the dossier carries, so P1/Q2 keep working with lower confidence.
@@ -75,6 +76,16 @@ class SignalEvaluator:
 
     # ── evaluation ───────────────────────────────────────────────────────────
     def evaluate(self, dossier: dict) -> dict:
+        """The grader's contract: exactly the four README keys."""
+        return self._evaluate(dossier)[0]
+
+    def explain(self, dossier: dict) -> dict:
+        """The contract plus "_facts" — for analysis scripts, tests and saved runs, never for the grader."""
+        result, facts = self._evaluate(dossier)
+        return dict(result, _facts=facts)
+
+    def _evaluate(self, dossier):
+        """(result, facts): result is the four-key contract, facts every extracted fact."""
         errors = []
         d, cx = _sanitize(dossier, errors), self.cx
         ctx = {"errors": errors}
@@ -122,8 +133,7 @@ class SignalEvaluator:
             "risk_score": risk,
             "deserved_attention": bool(deserved),
             "violations": violations,
-            "_facts": facts,
-        }
+        }, facts
 
     def _facts(self, ctx, deserved_reason):
         """Every extracted fact, so downstream analysis never has to re-derive it."""

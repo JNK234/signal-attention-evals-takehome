@@ -77,3 +77,8 @@ def ev():
 
 def rules(result):
     return {v["rule"] for v in result["violations"]}
+
+
+def explain(ev, d):
+    """evaluate() plus "_facts" — what tests read when they assert on extracted facts, not just violations."""
+    return ev.explain(d)

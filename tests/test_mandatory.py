@@ -3,7 +3,7 @@ ABOUTME: Known-answer tests for the mandatory-route check (spec §8.1 / §4.3) w
 ABOUTME: injected in place of the model, so trigger attribution and the P1 rule are pinned without any inference.
 """
 
-from conftest import ARTIFACT, happy_dossier, rules
+from conftest import ARTIFACT, explain, happy_dossier, rules
 from signal_eval.classifier import TRIGGER_LABELS
 from signal_eval.util import ts
 
@@ -64,7 +64,7 @@ def test_notified_then_suppressed_with_trigger_is_P1(ev):
                                            "at": "2026-03-03T12:00:00Z", "trigger": "agent_action", "reason": "immaterial"}]
     d["actions"].append({"step": 7, "action": "suppress", "at": "2026-03-03T12:00:00Z", "params": {"reason": "immaterial"}})
     d["decision"].update(disposition="suppressed", recommended_play="watch_only")
-    r = ev.evaluate(d)
+    r = explain(ev, d)
     assert r["_facts"]["reached_human"] is True
     hits = p1s(r)
     assert len(hits) == 1 and hits[0]["step"] == 7
@@ -76,7 +76,7 @@ def test_trigger_routed_and_acknowledged_is_not_P1(ev):
     d = attach(happy_dossier(), billing_event(20_000))
     d["detector"] = "billing_dispute"
     ev.cx.artifacts["art_BILL"] = billing_event(20_000)
-    r = ev.evaluate(d)
+    r = explain(ev, d)
     assert "billing_dispute" in r["_facts"]["triggers"] and "P1" not in rules(r)
 
 
@@ -100,7 +100,7 @@ def _departure_case(ev, art):
     d["metadata"]["days_to_renewal"] = 60
     ev.cx.artifacts[art["artifact_id"]] = art
     use_labels(ev, {art["artifact_id"]: label(departure=True, scores={**label()["scores"], "departure": 0.9})})
-    return ev.evaluate(d)
+    return explain(ev, d)
 
 
 def test_departure_authored_by_champion_is_trigger(ev):
@@ -130,7 +130,7 @@ def test_named_departure_outside_renewal_window_is_not_trigger(ev):
     d["metadata"]["days_to_renewal"] = 200
     ev.cx.artifacts[art["artifact_id"]] = art
     use_labels(ev, {art["artifact_id"]: label(departure=True)})
-    assert "buyer_or_champion_departure" not in ev.evaluate(d)["_facts"]["triggers"]
+    assert "buyer_or_champion_departure" not in explain(ev, d)["_facts"]["triggers"]
 
 
 # ── legal reference: any author (spec §8.1 bullet 2 has no author restriction) ──────────────────────
@@ -139,7 +139,7 @@ def test_internal_note_with_legal_reference_is_trigger(ev):
     d = suppressed(attach(happy_dossier(), INTERNAL_NOTE))
     ev.cx.artifacts["art_INT"] = INTERNAL_NOTE
     use_labels(ev, {"art_INT": label(legal_reference=True)})
-    r = ev.evaluate(d)
+    r = explain(ev, d)
     assert "legal_reference" in r["_facts"]["triggers"]
     hits = p1s(r)
     assert hits and hits[0]["step"] == 6 and "legal_reference" in hits[0]["explanation"]
@@ -150,7 +150,7 @@ def test_internal_note_with_security_label_is_not_trigger(ev):
     d = suppressed(attach(happy_dossier(), INTERNAL_NOTE))
     ev.cx.artifacts["art_INT"] = INTERNAL_NOTE
     use_labels(ev, {"art_INT": label(security_incident=True)})
-    assert "security_incident" not in ev.evaluate(d)["_facts"]["triggers"]
+    assert "security_incident" not in explain(ev, d)["_facts"]["triggers"]
 
 
 # ── finding 3: partial label coverage cannot erase the structural cancel proxy ───────────────────────
@@ -160,7 +160,7 @@ def _churn_case(ev, labels):
     d["detector"] = "exec_churn_language"
     ev.cx.artifacts["art_T2"] = SECOND_CUSTOMER
     use_labels(ev, labels)
-    return ev.evaluate(d)
+    return explain(ev, d)
 
 
 def test_partial_coverage_keeps_cancel_proxy(ev):
@@ -191,7 +191,7 @@ def _unattached(ev, when, closed_at="2026-03-03T12:00:00Z"):
     ev.cx.account_triggers["acct_T"] = [(ts(when), "art_LATE", {"legal_reference"})]
     d = suppressed(happy_dossier())
     d["closed_at"] = closed_at
-    return ev.evaluate(d)
+    return explain(ev, d)
 
 
 def test_trigger_written_after_close_is_not_unattached(ev):
@@ -225,7 +225,7 @@ def _billing_case(ev, amount, detector="billing_dispute", labels=None):
     ev.cx.artifacts["art_BILL"] = bill
     if labels is not None:
         use_labels(ev, labels)
-    return ev.evaluate(d)
+    return explain(ev, d)
 
 
 def test_billing_dispute_at_exactly_five_percent_is_not_trigger(ev):

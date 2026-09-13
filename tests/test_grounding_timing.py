@@ -6,7 +6,7 @@ ABOUTME: and duplicate-signal (Q5) review findings. Each test breaks one thing a
 import copy
 from datetime import date, timedelta
 
-from conftest import ACCOUNT, ARTIFACT, OWNER, SignalEvaluator, happy_dossier, rules, telemetry
+from conftest import ACCOUNT, ARTIFACT, OWNER, SignalEvaluator, explain, happy_dossier, rules, telemetry
 
 
 def _grounding_eval(rows):
@@ -29,7 +29,7 @@ def test_claim_5_4pp_off_is_not_grounded():
     e = _grounding_eval(telemetry([100] * 7, [60.4] * 7))          # corrected change −39.6%
     d = happy_dossier()
     d["metrics_claimed"] = [_claim("dau_seats -45% week over week")]
-    r = e.evaluate(d)
+    r = explain(e, d)
     assert r["_facts"]["claim_status"] == ["wrong"]
     m6 = _by_rule(r, "M6")
     assert len(m6) == 1 and m6[0]["step"] == 2
@@ -40,7 +40,7 @@ def test_claim_exactly_5pp_off_is_grounded():
     e = _grounding_eval(telemetry([100] * 7, [60] * 7))            # corrected change −40.0%
     d = happy_dossier()
     d["metrics_claimed"] = [_claim("dau_seats -45% week over week")]
-    r = e.evaluate(d)
+    r = explain(e, d)
     assert r["_facts"]["claim_status"] == ["grounded"] and not _by_rule(r, "M6")
 
 
@@ -50,7 +50,7 @@ def test_claim_of_minus_100_is_grounded_when_metric_fell_to_zero():
     e = _grounding_eval(telemetry([100] * 7, [0] * 7))             # api_calls stay 1000, so rows are not "dead"
     d = happy_dossier()
     d["metrics_claimed"] = [_claim("dau_seats -100% week over week")]
-    r = e.evaluate(d)
+    r = explain(e, d)
     assert r["_facts"]["claim_status"] == ["grounded"] and not _by_rule(r, "M6")
 
 
@@ -71,7 +71,7 @@ def test_claim_detail_reports_backfill_days():
     e = _grounding_eval(rows + [fixed])
     d = happy_dossier()
     d["metrics_claimed"] = [_claim("dau_seats -40% week over week")]
-    r = e.evaluate(d)
+    r = explain(e, d)
     assert r["_facts"]["claim_status"] == ["grounded"]              # the survivor is the correction; still usable
     assert r["_facts"]["claim_detail"][0]["backfill_days"] == 1
 
@@ -80,7 +80,7 @@ def test_claim_detail_backfill_days_is_zero_without_corrections():
     e = _grounding_eval(telemetry([100] * 7, [60] * 7))
     d = happy_dossier()
     d["metrics_claimed"] = [_claim("dau_seats -40% week over week")]
-    assert e.evaluate(d)["_facts"]["claim_detail"][0]["backfill_days"] == 0
+    assert explain(e, d)["_facts"]["claim_detail"][0]["backfill_days"] == 0
 
 
 # ── T4: idle time is measured to the last evidence attached BEFORE expiry (spec §6.4) ─────────
@@ -155,7 +155,7 @@ def _p95_q2(result):
 
 
 def test_p95_span_is_not_Q2_when_customer_text_backs_the_hypothesis(ev):
-    r = ev.evaluate(_p95_dossier())                                       # art_T1 is customer-authored and verified
+    r = explain(ev, _p95_dossier())                                       # art_T1 is customer-authored and verified
     assert r["_facts"]["has_customer_text"] is True and not _p95_q2(r)
 
 
@@ -169,7 +169,7 @@ def test_p95_span_is_Q2_without_any_evidence(ev):
 def test_p95_span_is_Q2_when_only_bot_text_is_attached(ev):
     ev.cx.artifacts["art_T1"] = dict(ARTIFACT, author_type="bot")
     try:
-        r = ev.evaluate(_p95_dossier())
+        r = explain(ev, _p95_dossier())
         assert r["_facts"]["has_customer_text"] is False and len(_p95_q2(r)) == 1
     finally:
         ev.cx.artifacts["art_T1"] = ARTIFACT
@@ -212,7 +212,7 @@ def _pair(second_opened_at):
 
 def test_signal_opened_exactly_when_earlier_closes_is_not_Q5():
     e, second = _pair("2026-03-03T12:00:00Z")
-    r = e.evaluate(second)
+    r = explain(e, second)
     assert not _by_rule(r, "Q5") and r["_facts"]["duplicates"] == []
 
 

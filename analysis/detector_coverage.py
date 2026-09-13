@@ -46,7 +46,7 @@ def main():
     ev.load_context(E._load("accounts.jsonl"), E._load("owners.jsonl"), tel_raw, E._load("artifacts.jsonl"), D)
     cx = ev.cx
     outcomes = {o["signal_id"]: o for o in E._load("outcomes.jsonl")}
-    results = {d["signal_id"]: ev.evaluate(d) for d in D}
+    results = {d["signal_id"]: ev.explain(d) for d in D}
 
     # raw (uncorrected, deduped-by-latest) rows for the naive detector view
     raw = defaultdict(dict)

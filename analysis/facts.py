@@ -35,7 +35,7 @@ def main():
 
     rows = []
     for d in D:
-        r = ev.evaluate(d)
+        r = ev.explain(d)
         acc = ev.cx.accounts[d["account_id"]]
         own = ev.cx.owners[d["metadata"]["owner_id"]]
         o = outcomes.get(d["signal_id"], {})

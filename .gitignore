@@ -5,3 +5,5 @@ analysis/.cache/
 analysis/*.out
 analysis/results.jsonl
 analysis/facts.csv
+analysis/runs/*
+!analysis/runs/manifest.jsonl

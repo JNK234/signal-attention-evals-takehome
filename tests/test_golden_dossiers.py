@@ -35,7 +35,7 @@ def corpus():
 
 def run(corpus, sid):
     ev, by_id = corpus
-    return ev.evaluate(by_id[sid])
+    return ev.explain(by_id[sid])
 
 
 def rules(r):

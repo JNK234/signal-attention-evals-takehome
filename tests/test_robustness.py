@@ -9,7 +9,7 @@ import sys
 
 import pytest
 
-from conftest import ACCOUNT, ARTIFACT, OTHER_ARTIFACT, OWNER, SignalEvaluator, happy_dossier, rules, telemetry
+from conftest import ACCOUNT, ARTIFACT, OTHER_ARTIFACT, OWNER, SignalEvaluator, explain, happy_dossier, rules, telemetry
 
 import signal_eval.context as context_mod
 
@@ -55,7 +55,7 @@ def input_errors(r):
 # ── 1. input types (README l.222: "must still return something sensible") ─────────────────────────
 @pytest.mark.parametrize("bad", [None, "not a dossier", 42, ["a", "list"]])
 def test_non_dict_dossier_is_treated_as_empty(ev, bad):
-    r = ev.evaluate(bad)
+    r = explain(ev, bad)
     assert set(r) >= CONTRACT_KEYS
     assert len(input_errors(r)) == 1 and "dossier" in input_errors(r)[0]["error"]
 
@@ -63,7 +63,7 @@ def test_non_dict_dossier_is_treated_as_empty(ev, bad):
 def test_non_dict_metadata_is_treated_as_empty(ev):
     d = happy_dossier()
     d["metadata"] = ["not", "a", "dict"]
-    r = ev.evaluate(d)
+    r = explain(ev, d)
     assert set(r) >= CONTRACT_KEYS
     errs = input_errors(r)
     assert len(errs) == 1 and "metadata" in errs[0]["error"]
@@ -75,7 +75,7 @@ def test_non_dict_metadata_is_treated_as_empty(ev):
 def test_non_list_field_is_treated_as_empty(ev, field, bad):
     d = happy_dossier()
     d[field] = bad
-    r = ev.evaluate(d)
+    r = explain(ev, d)
     assert set(r) >= CONTRACT_KEYS
     errs = input_errors(r)
     assert len(errs) == 1 and field in errs[0]["error"]
@@ -86,7 +86,7 @@ def test_non_list_field_is_treated_as_empty(ev, field, bad):
 def test_null_list_fields_are_not_input_errors(ev):
     d = happy_dossier()
     d["notifications"] = None
-    assert input_errors(ev.evaluate(d)) == []
+    assert input_errors(explain(ev, d)) == []
 
 
 # ── 4. per-entry isolation (README l.218: evidence integrity per entry) ────────────────────────────
@@ -94,7 +94,7 @@ def test_malformed_evidence_entry_does_not_hide_fabrication_in_valid_entry(ev):
     d = happy_dossier()
     d["evidence"][0]["quote"] = "We are planning a backfill of about 180M rows."
     d["evidence"].append(None)
-    r = ev.evaluate(d)
+    r = explain(ev, d)
     assert "I6" in rules(r)
     errs = input_errors(r)
     assert len(errs) == 1 and "evidence[1]" in errs[0]["error"]
@@ -105,7 +105,7 @@ def test_malformed_evidence_entry_does_not_hide_fabrication_in_valid_entry(ev):
 def test_non_dict_entries_are_dropped_and_recorded(ev, field):
     d = happy_dossier()
     d[field] = list(d[field]) + [None, "junk", 3]
-    r = ev.evaluate(d)
+    r = explain(ev, d)
     errs = input_errors(r)
     assert len(errs) == 3 and all(field in e["error"] for e in errs)
     assert [e for e in r["_facts"]["errors"] if e["check"] != "input"] == []
@@ -115,7 +115,7 @@ def test_malformed_lifecycle_entry_keeps_other_findings(ev):
     d = happy_dossier()
     d["evidence"][0]["artifact_id"] = "art_OTHER"     # P4 from the evidence check
     d["lifecycle"].insert(0, "garbage")                # would have thrown inside check_transitions
-    r = ev.evaluate(d)
+    r = explain(ev, d)
     assert "P4" in rules(r)
     assert len(input_errors(r)) == 1
 
@@ -129,7 +129,7 @@ def test_cache_write_failure_is_recorded_not_raised(ev, monkeypatch, tmp_path):
     monkeypatch.setattr(type(cache), "write_text", lambda self, *a, **k: (_ for _ in ()).throw(PermissionError("read-only")))
     d = happy_dossier()
     d["evidence"][0]["artifact_id"] = "art_NOPE"
-    r = ev.evaluate(d)
+    r = explain(ev, d)
     assert "I6" in rules(r)
     errs = [e for e in r["_facts"]["errors"] if e["check"] == "label_cache"]
     assert len(errs) == 1 and "PermissionError" in errs[0]["error"]
@@ -168,7 +168,7 @@ def test_load_context_survives_unwritable_cache(monkeypatch, tmp_path):
     monkeypatch.setattr(type(cache), "write_text", lambda self, *a, **k: (_ for _ in ()).throw(OSError("read-only")))
     e = SignalEvaluator(use_classifier=True, label_cache_path=cache)
     e.load_context([ACCOUNT], [OWNER], telemetry([50] * 7, [50] * 7), [ARTIFACT], [happy_dossier()])
-    r = e.evaluate(happy_dossier())
+    r = explain(e, happy_dossier())
     assert set(r) >= CONTRACT_KEYS and r["_facts"]["context_loaded"] is True
 
 
@@ -178,7 +178,7 @@ def test_default_is_auto_and_off_without_cache_or_local_model(no_local_model, mo
     e = SignalEvaluator()
     assert e.cx.classifier_mode == "auto" and e.cx.use_classifier is False
     assert e.cx.classifier_reason == "auto: no cache and no local model"
-    r = e.evaluate(happy_dossier())
+    r = explain(e, happy_dossier())
     assert r["_facts"]["classifier_reason"] == "auto: no cache and no local model"
     assert r["_facts"]["classifier_active"] is False
     assert created == []
@@ -222,7 +222,7 @@ def test_auto_enables_on_local_model(no_local_model, monkeypatch):
     assert created == [], "construction must not instantiate the pipeline"
     e.load_context([ACCOUNT], [OWNER], telemetry([50] * 7, [50] * 7), [ARTIFACT], [happy_dossier()])
     assert len(created) == 1
-    r = e.evaluate(happy_dossier())
+    r = explain(e, happy_dossier())
     assert len(created) == 1 and r["_facts"]["classifier_active"] is True
     assert r["_facts"]["classifier_reason"] == "local model"
 
@@ -238,7 +238,7 @@ def test_true_mode_loads_model_at_load_context_not_evaluate(monkeypatch):
 
 
 def test_disabled_reason(ev):
-    r = ev.evaluate(happy_dossier())
+    r = explain(ev, happy_dossier())
     assert r["_facts"]["classifier_reason"] == "disabled" and r["_facts"]["classifier_active"] is False
 
 
@@ -246,7 +246,7 @@ def test_unavailable_reason_carries_the_error(monkeypatch):
     stub_classifier(monkeypatch, available=False, error="ImportError('no transformers')")
     e = SignalEvaluator(use_classifier=True)
     e.load_context([ACCOUNT], [OWNER], telemetry([50] * 7, [50] * 7), [ARTIFACT], [happy_dossier()])
-    r = e.evaluate(happy_dossier())
+    r = explain(e, happy_dossier())
     assert r["_facts"]["classifier_active"] is False
     assert r["_facts"]["classifier_reason"] == "unavailable: ImportError('no transformers')"
     assert set(r) >= CONTRACT_KEYS
@@ -270,7 +270,7 @@ def test_unhashable_account_id_still_returns(ev):
 
 
 def test_existing_facts_keys_preserved(ev):
-    r = ev.evaluate(happy_dossier())
+    r = explain(ev, happy_dossier())
     assert set(r["_facts"]) >= {
         "context_loaded", "classifier_active", "labels_cover_corpus", "deserved_reason", "triggers", "trigger_source",
         "account_triggers_unattached", "reached_human", "days_to_renewal", "claim_status", "claim_detail", "cohort_notes",
