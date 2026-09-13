@@ -297,27 +297,18 @@ class Context:
         return lab
 
     def _index_triggers(self, art, lab):
+        """Account-level index of confirmed triggers (the unattached-trigger scan in checks/mandatory). Same
+        attribution rules as the per-dossier check; the renewal window is the signal's, so departures are indexed
+        without it and the scan applies it per dossier. Abstains are not indexed: an uncertain read of an artefact
+        the agent never attached is not evidence it missed something."""
         aid = art.get("artifact_id")
-        if not aid or aid in self._indexed or lab.get("stale") or lab.get("triggers_belong_elsewhere") or not art.get("timestamp"):
+        if not aid or aid in self._indexed or lab.get("stale") or not lab.get("reading") or not art.get("timestamp"):
             return
         self._indexed.add(aid)
-        from .checks.mandatory import departure_attributed   # same attribution rule as the per-dossier check
-        trig = set()
-        cust = art.get("author_type") == "customer"
-        # spec §8.1 bullet 1: "from a customer-side author"
-        if lab.get("cancel_intent") and cust:
-            trig.add("cancel_intent")
-        # spec §8.1 bullet 2 names no author — a legal reference counts whoever wrote it
-        if lab.get("legal_reference"):
-            trig.add("legal_reference")
-        # spec §8.1 bullet 3: "raised by the customer"
-        if lab.get("security_incident") and cust:
-            trig.add("security_incident")
-        # spec §8.1 bullet 4: only the economic buyer or named champion (author match or named in the text)
-        if lab.get("departure") and departure_attributed(art, self.accounts.get(art.get("account_id"))):
-            trig.add("buyer_or_champion_departure")
-        if trig:
-            self.account_triggers[art.get("account_id")].append((ts(art["timestamp"]), aid, trig))
+        from .checks.mandatory import triggers_from_reading
+        t = triggers_from_reading(lab["reading"], art, self.accounts.get(art.get("account_id")), None, check_window=False)
+        if t["confirmed"]:
+            self.account_triggers[art.get("account_id")].append((ts(art["timestamp"]), aid, t["confirmed"]))
 
     def _label_artifacts(self, dossiers):
         """Pre-warm: read the artefacts in scope (cited as evidence, or the whole corpus). Optional —

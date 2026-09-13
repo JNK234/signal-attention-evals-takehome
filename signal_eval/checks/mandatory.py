@@ -1,116 +1,156 @@
 """
-ABOUTME: Mandatory-route triggers — spec §8.1. Structural rules run first; the NLI labels may add
-ABOUTME: triggers the rules missed or remove only the structural cancel proxy (asymmetric). A trigger is a
-ABOUTME: violation when the signal was suppressed or no human was notified. Unattached triggers are separate.
+ABOUTME: Mandatory-route triggers — spec §8.1. triggers_from_reading() reads one artefact's block Reading into
+ABOUTME: confirmed / uncertain / historical / unattributed triggers; P1 fires on confirmed ∪ uncertain when suppressed or no human.
 """
 
 from datetime import timedelta
 
-from ..spec import BILLING_DISPUTE_PCT, DEPARTURE_WINDOW_DAYS, RECENT_EVIDENCE_DAYS, violation
-from ..util import days_to_renewal, dollars, first_hypothesis, norm, reached_human, ts
+from ..labels import TRIGGER_LABELS
+from ..spec import BILLING_DISPUTE_PCT, DEPARTURE_WINDOW_DAYS, violation
+from ..text import blocks
+from ..util import days_to_renewal, money, norm, reached_human, ts
 
-HARD_TRIGGERS = {"billing_dispute", "buyer_or_champion_departure"}
 ACCOUNT_LOOKBACK_DAYS = 30    # a trigger this far before opened_at should have been found by the lookup
 ACCOUNT_LOOKAHEAD_DAYS = 14   # ...or arrived while the signal was still open
+ROLE_MIN_TOKENS = 2           # "Director" matches any director; "Head of Analytics" names the champion's role
+BILLING_TYPES = {"billing_event"}
+UNVERIFIED_BILLING = "billing_dispute(amount unverified)"
 
 
 def _label_of(a):
     return a.get("_label") or {}
 
 
-def departure_attributed(art, account):
-    """spec §8.1 bullet 4: 'Departure of the economic buyer or named champion'. A departure label is the
-    trigger only when it is about one of those two people: the artefact's author IS one of them, or the
-    text names one of them. The label dict carries only the max over the generic, {names} and {role}
-    hypothesis sentences (context.label_artifact), so the name test stands in for the per-sentence score.
-    Matching a person's name from the account record is identity matching, not phrase matching."""
-    names = [n for n in ((account or {}).get("champion"), (account or {}).get("economic_buyer")) if n]
-    if not names:
-        return False
-    author = norm(art.get("author"))
-    text = norm((art.get("subject") or "") + "\n" + (art.get("text") or ""))
-    return any(author == norm(n) or norm(n) in text for n in names)
+def _depth0_texts(reading, artifact):
+    """The current, non-signature block texts. Reads text.Block objects (context.read_artifact) or the JSON-safe
+    dicts (context.reading_facts); with no reading at all (no labeller) the blocks are cut from the artefact."""
+    bs = (reading or {}).get("blocks")
+    if bs is None:
+        bs = blocks(artifact.get("subject"), artifact.get("text"))
+    out = []
+    for b in bs:
+        depth, sig, text = ((b.depth, b.is_signature, b.text) if hasattr(b, "depth")
+                            else (b.get("depth"), b.get("is_signature"), b.get("text")))
+        if depth == 0 and not sig and (text or "").strip():
+            out.append(text.strip())
+    return out
 
 
-def _structural(d, ctx, verified, near_renewal):
-    """What the dossier's structure alone says. No text is read."""
-    trig = set()
-    det = d.get("detector")
-    hyp = first_hypothesis(d).get("hypothesis")
-    opened = ts(d.get("opened_at"))
-    # cancel-intent proxy: the churn-keyword detector fired and there is current, non-chat customer text
-    if det == "exec_churn_language":
-        if verified is None:
-            trig.add("cancel_intent(unverified)")
+def departure_subject(artifact, account, texts):
+    """spec §8.1 bullet 4 names two people. Who the departure is about, or None when it cannot be tied to either:
+    the author IS the champion / economic buyer (first-person notices), a current block names one in full, or it
+    names their role (a ≥2-token title from the account record). Identity matching against the account record,
+    never phrase matching; the titles are the account's own words for the role."""
+    account = account or {}
+    names = [(k, account.get(k)) for k in ("champion", "economic_buyer") if account.get(k)]
+    author = norm(artifact.get("author"))
+    for k, n in names:
+        if author and author == norm(n):
+            return f"{k} (author)"
+    body = [norm(t) for t in texts]
+    for k, n in names:
+        if any(norm(n) in t for t in body):
+            return f"{k} (named)"
+    for k in ("champion_title", "economic_buyer_title"):
+        role = norm(account.get(k))
+        if len(role.split()) >= ROLE_MIN_TOKENS and any(role in t for t in body):
+            return f"{k[:-len('_title')]} (role: {account.get(k)})"
+    return None
+
+
+def _billing(out, texts, verdict, arr, detector):
+    """spec §8.1 bullet 5 — 'a billing dispute exceeding 5% of the account's annual ARR'. A1/A7: the billing_event
+    is a system record read structurally — disputed when the billing_dispute detector fired (spec §3.1: it fires
+    when a billing event is marked disputed or overdue) or the block reads as disputed; the amount comes from the
+    same block via util.money(). ARR is in the account's currency (USD); another currency or no amount leaves
+    the 5% test unverifiable. 'Exceeding' is strict: exactly 5% is not a trigger."""
+    facts = out["facts"]
+    if not (detector == "billing_dispute" or verdict.get("billing_dispute") is True):
+        return
+    amt = next((m for t in texts if (m := money(t))), None)
+    if amt is None:
+        out["uncertain"].add(UNVERIFIED_BILLING)
+        facts["billing"] = "disputed; no amount readable"
+        return
+    amount, cur = amt
+    if cur != "USD":
+        out["uncertain"].add(UNVERIFIED_BILLING)
+        facts["billing"] = f"disputed; {amount:,.0f} {cur} is not comparable to ARR in USD"
+    elif not arr:
+        out["uncertain"].add(UNVERIFIED_BILLING)
+        facts["billing"] = f"disputed ${amount:,.0f}; ARR unknown"
+    elif amount > BILLING_DISPUTE_PCT * arr:
+        out["confirmed"].add("billing_dispute")
+        facts["billing"] = f"disputed ${amount:,.0f} = {amount / arr:.1%} of ARR"
+    else:
+        facts["billing"] = f"disputed ${amount:,.0f} = {amount / arr:.1%} of ARR, not above {BILLING_DISPUTE_PCT:.0%}"
+
+
+def triggers_from_reading(reading, artifact, account, dtr, detector=None, arr=None, check_window=True):
+    """What one artefact says under spec §8.1, from its Reading (context.read_artifact or the JSON-safe
+    lab["reading"]). Only depth-0, non-signature blocks count; a label True only in quoted history is
+    `historical`; a block naming another account (reading["other_account"]) is masked. Bots contribute nothing
+    but the structural billing read (A1). Attribution: cancel needs a customer author (an internal author's
+    report is a fact, A9); legal needs any non-bot author (A4); security needs the customer; departure needs a
+    resolved subject (departure_subject) and 0 ≤ dtr ≤ 90 (A5) — resolved outside the window is a fact,
+    unresolved is `unattributed`. A verdict of None (abstain / unreadable) on a current block is `uncertain`,
+    never silent; a quote whose author is unknown (cold path, A8) can only ever be uncertain.
+    `detector` is the dossier's (billing), `arr` overrides account["arr_annual"] (cold path: metadata),
+    `check_window=False` skips the renewal window (the account index applies it per signal).
+    Returns {"confirmed", "uncertain", "historical", "unattributed": set, "facts": dict}."""
+    out = {"confirmed": set(), "uncertain": set(), "historical": set(), "unattributed": set(), "facts": {}}
+    facts = out["facts"]
+    author_type = artifact.get("author_type")
+    texts = _depth0_texts(reading, artifact)
+    verdict = (reading or {}).get("verdict") or {}
+    if artifact.get("type") in BILLING_TYPES or artifact.get("source") in BILLING_TYPES:
+        _billing(out, texts, verdict, arr if arr is not None else (account or {}).get("arr_annual"), detector)
+    if author_type == "bot" or reading is None:          # nothing read: nothing to say about the text
+        return out
+    if reading.get("other_account") is not None:
+        facts["masked_other_account"] = reading["other_account"]
+        return out
+    out["historical"] = {label for label in reading.get("historical", ()) if label in TRIGGER_LABELS}
+    if not texts:                                        # only quoted material: no current block to read
+        return out
+    customer, unknown = author_type == "customer", author_type is None
+
+    def place(label, needs_customer, internal_fact):
+        v = verdict.get(label)
+        if v is False:
+            return
+        if unknown:                                      # A8: a bare quote with no author is lower-confidence
+            out["uncertain"].add(label)
+            facts.setdefault("author_unknown", []).append(label)
+        elif needs_customer and not customer:
+            if v is True:
+                facts[label] = internal_fact
+        elif v is True:
+            out["confirmed"].add(label)
+        else:                                            # abstain or unreadable on a block that could carry it
+            out["uncertain"].add(label)
+
+    place("cancel_intent", True, "reported_by_internal")         # spec §8.1 bullet 1 "from a customer-side author"
+    place("legal_reference", False, None)                        # bullet 2 names no author
+    place("security_incident", True, "reported_by_internal")     # bullet 3 "raised by the customer"
+
+    v = verdict.get("departure")                                 # bullet 4: the economic buyer or named champion
+    if v is not False:
+        name = "buyer_or_champion_departure"
+        subject = departure_subject(artifact, account, texts)
+        if subject is None:
+            if v is True:
+                out["unattributed"].add("departure")
+                facts["departure"] = "unattributed"
+        elif not check_window or (dtr is not None and 0 <= dtr <= DEPARTURE_WINDOW_DAYS):
+            (out["confirmed"] if v is True and not unknown else out["uncertain"]).add(name)
+            facts[name] = subject
+        elif dtr is None:
+            out["uncertain"].add(name)
+            facts[name] = f"{subject}; renewal date unknown"
         else:
-            cust = [a for a in verified if a.get("author_type") == "customer"]
-            fresh_direct = [a for a in cust if a.get("type") != "chat_message" and opened and ts(a.get("timestamp"))
-                            and abs((opened - ts(a["timestamp"])).days) <= RECENT_EVIDENCE_DAYS]
-            if fresh_direct or len({a.get("type") for a in cust}) >= 2:
-                trig.add("cancel_intent")
-    # departure inside the renewal window, via the agent's own hypothesis
-    if hyp == "champion_departure" and near_renewal:
-        trig.add("buyer_or_champion_departure")
-    return trig
-
-
-def _billing(d, ctx, verified):
-    """spec §8.1 bullet 5 — a billing dispute above 5% of ARR.
-    Structural: the billing_dispute detector (spec §3.1: "a billing event is marked disputed or overdue")
-    plus the amount read syntactically from the attached billing_event.
-    Detector-agnostic: any attached billing_event the model reads as disputed/overdue, same amount test."""
-    arr = ctx["acct"].get("arr")
-    det_fired = d.get("detector") == "billing_dispute"
-    if verified is None:
-        return {"billing_dispute(amount unverified)"} if det_fired else set()
-    bills = [a for a in verified if a.get("source") == "billing_event" or a.get("type") == "billing_event"]
-    for a in bills:
-        lab = _label_of(a)
-        # without the detector, only a readable label that says "disputed" makes this event a dispute;
-        # an unlabelled / unverifiable / not-disputed billing_event is just an invoice record
-        disputed = det_fired or (bool(lab) and not lab.get("unverifiable") and bool(lab.get("billing_dispute")))
-        if not disputed:
-            continue
-        amt = dollars(a.get("text"))
-        if amt is None:
-            return {"billing_dispute(amount unverified)"}
-        # spec §8.1 bullet 5: "exceeding 5% of the account's annual ARR" — strictly greater; 5% exactly is not
-        if not arr or amt > BILLING_DISPUTE_PCT * arr:
-            return {"billing_dispute"}
-    if det_fired and not bills:
-        return {"billing_dispute(amount unverified)"}
-    return set()
-
-
-def _from_model(verified, near_renewal, account):
-    """What the verified, current evidence says under the NLI labels.
-    Returns (triggers, n_labelled, customer_text_fully_read): the last is True only when EVERY verified
-    customer-authored artefact carries a readable label — the condition for trusting the model's silence."""
-    trig, labelled, customer_read = set(), 0, True
-    for a in verified or []:
-        lab = _label_of(a)
-        if not lab or lab.get("unverifiable"):
-            if a.get("author_type") == "customer":
-                customer_read = False
-            continue
-        labelled += 1
-        if lab.get("triggers_belong_elsewhere"):
-            continue
-        cust = a.get("author_type") in ("customer", None)   # None = cold-path quote, author unknown
-        # spec §8.1 bullet 1: "from a customer-side author"
-        if lab.get("cancel_intent") and cust:
-            trig.add("cancel_intent")
-        # spec §8.1 bullet 2 names no author: a reference to counsel / breach / reserved rights / a regulator
-        # counts whoever wrote it down
-        if lab.get("legal_reference"):
-            trig.add("legal_reference")
-        # spec §8.1 bullet 3: "raised by the customer"
-        if lab.get("security_incident") and cust:
-            trig.add("security_incident")
-        # spec §8.1 bullet 4: the economic buyer or named champion, within 90 days of renewal
-        if lab.get("departure") and near_renewal and departure_attributed(a, account):
-            trig.add("buyer_or_champion_departure")
-    return trig, labelled, customer_read
+            facts[name] = f"{subject}; outside the {DEPARTURE_WINDOW_DAYS}-day renewal window (days_to_renewal={dtr})"
+    return out
 
 
 def _unattached_account_triggers(d, cx, near_renewal):
@@ -137,39 +177,27 @@ def _unattached_account_triggers(d, cx, near_renewal):
 
 
 def check_mandatory_route(d, ctx, cx):
-    verified = ctx.get("verified")
     dtr = days_to_renewal(d, ctx["acct"])
     near_renewal = dtr is not None and 0 <= dtr <= DEPARTURE_WINDOW_DAYS
     ctx["days_to_renewal"] = dtr
 
     account = cx.accounts.get(d.get("account_id")) if cx.loaded else None   # champion / economic_buyer live here
-    structural = _structural(d, ctx, verified, near_renewal) | _billing(d, ctx, verified)
-    model_trig, labelled, customer_read = _from_model(verified, near_renewal, account)
-    model_used = labelled > 0
-    proxy_kept = False
-    if model_used:
-        trig = set(structural)
-        added = model_trig - structural
-        removed = set()
-        if "cancel_intent" in structural and "cancel_intent" not in model_trig:
-            # the model's silence outweighs the structural proxy only if it actually read every customer
-            # artefact; one unlabelled customer text leaves the proxy standing (asymmetric, recall first)
-            if customer_read:
-                trig.discard("cancel_intent")
-                removed.add("cancel_intent")
-            else:
-                proxy_kept = True
-        trig |= added
-        source = {"structural": sorted(structural), "model": sorted(model_trig), "added_by_model": sorted(added),
-                  "removed_by_model": sorted(removed), "proxy": proxy_kept, "customer_text_read": customer_read,
-                  "label_source": "artifact" if cx.loaded else "quote"}
-    else:
-        trig = structural
-        source = {"structural": sorted(structural), "model": None, "added_by_model": [], "removed_by_model": [],
-                  "proxy": True, "unverifiable": not customer_read}
+    det = d.get("detector")
+    merged = {k: set() for k in ("confirmed", "uncertain", "historical", "unattributed")}
+    per_artifact = {}
+    for a in ctx.get("verified") or []:
+        t = triggers_from_reading(_label_of(a).get("reading"), a, account, dtr, detector=det, arr=ctx["acct"].get("arr"))
+        for k in merged:
+            merged[k] |= t[k]
+        if t["facts"] or any(t[k] for k in merged):
+            per_artifact[a.get("artifact_id")] = {**{k: sorted(t[k]) for k in merged}, "facts": t["facts"]}
+    if det == "billing_dispute" and not any(a.get("type") in BILLING_TYPES or a.get("source") in BILLING_TYPES
+                                            for a in ctx.get("verified") or []):
+        merged["uncertain"].add(UNVERIFIED_BILLING)   # the dispute is a system event; its amount is not in evidence
+    trig = merged["confirmed"] | merged["uncertain"]
+    source = {**{k: sorted(v) for k, v in merged.items()}, "per_artifact": per_artifact}
     human = reached_human(d)
     missed = _unattached_account_triggers(d, cx, near_renewal)
-    det = d.get("detector")
     ctx.update(triggers=trig, trigger_source=source, reached_human=human, account_triggers_unattached=missed,
                security_review=det == "security_review_opened" or any(ev.get("source") == "security_review" for ev in d.get("evidence") or []))
 
@@ -181,15 +209,12 @@ def check_mandatory_route(d, ctx, cx):
     # breach is P1. spec §4.3: suppression is forbidden when a trigger is present, so notifying first is no cure.
     if trig and (suppressed or not human):
         step = next((e.get("step") for e in lifecycle if e.get("to_state") in ("suppressed", "expired")), 0)
-        # certain when a hard structural trigger or a model-read trigger is present, or the model read the text
-        # and left only structural triggers standing; a proxy the model could not rule out stays a proxy
-        certain = bool(trig & HARD_TRIGGERS) or bool(trig & model_trig) or (model_used and not proxy_kept)
         what = ("suppressed after a human was notified" if suppressed and human
                 else f"{disp or 'closed'} without any human notified")
-        out.append(violation(step, "P1", f"{what} despite mandatory-route trigger(s) {sorted(trig)}"
-                             + ("" if certain else " — structural proxy, text not read"), certain=certain))
+        detail = f"confirmed {sorted(merged['confirmed'])}" + (f", uncertain {sorted(merged['uncertain'])}" if merged["uncertain"] else "")
+        out.append(violation(step, "P1", f"{what} despite mandatory-route trigger(s): {detail}", certain=bool(merged["confirmed"])))
     elif missed and not human:
-        step = next((e.get("step") for e in d.get("lifecycle") or [] if e.get("to_state") in ("suppressed", "expired")), 0)
+        step = next((e.get("step") for e in lifecycle if e.get("to_state") in ("suppressed", "expired")), 0)
         kinds = sorted({t for _, _, ts_ in missed for t in ts_})
         out.append(violation(step, "P1", f"{disp or 'closed'} without any human notified while the account carried an unattached written trigger {kinds} "
                              f"({', '.join(aid for _, aid, _ in missed[:3])}) — cross-source lookup missed it", certain=False))
