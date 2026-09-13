@@ -239,8 +239,12 @@ def test_sig_0058_departure_notice_suppressed_after_timeout(corpus):
     art_01647 alone — the exec_churn_language detector no longer stands in for a cancel trigger, so without a
     readable label cache this dossier carries no P1 (and an UNEVALUATED entry instead)."""
     r = run(corpus, "sig_0058")
-    if not corpus[0].cx.labels_cover_corpus:
+    per = r["_facts"]["trigger_source"]["per_artifact"].get("art_01647", {})
+    if "departure" in (per.get("facts") or {}).get("unread", []):
+        # art_01647 was never read: no trigger can stand, and the single UNEVALUATED entry says so
         assert "P1" not in rules(r) and any(v["rule"] == "UNEVALUATED" for v in r["violations"])
+    else:
+        assert per.get("confirmed") == ["buyer_or_champion_departure"] and "P1" in rules(r)
     assert {"I6", "TM"} <= rules(r)
     assert "art_93328" in only(r, "I6")[0]["explanation"] and only(r, "I6")[0]["severity"] == 1.0
     assert any("4.5" in v["explanation"] for v in only(r, "TM"))

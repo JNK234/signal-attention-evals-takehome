@@ -291,7 +291,7 @@ def test_billing_dispute_just_above_five_percent_is_trigger(ev):
     assert src(r)["confirmed"] == ["billing_dispute"] and p1s(r)[0]["step"] == 6
 
 
-# ── abstain and unreadable are uncertain, never silent ────────────────────────────────────────────
+# ── abstain is uncertain; unread is UNEVALUATED — neither is silent ──────────────────────────────
 
 def test_abstain_on_customer_block_is_uncertain_P1(ev):
     art = dict(SECOND_CUSTOMER, text="Honestly not sure we can keep this going next year.")
@@ -302,16 +302,20 @@ def test_abstain_on_customer_block_is_uncertain_P1(ev):
     assert r["_facts"]["triggers"] == ["cancel_intent"]
 
 
-def test_unreadable_customer_block_is_uncertain(ev):
+def test_unread_customer_block_is_unevaluated_not_a_trigger(ev):
+    """A block the labeller could not read carries no score for any label. That is not the model abstaining on
+    something it saw — nobody looked — so it must not become four half-severity triggers. The evaluator's single
+    UNEVALUATED entry is the honest record; the per-artefact facts name the unread labels."""
     from signal_eval.labellers import TableLabeller
     art = dict(SECOND_CUSTOMER, text="garbled bytes here")
     d = suppressed(attach(happy_dossier(), art))
     ev.cx.artifacts["art_T2"] = art
     ev.cx.set_labeller(TableLabeller({}, unreadable={"garbled"}))
     r = explain(ev, d)
-    assert src(r)["confirmed"] == []
-    assert {"cancel_intent", "legal_reference", "security_incident"} <= set(src(r)["uncertain"])
-    assert p1s(r) and p1s(r)[0]["severity"] == 0.5
+    assert src(r)["confirmed"] == [] and src(r)["uncertain"] == []
+    assert not p1s(r)
+    per = src(r)["per_artifact"]["art_T2"]
+    assert {"cancel_intent", "legal_reference", "security_incident", "departure"} <= set(per["facts"]["unread"])
 
 
 # ── unattached-trigger window ends at close (or opened + 14d) ─────────────────────────────────────

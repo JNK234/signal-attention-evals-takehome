@@ -93,8 +93,10 @@ def triggers_from_reading(reading, artifact, account, dtr, detector=None, arr=No
     but the structural billing read (A1). Attribution: cancel needs a customer author (an internal author's
     report is a fact, A9); legal needs any non-bot author (A4); security needs the customer; departure needs a
     resolved subject (departure_subject) and 0 ≤ dtr ≤ 90 (A5) — resolved outside the window is a fact,
-    unresolved is `unattributed`. A verdict of None (abstain / unreadable) on a current block is `uncertain`,
-    never silent; a quote whose author is unknown (cold path, A8) can only ever be uncertain.
+    unresolved is `unattributed`. A verdict of None with a score (the model abstained) on a current block is
+    `uncertain`, never silent; a verdict of None with no score (the block was never read) is recorded in
+    facts["unread"] and left to the evaluator's single UNEVALUATED entry — an unread block is not evidence of
+    anything. A quote whose author is unknown (cold path, A8) can only ever be uncertain.
     `detector` is the dossier's (billing), `arr` overrides account["arr_annual"] (cold path: metadata),
     `check_window=False` skips the renewal window (the account index applies it per signal).
     Returns {"confirmed", "uncertain", "historical", "unattributed": set, "facts": dict}."""
@@ -103,6 +105,7 @@ def triggers_from_reading(reading, artifact, account, dtr, detector=None, arr=No
     author_type = artifact.get("author_type")
     texts = _depth0_texts(reading, artifact)
     verdict = (reading or {}).get("verdict") or {}
+    scored = (reading or {}).get("score") or {}                 # labels the model actually produced a number for
     if artifact.get("type") in BILLING_TYPES or artifact.get("source") in BILLING_TYPES:
         _billing(out, texts, verdict, arr if arr is not None else (account or {}).get("arr_annual"), detector)
     if author_type == "bot" or reading is None:          # nothing read: nothing to say about the text
@@ -119,6 +122,9 @@ def triggers_from_reading(reading, artifact, account, dtr, detector=None, arr=No
         v = verdict.get(label)
         if v is False:
             return
+        if v is None and label not in scored:            # never read: UNEVALUATED's business, not a trigger
+            facts.setdefault("unread", []).append(label)
+            return
         if unknown:                                      # A8: a bare quote with no author is lower-confidence
             out["uncertain"].add(label)
             facts.setdefault("author_unknown", []).append(label)
@@ -127,7 +133,7 @@ def triggers_from_reading(reading, artifact, account, dtr, detector=None, arr=No
                 facts[label] = internal_fact
         elif v is True:
             out["confirmed"].add(label)
-        else:                                            # abstain or unreadable on a block that could carry it
+        else:                                            # the model abstained on a block that could carry it
             out["uncertain"].add(label)
 
     place("cancel_intent", True, "reported_by_internal")         # spec §8.1 bullet 1 "from a customer-side author"
@@ -135,7 +141,9 @@ def triggers_from_reading(reading, artifact, account, dtr, detector=None, arr=No
     place("security_incident", True, "reported_by_internal")     # bullet 3 "raised by the customer"
 
     v = verdict.get("departure")                                 # bullet 4: the economic buyer or named champion
-    if v is not False:
+    if v is None and "departure" not in scored:
+        facts.setdefault("unread", []).append("departure")
+    elif v is not False:
         name = "buyer_or_champion_departure"
         subject = departure_subject(artifact, account, texts)
         if subject is None:
