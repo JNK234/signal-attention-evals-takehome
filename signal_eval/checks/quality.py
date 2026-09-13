@@ -17,12 +17,23 @@ TELEMETRY_SUPPORT = {
     "reliability_erosion": {"query_p95_ms", "error_rate_pct"},
     "onboarding_failure": {"dau_seats"},
 }
-NEEDS_SUPPORT = {"champion_departure", "budget_pressure", "product_gap", "reliability_erosion", "onboarding_failure"}
+NEEDS_SUPPORT = {"champion_departure", "budget_pressure", "product_gap", "reliability_erosion", "onboarding_failure",
+                 "benign_variation"}
 TOPIC_NAMES = {k[len("topic:"):] for k in TOPIC_LABELS}
 
 
-def _labels(items):
-    return [a.get("_label") for a in items or [] if a.get("_label") and not a["_label"].get("unverifiable")]
+def _readings(items):
+    """The Readings (depth-0 verdicts and scores, context.read_artifact) of the verified artefacts the labeller
+    could read. Quoted history is recorded in the Reading but never scores here."""
+    return [a["_label"]["reading"] for a in items or []
+            if a.get("_label") and not a["_label"].get("unverifiable") and a["_label"].get("reading")]
+
+
+def _topic_of(reading):
+    """The best-scoring topic of a Reading when its verdict is True, else None."""
+    scores = {k[len("topic:"):]: reading["score"][k] for k in TOPIC_LABELS if k in reading.get("score", {})}
+    best = max(scores, key=scores.get) if scores else None
+    return best if best and reading.get("verdict", {}).get(f"topic:{best}") is True else None
 
 
 def check_quality(d, ctx, cx):
@@ -50,21 +61,24 @@ def check_quality(d, ctx, cx):
         p95 = [m for m in d.get("metrics_claimed") or [] if m.get("metric") == "query_p95_ms" and day(m.get("as_of"))]
         if p95 and all(day(m["as_of"]) - timedelta(days=2 * int(m.get("window_days") or 7)) < cx.p95_step <= day(m["as_of"]) for m in p95):
             out.append(violation(hstep, "Q2", f"reliability_erosion rests only on a p95 claim spanning the {cx.p95_step} instrumentation change"))
-    if hyp == "benign_variation" and ctx.get("triggers"):
-        out.append(violation(hstep, "Q2", f"benign_variation while mandatory trigger present: {sorted(ctx['triggers'])}"))
+    confirmed = (ctx.get("trigger_source") or {}).get("confirmed") or []
+    if hyp == "benign_variation" and confirmed:
+        out.append(violation(hstep, "Q2", f"benign_variation while mandatory trigger present: {sorted(confirmed)}"))
 
-    # Q2 / I5 — model: does the evidence talk about what the agent claimed?
-    labs = _labels(ctx.get("verified"))
-    if labs and hyp in TOPIC_NAMES:
-        support = max(lab["scores"].get(f"topic:{hyp}", 0.0) for lab in labs)
+    # Q2 / I5 — model: does the evidence talk about what the agent claimed? Depth-0 verdicts and scores only.
+    reads = _readings(ctx.get("verified"))
+    if reads and hyp in TOPIC_NAMES:
+        support = max(r.get("score", {}).get(f"topic:{hyp}", 0.0) for r in reads)
         grounded_metrics = {c["metric"] for c in ctx.get("claim_detail", []) if c.get("status") == "grounded"}
-        telemetry_support = bool(grounded_metrics & TELEMETRY_SUPPORT.get(hyp, set()))
+        # benign_variation is supported by a cohort-wide move (the M6 cohort fact), the named causes by telemetry
+        telemetry_support = (bool(ctx.get("cohort_match")) if hyp == "benign_variation"
+                             else bool(grounded_metrics & TELEMETRY_SUPPORT.get(hyp, set())))
         ctx["hypothesis_text_support"] = support
-        # decide() under the labeller's band: an abstain (None) is not "unsupported" (WP-D revisits certainty)
-        supported = decide(support, f"topic:{hyp}", next((lab.get("model_id") for lab in labs), None))
+        # decide() under the labeller's band: an abstain (None) is not "unsupported"
+        supported = decide(support, f"topic:{hyp}", next((r.get("model_id") for r in reads), None))
         if hyp in NEEDS_SUPPORT and supported is False and not telemetry_support:
             out.append(violation(hstep, "Q2", f"{hyp} is not supported by any verified evidence (best text support {support:.2f}, no grounded telemetry for it)"))
-    topics = Counter(lab["topic"] for lab in labs if lab.get("topic"))
+    topics = Counter(t for t in map(_topic_of, reads) if t)
     ctx["evidence_topics"] = dict(topics)
     if topics:
         top, n = topics.most_common(1)[0]

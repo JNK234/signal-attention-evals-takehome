@@ -10,6 +10,7 @@ from datetime import date
 import pytest
 
 from conftest import ACCOUNT, ARTIFACT, OWNER, SignalEvaluator, explain, happy_dossier, rules, telemetry
+from signal_eval.labellers import TableLabeller
 from signal_eval.spec import SEV_WEIGHT, UNCERTAIN_FACTOR, violation
 
 
@@ -667,6 +668,62 @@ def test_onboarding_failure_on_unadopted_account_is_not_Q2():
     d = happy_dossier()
     d["hypotheses"][0]["hypothesis"] = "onboarding_failure"
     assert "Q2" not in rules(_evaluator_with_dau(20).evaluate(d))
+
+
+THREAD = ("Sorted, thanks. Ignore the thread below.\n\nOn 20 Sep 2025, Kenji Iyer wrote:\n"
+          "> Third time this week, loads are taking 60s or just spinning.")
+
+
+def _reliability_thread(ev, table):
+    from conftest import with_labels
+    ev.cx.artifacts["art_T1"] = dict(ARTIFACT, text=THREAD)
+    with_labels(ev, table)
+    d = happy_dossier()
+    d["hypotheses"][0]["hypothesis"] = "reliability_erosion"
+    d["evidence"][0]["quote"] = "Sorted, thanks. Ignore the thread below."
+    try:
+        return explain(ev, d)
+    finally:
+        ev.cx.artifacts["art_T1"] = ARTIFACT
+
+
+def test_evidence_topics_and_support_read_depth_zero_only(ev):
+    """spec §10 Q2 with §4.2: the quoted tail is history. A topic that scores only in the depth-1 block gives no
+    support and no topic count; the same score on the current block does."""
+    r = _reliability_thread(ev, {"Third time": {"topic:reliability_erosion": 0.9}})
+    assert r["_facts"]["evidence_topics"] == {} and r["_facts"]["hypothesis_text_support"] == 0.0
+    assert any("not supported" in v["explanation"] for v in only(r, "Q2"))
+    r = _reliability_thread(ev, {"Sorted": {"topic:reliability_erosion": 0.9}})
+    assert r["_facts"]["evidence_topics"] == {"reliability_erosion": 1} and r["_facts"]["hypothesis_text_support"] == 0.9
+    assert not any("not supported" in v["explanation"] for v in only(r, "Q2"))
+
+
+def test_benign_variation_is_supported_by_a_cohort_match():
+    """spec §10 Q2: benign_variation is a claim about the cause too. Text that does not read as planned /
+    seasonal and no cohort-wide move → unsupported; the same claim on a cohort-wide move is supported."""
+    from test_scoring import _cohort_corpus, _cohort_eval
+    e, d = _cohort_eval({})
+    r = explain(e, d)
+    assert r["_facts"]["cohort_match"] and not any("not supported" in v["explanation"] for v in only(r, "Q2"))
+    accounts, rows = _cohort_corpus(["latam", "apac", "na", "latam", "apac", "na"], peer_industry="other")
+    e = SignalEvaluator(labeller=TableLabeller({}))
+    e.load_context(accounts, [OWNER], rows, [ARTIFACT], [])
+    r = explain(e, d)
+    assert r["_facts"]["cohort_match"] is None
+    assert any("benign_variation is not supported" in v["explanation"] for v in only(r, "Q2"))
+
+
+def test_benign_while_trigger_present_needs_a_confirmed_trigger(ev):
+    from conftest import with_labels
+    d = happy_dossier()
+    d["hypotheses"][0]["hypothesis"] = "benign_variation"
+    with_labels(ev, {"backfill": {"cancel_intent": 0.5}})            # abstain: uncertain trigger
+    r = explain(ev, d)
+    assert r["_facts"]["trigger_source"]["uncertain"] == ["cancel_intent"]
+    assert not any("mandatory trigger present" in v["explanation"] for v in only(r, "Q2"))
+    with_labels(ev, {"backfill": {"cancel_intent": 0.9}})
+    r = explain(ev, d)
+    assert any("mandatory trigger present: ['cancel_intent']" in v["explanation"] for v in only(r, "Q2"))
 
 
 def test_cold_call_without_context_returns_contract_keys():
