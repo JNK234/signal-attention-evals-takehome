@@ -1,6 +1,6 @@
 """
 ABOUTME: Known-positive / known-negative gate for the NLI labels. Any hypothesis change must pass this
-ABOUTME: before the corpus is relabelled. Fixtures are located by artifact id or an exact text fragment.
+ABOUTME: before the corpus is relabelled. Fixtures are located by artifact id, an exact text fragment, or an inline dict.
 """
 
 import sys
@@ -10,7 +10,19 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import eval_takehome as E  # noqa: E402
 from signal_eval.context import Context  # noqa: E402
 
-# (label, expected, locator) — locator is an artifact_id or a text fragment that identifies the artefact
+# A current cancellation notice written above a quoted, harmless old thread: the head is operative, the tail is history.
+CANCEL_OVER_QUOTE = {"text": "We are cancelling at term end.\n\nOn 01 Mar 2026, X wrote:\n> all good here", "author_type": "customer"}
+
+# ≥ 3,000 chars: a benign 2,900-char preamble, then the notice. classifier.CHUNK_CHARS is 1,200 — the label must
+# come from the last chunk, proving the scorer reads to the tail rather than the first window only.
+LONG_PREAMBLE = ("Weekly usage summary: dashboards refreshed on schedule, no incidents reported, no open tickets. " * 40)[:2900]
+LONG_CANCEL = {"text": LONG_PREAMBLE + "\n\nSeparately, and to be clear: we have decided not to renew and will let the "
+                       "contract lapse at term end. Treat this as our formal notice.", "author_type": "customer"}
+assert len(LONG_CANCEL["text"]) >= 3000
+
+# (label, expected, locator[, "pending: <WP> — <why>"]) — locator is an artifact_id, a text fragment that identifies the
+# artefact, or an inline synthetic {"text", "author_type"} dict. For label "topic", expected is a hypothesis class name
+# or None. A 4th element marks an expectation the source does not meet yet: reported separately, not counted.
 CASES = [
     # spec §8.1 bullet 1 — cancel intent
     ("cancel_intent", True, "art_02682"),                                   # "Treat this thread as formal notice"
@@ -22,6 +34,13 @@ CASES = [
     ("cancel_intent", False, "art_00620"),                                  # rate-limit question
     ("cancel_intent", False, "art_03177"),                                  # routine check-in
     ("cancel_intent", False, "art_02546"),                                  # positive reply over old complaint
+    # current notice above quoted history: cancel_intent from the head, quoted_history from the structure, and the
+    # artefact is NOT stale because the operative sentence is in the head (docs/domain.md 'Quoted history')
+    ("cancel_intent", True, CANCEL_OVER_QUOTE),
+    ("quoted_history", True, CANCEL_OVER_QUOTE),
+    ("stale", False, CANCEL_OVER_QUOTE, "pending: WP3 evidence — stale decided by where the operative text sits, not by the presence of a quote"),
+    # chunking must reach the tail of a long text
+    ("cancel_intent", True, LONG_CANCEL),
     # bullet 2 — legal
     ("legal_reference", True, "art_02612"),                                 # counsel / material breach
     ("legal_reference", True, "art_02298"),                                 # legal team / DPA
@@ -33,11 +52,18 @@ CASES = [
     ("security_incident", False, "art_00017"),                              # SSO feature request
     ("security_incident", False, "row-level security came up again"),       # feature request
     ("security_incident", False, "art_02564"),                              # internal pen-test follow-up (not customer-raised)
+    # the corpus has no customer-raised incident that actually happened, so a synthetic positive guards the label
+    ("security_incident", True, {"text": "Overnight someone used one of our API tokens from an address we do not recognise and pulled "
+                                         "customer records out of the workspace. This is unauthorised access to our data and we need "
+                                         "your incident report today.", "author_type": "customer"}),
     # bullet 4 — departure
     ("departure", True, "art_02820"),                                       # "Nadia Chatterjee is leaving us"
     ("departure", True, "art_00320"),                                       # "James Iyer is leaving us"
     ("departure", True, "art_01647"),                                       # "I am no longer the point of contact here"
     ("departure", False, "champion moved to a new team internally"),        # not a departure
+    # spec §8.1 bullet 4 names the economic buyer or the named champion; an intern is neither
+    ("departure", False, {"text": "Small update from our side: our intern resigned last week, so the onboarding tickets she filed can be closed.",
+                          "author_type": "customer"}, "pending: WP2 mandatory — departure bound to named roles"),
     # bullet 5 — billing
     ("billing_dispute", True, "Status: disputed by customer AP"),
     ("billing_dispute", False, "Status: paid"),
@@ -55,6 +81,23 @@ CASES = [
     # an internal note with "lol" may read as a joke, but it is not stale customer evidence to discount
     ("stale", False, "QBR scheduled. no open escalations. they asked abt dark mode lol."),
     ("stale", True, "art_02546"),
+    # ja-JP code-switched artefacts (docs/domain.md: ~14% of customer text code-switches)
+    ("quoted_history", True, "art_01804"),                                  # 'Sorted, thanks. Ignore the thread below… On 12 Dec 2025, Aisha Lim wrote:' — structural, language-independent
+    ("stale", True, "art_01804"),
+    ("topic", "budget_pressure", "art_03696"),                              # 'Our budget for this line is being cut by 20%… consolidation option to the committee'
+    # spec §3.2 hypothesis classes — the Q2 topic labels, one per class, plus a neutral note that names none
+    ("topic", "champion_departure", {"text": "Our head of analytics, who sponsored the Cartogram rollout internally and owned the budget line, "
+                                             "has resigned and leaves at the end of the month.", "author_type": "customer"}),
+    ("topic", "product_gap", {"text": "We still cannot set row-level permissions on embedded dashboards. Chartroom ships this out of the box "
+                                      "and the team keeps asking why we do not have it.", "author_type": "customer"}),
+    ("topic", "onboarding_failure", {"text": "Six months in and the workspace is still not set up. Nobody on our side finished the rollout and "
+                                             "most of the licensed seats have never logged in.", "author_type": "internal"}),
+    ("topic", "reliability_erosion", {"text": "Third outage this month, and the exec dashboard timed out again in the middle of the board meeting. "
+                                              "Confidence in the platform on our side is gone.", "author_type": "customer"}),
+    ("topic", "benign_variation", {"text": "Heads up: the whole team is off for the national holiday week, so usage will dip until the 14th. "
+                                           "Nothing to worry about, back to normal after that.", "author_type": "customer"}),
+    ("topic", None, {"text": "Could you resend the calendar invite for Tuesday's sync? The link in the last email did not come through.",
+                     "author_type": "customer"}),
 ]
 
 
@@ -73,21 +116,38 @@ def main():
         hits = [a for a in arts if loc in (a.get("text") or "")]
         return next((a for a in hits if a.get("author_type") == "internal"), hits[0] if hits else None)
 
-    fails = 0
-    for label, expected, loc in CASES:
+    counted, fails, pending = 0, 0, []
+    for case in CASES:
+        label, expected, loc = case[:3]
+        pend = case[3] if len(case) > 3 else None
         a = find(loc)
         if a is None:
             print(f"  ?? fixture not found: {loc}")
+            counted += 1
             fails += 1
             continue
         lab = cx.label_artifact(a)
         got = lab.get(label)
-        score = (lab.get("scores") or {}).get(label)
+        scores = lab.get("scores") or {}
+        if label == "topic":                            # show the score of the class we expected (or the one we got)
+            score = scores.get(f"topic:{expected or got}") if (expected or got) else None
+        else:
+            score = scores.get(label)
         ok = (got == expected) and not lab.get("unverifiable")
-        fails += 0 if ok else 1
-        print(f"  {'ok ' if ok else 'FAIL'} {label:<18} want={expected!s:<5} got={got!s:<5} score={score}  {a['artifact_id']}  {a['text'][:70]!r}")
+        tag = "ok " if ok else ("PEND" if pend else "FAIL")
+        print(f"  {tag} {label:<18} want={expected!s:<19} got={got!s:<19} score={score}  {a['artifact_id']}  {a['text'][:70]!r}")
+        if pend:
+            if not ok:
+                pending.append((label, expected, a["artifact_id"], pend))
+        else:
+            counted += 1
+            fails += 0 if ok else 1
     cx.save_cache()
-    print(f"\n{len(CASES)-fails}/{len(CASES)} passed")
+    print(f"\n{counted - fails}/{counted} passed")
+    if pending:
+        print(f"{len(pending)} pending (source fix not landed; not counted):")
+        for label, expected, aid, why in pending:
+            print(f"  - {label} want={expected!s} on {aid}: {why}")
     sys.exit(1 if fails else 0)
 
 

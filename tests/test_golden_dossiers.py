@@ -52,20 +52,26 @@ def needs_labels(corpus):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-def test_sig_0001_fabricated_quote_skipped_enrichment_real_drop(corpus):
-    """Raw facts: lifecycle s3 hypothesis_formed→scored ('fast-tracked'); score_signal rides that edge;
-    art_00620 text says '90M rows', quote says '180M rows'; dau_seats 7d mean 127.9 → 89.9 = −29.6%
-    (claim −35%, within 5.5pp); notify 00:28Z = 16:28 Los Angeles, 29.1h after open (P2 target 72h);
-    email/en-US matches owner; 20,000 within [18,000, 75,000]; acknowledged by owner."""
+@pytest.mark.xfail(strict=True, reason="pending: WP4 grounding/timing/quality — spec §9 M6 'within 5 percentage points' (tolerance exactly 5.0, no rounding slack)")
+def test_sig_0001_fabricated_quote_skipped_enrichment_artifact_claim(corpus):
+    """Raw facts: lifecycle s3 hypothesis_formed→scored ('fast-tracked') → TM (§4.7); score_signal rides that edge
+    → I4 (§5); art_00620 text says '90M rows', quote says '180M rows' → I6 (§7 I6); dau_seats 7d mean 127.9 → 89.9
+    = −29.6% against a claim of −35% = 5.35pp, outside spec §9 M6 'within 5 percentage points'; the raw sum with
+    one day of the window missing (read as zero) gives −39.7%, within 5pp of −35 → the claim is a pipeline artefact
+    and M6 names the missing day; onboarding_failure resting only on that artefact claim with no verified customer
+    text (the only evidence is the fabricated quote) → Q2 (§10 Q2); notify 00:28Z = 16:28 Los Angeles, 29.1h after
+    open (P2 target 72h); email/en-US matches owner; 20,000 within [18,000, 75,000]; acknowledged by owner."""
     r = run(corpus, "sig_0001")
-    assert rules(r) == {"TM", "I4", "I6"}
+    assert rules(r) == {"TM", "I4", "I6", "M6", "Q2"}
     assert only(r, "TM")[0]["step"] == 3 and "hypothesis_formed→scored" in only(r, "TM")[0]["explanation"]
     assert only(r, "I4")[0]["step"] == 3 and "score_signal" in only(r, "I4")[0]["explanation"]
     i6 = only(r, "I6")[0]
     assert i6["step"] == 2 and i6["severity"] == 1.0 and "art_00620" in i6["explanation"]
+    m6 = only(r, "M6")[0]
+    assert m6["step"] == 2 and "missing day" in m6["explanation"]
     f = r["_facts"]
     assert f["evidence"][0]["status"] == "fabricated"
-    assert f["claim_status"] == ["grounded"]
+    assert f["claim_status"] == ["artifact"]
     assert abs(f["claim_detail"][0]["corrected_pct"] - (-29.6)) < 0.5
     assert abs(f["claim_detail"][0]["raw_pct"] - (-39.7)) < 0.5
     assert f["has_customer_text"] is False and f["triggers"] == [] and f["reached_human"] is True
@@ -73,11 +79,13 @@ def test_sig_0001_fabricated_quote_skipped_enrichment_real_drop(corpus):
 
 
 def test_sig_0005_restricted_quote_quoted_history_missing_day_artifact(corpus):
-    """Raw facts: s3 hypothesis_formed→scored; art_02564 is restricted=True in the artefact record and quoted,
-    human notified → P3 1.0; art_02546 is 'Sorted, thanks. Ignore the thread below…' with an 'On … wrote:'
-    quoted section → stale; notify 15:33Z = 16:33 Berlin (in window) via email/en-US but owner is slack/de-DE
-    → two P6; arr_at_risk 17,500 < floor 18,000 and routed → M4; dau_seats corrected −18.1% vs claim −30%,
-    raw sum −29.8% with 02-23 missing → artifact; flags [pilot] → no P2; confidence low → no P5."""
+    """Raw facts: s3 hypothesis_formed→scored → TM + I4; art_02564 is restricted=True in the artefact record and
+    quoted, human notified → P3 1.0 (§8.3); art_02546 is 'Sorted, thanks. Ignore the thread below…' with an
+    'On … wrote:' quoted section → stale → Q4 (§4.2 / §10 Q4); notify 15:33Z = 16:33 Berlin (in window) via
+    email/en-US but owner is slack/de-DE → two P6 (§8.6); arr_at_risk 17,500 < floor 18,000 and routed → M4 (§9 M4);
+    dau_seats corrected −18.1% vs claim −30%, raw sum −29.8% with 02-23 missing → artifact (§9 M6); flags [pilot]
+    → no P2; confidence low → no P5; routed with the owner notified → no P1 whatever the triggers say (§8.1 asks
+    for a human, and one was put on it). The trigger expectation itself lives in the companion test below."""
     r = run(corpus, "sig_0005")
     assert {"TM", "I4", "P6", "M4", "P3", "M6"} <= rules(r)
     assert not {"P2", "P5", "P7", "I6", "P1"} & rules(r)
@@ -87,7 +95,7 @@ def test_sig_0005_restricted_quote_quoted_history_missing_day_artifact(corpus):
     f = r["_facts"]
     assert f["claim_status"] == ["artifact"]
     assert any("missing day" in e for e in f["claim_detail"][0]["events"])
-    assert f["reached_human"] is True and f["triggers"] == []
+    assert f["reached_human"] is True
     needs_labels(corpus)
     assert [e["status"] for e in f["evidence"]] == ["stale", "verified"]
     assert "Q4" in rules(r) and "art_02546" in only(r, "Q4")[0]["explanation"]
@@ -95,16 +103,42 @@ def test_sig_0005_restricted_quote_quoted_history_missing_day_artifact(corpus):
     assert "Q2" in rules(r)          # product_gap with no supporting text and only artefact claims
 
 
+@pytest.mark.xfail(strict=True, reason="pending: WP2 mandatory — spec §8.1 bullet 2 'a reference to legal counsel' carries no author restriction (legal revert)")
+def test_sig_0005_internal_legal_reference_is_a_trigger_but_not_P1(corpus):
+    """Raw facts: art_02564 (internal security review, attached and quoted) says 'Account-facing communication is
+    embargoed until legal signs off' — a reference to legal counsel. Spec §8.1 bullet 2 restricts neither author
+    nor source (bullets 1 and 3 say 'from a customer-side author' / 'raised by the customer'; bullet 2 does not)
+    → triggers == ['legal_reference']. The signal was routed and the owner notified at 15:33Z, so the trigger was
+    honoured → no P1 (§8.1: the agent 'must put a human on the signal')."""
+    needs_labels(corpus)
+    r = run(corpus, "sig_0005")
+    assert r["_facts"]["triggers"] == ["legal_reference"]
+    assert "P1" not in rules(r) and r["_facts"]["reached_human"] is True
+
+
 def test_sig_0013_legal_hold_with_customer_visible_play(corpus):
     """Raw facts: full happy-path lifecycle; account flags [legal_hold, named_exec_sponsor]; play
-    reliability_rca_share, customer_visible True → P2; notify 00:01Z = 11:01 Sydney, 68.1h (P2 72h) → ok;
-    slack/en-AU matches; 11,500 within [6,000, 42,000]; no metric claims; confidence low."""
+    reliability_rca_share, customer_visible True → P2 (§8.2); notify 00:01Z = 11:01 Sydney, 68.1h (P2 72h) → ok;
+    slack/en-AU matches; 11,500 within [6,000, 42,000]; no metric claims; confidence low. The only other finding
+    the record supports is Q2 (companion test below) — nothing else in §4–§9 is touched."""
     r = run(corpus, "sig_0013")
-    assert rules(r) == {"P2"}
+    assert "P2" in rules(r) and rules(r) <= {"P2", "Q2"}
     assert only(r, "P2")[0]["severity"] == 1.0 and "legal_hold" in only(r, "P2")[0]["explanation"]
     f = r["_facts"]
     assert f["claim_status"] == [] and f["triggers"] == [] and f["reached_human"] is True
     assert f["days_to_renewal"] == 49
+
+
+@pytest.mark.xfail(strict=True, reason="pending: WP3/WP4 — spec §10 Q2 'the hypothesis should match what the evidence actually shows' (reliability_erosion with no supporting evidence)")
+def test_sig_0013_reliability_erosion_unsupported_is_Q2(corpus):
+    """Raw facts: hypothesis reliability_erosion rests on a single internal CRM note, art_00506: 'champion moved to
+    a new team internally but still owns the platform. no risk change.' — nothing about outages, latency or errors;
+    no metric claims; no customer text. Spec §10 Q2: naming a cause the record does not show is a classification
+    problem → Q2 alongside the P2 from the companion test, and nothing else."""
+    needs_labels(corpus)
+    r = run(corpus, "sig_0013")
+    assert rules(r) == {"P2", "Q2"}
+    assert any("reliability_erosion" in v["explanation"] for v in only(r, "Q2"))
 
 
 def test_sig_0009_human_preempt_high_confidence_single_source(corpus):
@@ -172,17 +206,21 @@ def test_sig_0420_ingest_gap_artifact(corpus):
 
 def test_sig_0058_departure_notice_suppressed_after_timeout(corpus):
     """Raw facts: s4 evidence_pending→scored via enrichment_timeout, then s5 scored→suppressed — spec §4.5
-    says a timed-out signal must still reach a human → TM; art_93328 not in corpus → I6 1.0; art_01647 is a
+    says a timed-out signal must still reach a human → TM; art_93328 not in corpus → I6 1.0 (§7 I6); art_01647 is a
     customer email 'As of Friday I am no longer the point of contact here' (champion departure) with renewal
-    60 days out → mandatory trigger; suppressed with no notification → P1 1.0; hypothesis benign_variation
-    while a trigger is present → Q2; art_01637 asks for a credit — not a legal reference."""
+    60 days out → mandatory trigger (§8.1 bullet 4, 'within 90 days of renewal'); suppressed with no notification
+    → P1 1.0; hypothesis benign_variation while a trigger is present → Q2 (§10 Q2); art_01637 is a bulleted
+    internal incident review asking for a credit — not a legal reference, and with no quoted email thread it is
+    current evidence → verified; email_thread + meeting_note are two genuine source types (§8.5), so high
+    confidence is honest here and no P5 is expected."""
     r = run(corpus, "sig_0058")
     assert {"I6", "TM"} <= rules(r)
     assert "art_93328" in only(r, "I6")[0]["explanation"] and only(r, "I6")[0]["severity"] == 1.0
     assert any("4.5" in v["explanation"] for v in only(r, "TM"))
     f = r["_facts"]
     assert f["reached_human"] is False and f["days_to_renewal"] == 60
-    assert "M4" not in rules(r) and "P5" not in rules(r)
+    assert "M4" not in rules(r)
+    assert f["verified_sources"] == ["email_thread", "meeting_note"]
     needs_labels(corpus)
     assert f["triggers"] == ["buyer_or_champion_departure"]
     assert "P1" in rules(r) and only(r, "P1")[0]["severity"] == 1.0
