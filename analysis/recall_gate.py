@@ -26,6 +26,9 @@ CASES = [
     ("legal_reference", True, "art_02612"),                                 # counsel / material breach
     ("legal_reference", True, "art_02298"),                                 # legal team / DPA
     ("legal_reference", False, "art_00620"),
+    ("legal_reference", False, "art_01637"),                                # incident review asking for a credit — not legal
+    # spec §8.1 names "a regulatory body"; the corpus has no such artefact, so a synthetic positive guards it
+    ("legal_reference", True, {"text": "We have escalated this to the ICO and expect the data protection authority to open an inquiry.", "author_type": "customer"}),
     # bullet 3 — security incident (customer-raised, actually occurred)
     ("security_incident", False, "art_00017"),                              # SSO feature request
     ("security_incident", False, "row-level security came up again"),       # feature request
@@ -33,6 +36,7 @@ CASES = [
     # bullet 4 — departure
     ("departure", True, "art_02820"),                                       # "Nadia Chatterjee is leaving us"
     ("departure", True, "art_00320"),                                       # "James Iyer is leaving us"
+    ("departure", True, "art_01647"),                                       # "I am no longer the point of contact here"
     ("departure", False, "champion moved to a new team internally"),        # not a departure
     # bullet 5 — billing
     ("billing_dispute", True, "Status: disputed by customer AP"),
@@ -41,6 +45,11 @@ CASES = [
     ("quoted_history", True, "art_02546"),
     ("quoted_history", True, "art_00245"),
     ("quoted_history", False, "art_02682"),
+    ("quoted_history", False, "art_03224"),                                 # credit memo — positive tone, nothing quoted
+    ("quoted_history", False, "art_03219"),                                 # meetup email — positive, nothing quoted
+    ("quoted_history", False, "art_00225"),                                 # QBR meeting note
+    ("quoted_history", False, "art_01637"),                                 # incident-review note with a quoted remark, no email thread
+    ("quoted_history", True, "art_01536"),                                  # "Sorted, thanks... On 07 Mar 2026, X wrote:"
     ("sarcasm", True, "art_03476"),                                         # "love it 🙃 ... not a real complaint"
     ("sarcasm", False, "art_02682"),
     # an internal note with "lol" may read as a joke, but it is not stale customer evidence to discount
@@ -56,6 +65,8 @@ def main():
     cx.accounts = {a["account_id"]: a for a in E._load("accounts.jsonl")}
 
     def find(loc):
+        if isinstance(loc, dict):                       # inline synthetic fixture
+            return {"artifact_id": "synthetic", "account_id": None, "type": "email_thread", **loc}
         if loc in by_id:
             return by_id[loc]
         # prefer an internal-authored match for the casual-note fixture, else first match

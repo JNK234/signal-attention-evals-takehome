@@ -10,8 +10,8 @@ from datetime import timedelta
 from pathlib import Path
 
 from . import spec
-from .classifier import HYPOTHESES_HASH, NLI_MODEL, NLI_THRESHOLD, TextClassifier, is_stale, text_key
-from .util import day, median, ts
+from .classifier import NLI_MODEL, NLI_THRESHOLD, TextClassifier, assemble, filled_hypotheses, is_stale, text_key
+from .util import day, median, split_quoted, ts
 
 
 class Context:
@@ -118,6 +118,8 @@ class Context:
         return cohort
 
     # ── labels ───────────────────────────────────────────────────────────────
+    # Cache shape: text_key -> {"s": {sentence: score}, "n": n_chunks}. Sentences are the unit, so a
+    # hypothesis change only rescores the sentences that changed, not the whole corpus.
     def _load_cache(self):
         if not (self.label_cache_path and self.label_cache_path.exists()):
             return
@@ -126,14 +128,14 @@ class Context:
         except Exception:
             return
         meta = data.get("_meta", {})
-        if (meta.get("model"), meta.get("threshold"), meta.get("hypotheses")) == (NLI_MODEL, NLI_THRESHOLD, HYPOTHESES_HASH):
+        if meta.get("model") == NLI_MODEL and meta.get("format") == "sentences-v2":
             self._labels = {k: v for k, v in data.items() if k != "_meta"}
 
     def save_cache(self):
         if self.label_cache_path and self._cache_dirty:
             self.label_cache_path.parent.mkdir(parents=True, exist_ok=True)
             payload = dict(self._labels)
-            payload["_meta"] = {"model": NLI_MODEL, "threshold": NLI_THRESHOLD, "hypotheses": HYPOTHESES_HASH}
+            payload["_meta"] = {"model": NLI_MODEL, "format": "sentences-v2"}
             self.label_cache_path.write_text(json.dumps(payload))
             self._cache_dirty = False
 
@@ -146,19 +148,32 @@ class Context:
         return self._classifier.available
 
     def label_text(self, text, account=None, mentions_other_account=False):
-        """Label any text. Cache hit → no model call. Model unavailable → unverifiable."""
+        """Label any text. Quoted / forwarded material is split off syntactically and only the head (the new
+        message) is read. Cached sentence scores are reused; only missing sentences hit the model."""
         if not text or not str(text).strip():
             return {"unverifiable": True, "reason": "empty text"}
+        head, tail, marker = split_quoted(text)
+        quoted = bool(tail.strip())
+        filled = filled_hypotheses(account)
+        if not head.strip():                      # nothing but quoted material — nothing current to read
+            return assemble({}, filled, NLI_THRESHOLD, mentions_other_account, 0, quoted_history=True, quote_marker=marker)
+        needed = {s for ss in filled.values() for s in ss}
         key = text_key(text, account)
-        if key in self._labels:
-            return self._labels[key]
-        if not self._classifier_ready():
-            return {"unverifiable": True, "reason": "classifier unavailable"}
-        lab = self._classifier.label(text, account, mentions_other_account)
-        if not lab.get("unverifiable"):
-            self._labels[key] = lab
+        entry = self._labels.get(key) or {"s": {}, "n": None}
+        missing = needed - set(entry["s"])
+        if missing:
+            if not self._classifier_ready():
+                return {"unverifiable": True, "reason": "classifier unavailable"}
+            try:
+                scores, n = self._classifier.score_sentences(head, missing)
+            except Exception as exc:
+                return {"unverifiable": True, "reason": repr(exc)}
+            entry["s"].update(scores)
+            entry["n"] = n
+            self._labels[key] = entry
             self._cache_dirty = True
-        return lab
+        return assemble(entry["s"], filled, NLI_THRESHOLD, mentions_other_account, entry.get("n"),
+                        quoted_history=quoted, quote_marker=marker)
 
     def label_artifact(self, artifact):
         """Label an artefact (lazily, cache-first); `stale` is decided here because it depends on who
@@ -178,9 +193,10 @@ class Context:
             return
         self._indexed.add(aid)
         trig = set()
-        if lab.get("cancel_intent") and art.get("author_type") == "customer":
+        cust = art.get("author_type") == "customer"
+        if lab.get("cancel_intent") and cust:
             trig.add("cancel_intent")
-        if lab.get("legal_reference"):
+        if lab.get("legal_reference") and cust:
             trig.add("legal_reference")
         if lab.get("security_incident") and art.get("author_type") == "customer":
             trig.add("security_incident")
@@ -213,8 +229,14 @@ class Context:
         if not non_bot:
             self.labels_cover_corpus = False
             return
-        covered = sum(1 for a in non_bot if text_key(((a.get("subject") or "") + "\n" + (a.get("text") or "")).strip(),
-                                                    self.accounts.get(a.get("account_id"))) in self._labels)
+        def covered_(a):
+            acc = self.accounts.get(a.get("account_id"))
+            entry = self._labels.get(text_key(((a.get("subject") or "") + "\n" + (a.get("text") or "")).strip(), acc))
+            if not entry:
+                return False
+            needed = {s for ss in filled_hypotheses(acc).values() for s in ss}
+            return needed <= set(entry.get("s", {}))
+        covered = sum(1 for a in non_bot if covered_(a))
         self.labels_cover_corpus = covered >= 0.9 * len(non_bot)
 
     # ── per-dossier lookups ──────────────────────────────────────────────────

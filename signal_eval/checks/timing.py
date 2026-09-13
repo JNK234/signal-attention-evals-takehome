@@ -20,6 +20,7 @@ def check_timing(d, ctx, cx):
         tz = ZoneInfo(own["tz"]) if own["tz"] else None
     except Exception:
         tz = None
+    expected_owner = (d.get("metadata") or {}).get("owner_id")
     for n in notes:
         at = ts(n["at"])
         # T1 — window is the owner's local clock, not the account's and not UTC; P0 may page any hour
@@ -27,15 +28,19 @@ def check_timing(d, ctx, cx):
             local = at.astimezone(tz)
             if not (NOTIFY_WINDOW[0] <= local.hour < NOTIFY_WINDOW[1]):
                 out.append(violation(n.get("step"), "T1", f"notified at {local.strftime('%H:%M')} {own['tz']} (window 08:00–19:00, severity {sev})"))
-        # P6 — declared channel and locale
+        # P6 — declared channel and locale, and the right person
         if own["channel"] and n.get("channel") != own["channel"]:
             out.append(violation(n.get("step"), "P6", f"channel {n.get('channel')} ≠ owner preferred {own['channel']}"))
         if own["locale"] and n.get("locale") != own["locale"]:
             out.append(violation(n.get("step"), "P6", f"locale {n.get('locale')} ≠ owner locale {own['locale']}"))
-    # T2 — spacing and count
-    if len(notes) > MAX_NOTIFICATIONS:
-        out.append(violation(notes[-1].get("step"), "T2", f"{len(notes)} notifications (max {MAX_NOTIFICATIONS})"))
-    for a, b in zip(notes, notes[1:]):
+        if expected_owner and n.get("owner_id") and n.get("owner_id") != expected_owner:
+            out.append(violation(n.get("step"), "P6", f"notified {n.get('owner_id')} but the account's owner is {expected_owner}"))
+    # T2 — spacing and count, counted only while the owner has not acknowledged (spec §6.2)
+    ack_at = next((ts(e.get("at")) for e in d.get("lifecycle") or [] if e.get("to_state") == "acknowledged" and ts(e.get("at"))), None)
+    pre_ack = [n for n in notes if not ack_at or ts(n["at"]) <= ack_at]
+    if len(pre_ack) > MAX_NOTIFICATIONS:
+        out.append(violation(pre_ack[-1].get("step"), "T2", f"{len(pre_ack)} notifications before acknowledgement (max {MAX_NOTIFICATIONS})"))
+    for a, b in zip(pre_ack, pre_ack[1:]):
         gap = (ts(b["at"]) - ts(a["at"])).total_seconds() / 3600
         if gap < RENOTIFY_MIN_HOURS:
             out.append(violation(b.get("step"), "T2", f"re-notified after {gap:.1f}h (min {RENOTIFY_MIN_HOURS}h)"))

@@ -78,10 +78,12 @@ def _from_model(verified, near_renewal):
         labelled += 1
         if lab.get("triggers_belong_elsewhere"):
             continue
+        # spec §8.1 triggers are things the customer says or does; an internal note mentioning our own
+        # legal review ("embargoed until legal signs off") is not a customer legal reference.
         cust = a.get("author_type") in ("customer", None)   # None = cold-path quote, author unknown
         if lab.get("cancel_intent") and cust:
             trig.add("cancel_intent")
-        if lab.get("legal_reference"):
+        if lab.get("legal_reference") and cust:
             trig.add("legal_reference")
         if lab.get("security_incident") and cust:
             trig.add("security_incident")

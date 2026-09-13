@@ -4,81 +4,11 @@ ABOUTME: has a regression test that does not depend on the corpus. Run: python -
 """
 
 import copy
-import sys
 from datetime import date
-from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from signal_eval import SignalEvaluator  # noqa: E402
-
-ACCOUNT = {"account_id": "acct_T", "name": "Test Co", "tier": "mid_market", "region": "emea", "industry": "x",
-           "arr_annual": 100_000, "seats_contracted": 100, "materiality_floor": 18_000, "flags": [],
-           "collector": "legacy", "owner_id": "u_T", "champion": "Ada Lovelace", "economic_buyer": "Alan Turing"}
-OWNER = {"owner_id": "u_T", "name": "Owner", "role": "csm", "timezone": "Europe/Berlin", "locale": "de-DE", "preferred_channel": "slack"}
-ARTIFACT = {"artifact_id": "art_T1", "account_id": "acct_T", "type": "support_ticket", "source": "support_ticket",
-            "restricted": False, "timestamp": "2026-03-01T10:00:00Z", "author": "Ada", "author_type": "customer",
-            "lang": "en", "subject": "Question", "text": "We are planning a backfill of about 90M rows."}
-OTHER_ARTIFACT = dict(ARTIFACT, artifact_id="art_OTHER", account_id="acct_Z")
-
-
-def happy_dossier():
-    """A spec-conformant dossier: full happy path, material, in-window notification."""
-    return {
-        "signal_id": "sig_T", "account_id": "acct_T", "detector": "seat_decay", "detector_version": "v3.0",
-        "opened_at": "2026-03-02T08:00:00Z", "closed_at": "2026-03-03T12:00:00Z",
-        "lifecycle": [
-            {"step": 0, "from_state": "idle", "to_state": "candidate", "at": "2026-03-02T08:00:00Z", "trigger": "detector:seat_decay", "reason": ""},
-            {"step": 1, "from_state": "candidate", "to_state": "corroborating", "at": "2026-03-02T09:00:00Z", "trigger": "agent_action", "reason": ""},
-            {"step": 2, "from_state": "corroborating", "to_state": "hypothesis_formed", "at": "2026-03-02T10:00:00Z", "trigger": "agent_action", "reason": ""},
-            {"step": 3, "from_state": "hypothesis_formed", "to_state": "evidence_pending", "at": "2026-03-02T11:00:00Z", "trigger": "agent_action", "reason": ""},
-            {"step": 4, "from_state": "evidence_pending", "to_state": "evidence_received", "at": "2026-03-02T12:00:00Z", "trigger": "enrichment_returned", "reason": ""},
-            {"step": 5, "from_state": "evidence_received", "to_state": "scored", "at": "2026-03-02T13:00:00Z", "trigger": "agent_action", "reason": ""},
-            {"step": 6, "from_state": "scored", "to_state": "routed", "at": "2026-03-02T14:00:00Z", "trigger": "agent_action", "reason": ""},
-            {"step": 7, "from_state": "routed", "to_state": "acknowledged", "at": "2026-03-03T12:00:00Z", "trigger": "owner_acknowledged", "reason": ""},
-        ],
-        "hypotheses": [{"step": 2, "hypothesis": "budget_pressure", "confidence": "medium", "evidence_refs": ["art_T1"], "rationale": ""}],
-        "evidence": [{"step": 2, "artifact_id": "art_T1", "source": "support_ticket", "restricted": False,
-                      "attached_at": "2026-03-02T09:30:00Z", "quote": "We are planning a backfill of about 90M rows."}],
-        "metrics_claimed": [],
-        "actions": [
-            {"step": 2, "action": "attach_evidence", "at": "2026-03-02T09:30:00Z", "params": {"artifact_id": "art_T1"}},
-            {"step": 3, "action": "request_enrichment", "at": "2026-03-02T11:00:00Z", "params": {}},
-            {"step": 5, "action": "score_signal", "at": "2026-03-02T13:00:00Z", "params": {"severity": "P2", "arr_at_risk": 30_000, "confidence": "medium"}},
-            {"step": 6, "action": "notify_owner", "at": "2026-03-02T14:00:00Z", "params": {"channel": "slack", "locale": "de-DE", "owner_id": "u_T", "attempt": 1, "severity": "P2"}},
-        ],
-        "notifications": [{"step": 6, "at": "2026-03-02T14:00:00Z", "channel": "slack", "locale": "de-DE", "owner_id": "u_T", "attempt": 1}],
-        "scoring": {"severity": "P2", "confidence": "medium", "arr_at_risk": 30_000, "scored_at": "2026-03-02T13:00:00Z"},
-        "decision": {"disposition": "acknowledged", "recommended_play": "renewal_risk_review", "customer_visible": False, "reason": None},
-        "metadata": {"account_tier": "mid_market", "region": "emea", "arr_annual": 100_000, "materiality_floor": 18_000,
-                     "seats_contracted": 100, "owner_id": "u_T", "owner_timezone": "Europe/Berlin", "owner_locale": "de-DE",
-                     "owner_preferred_channel": "slack", "account_flags": [], "collector": "legacy", "days_to_renewal": 120},
-    }
-
-
-def telemetry(values_before, values_after, end=date(2026, 3, 1), status="ok"):
-    """14 daily rows for acct_T ending at `end`: 7 before, 7 after."""
-    from datetime import timedelta
-    rows = []
-    for i, v in enumerate(list(values_before) + list(values_after)):
-        d = end - timedelta(days=13 - i)
-        rows.append({"account_id": "acct_T", "date": d.isoformat(), "dau_seats": v, "api_calls": 1000, "query_p95_ms": 500,
-                     "error_rate_pct": 0.1, "dashboards_created": 1, "data_volume_gb": 1.0, "ingest_status": status,
-                     "ingested_at": f"{(d + timedelta(days=1)).isoformat()}T03:00:00Z"})
-    return rows
-
-
-@pytest.fixture
-def ev():
-    e = SignalEvaluator(use_classifier=False)
-    e.load_context([ACCOUNT], [OWNER], telemetry([50] * 7, [50] * 7), [ARTIFACT, OTHER_ARTIFACT], [happy_dossier()])
-    return e
-
-
-def rules(result):
-    return {v["rule"] for v in result["violations"]}
-
+from conftest import ACCOUNT, ARTIFACT, OWNER, SignalEvaluator, happy_dossier, rules, telemetry
 
 def test_happy_path_has_no_violations(ev):
     assert rules(ev.evaluate(happy_dossier())) == set()
@@ -156,10 +86,41 @@ def test_slow_notification_is_T3(ev):
     assert "T3" in rules(ev.evaluate(d))
 
 
-def test_too_many_notifications_is_T2(ev):
-    d = happy_dossier()
-    d["notifications"] = [dict(d["notifications"][0], at=f"2026-03-0{i}T14:00:00Z", attempt=i) for i in range(2, 6)]
+def test_too_many_notifications_before_ack_is_T2(ev):
+    d = happy_dossier()      # acknowledged 2026-03-03T12:00 — all four below are before that
+    times = ["2026-03-02T14:00:00Z", "2026-03-02T21:00:00Z", "2026-03-03T04:00:00Z", "2026-03-03T11:00:00Z"]
+    d["notifications"] = [dict(d["notifications"][0], at=t, attempt=i + 1) for i, t in enumerate(times)]
     assert "T2" in rules(ev.evaluate(d))
+
+
+def test_notifications_after_ack_do_not_count_for_T2(ev):
+    d = happy_dossier()
+    times = ["2026-03-02T14:00:00Z", "2026-03-04T14:00:00Z", "2026-03-05T14:00:00Z", "2026-03-06T14:00:00Z"]
+    d["notifications"] = [dict(d["notifications"][0], at=t, attempt=i + 1) for i, t in enumerate(times)]
+    assert "T2" not in rules(ev.evaluate(d))
+
+
+def test_suppressed_after_enrichment_timeout_is_TM(ev):
+    d = happy_dossier()
+    d["lifecycle"] = d["lifecycle"][:4] + [
+        {"step": 4, "from_state": "evidence_pending", "to_state": "scored", "at": "2026-03-04T11:00:00Z", "trigger": "enrichment_timeout", "reason": ""},
+        {"step": 5, "from_state": "scored", "to_state": "suppressed", "at": "2026-03-04T12:00:00Z", "trigger": "agent_action", "reason": "no data"},
+    ]
+    d["actions"] = d["actions"][:2] + [{"step": 4, "action": "enrichment_timeout", "at": "2026-03-04T11:00:00Z", "params": {}},
+                                        {"step": 5, "action": "suppress", "at": "2026-03-04T12:00:00Z", "params": {}}]
+    d["notifications"] = []
+    d["decision"].update(disposition="suppressed", recommended_play="watch_only")
+    r = ev.evaluate(d)
+    assert any(v["rule"] == "TM" and "4.5" in v["explanation"] for v in r["violations"])
+
+
+def test_human_preempt_counts_as_reached_human(ev):
+    d = happy_dossier()
+    d["lifecycle"] = d["lifecycle"][:3] + [{"step": 3, "from_state": "hypothesis_formed", "to_state": "acknowledged", "at": "2026-03-02T11:00:00Z", "trigger": "human_preempt", "reason": ""}]
+    d["actions"] = d["actions"][:1]
+    d["notifications"] = []
+    r = ev.evaluate(d)
+    assert "TM" not in rules(r) and r["_facts"]["reached_human"] is True
 
 
 def test_routed_below_floor_is_M4(ev):
@@ -368,3 +329,20 @@ def test_malformed_dossier_never_raises_cold(ev):
     r = SignalEvaluator(use_classifier=False).evaluate({"signal_id": "x", "account_id": "acct_T"})
     assert set(r) >= {"quality_score", "risk_score", "deserved_attention", "violations"}
     assert r["_facts"]["errors"] == [], r["_facts"]["errors"]
+
+
+@pytest.mark.parametrize("text,expect_head,quoted", [
+    ("Sorted, thanks. Ignore the thread below.\n\nOn 20 Sep 2025, Kenji Iyer wrote:\n> Third time this week.", "Sorted, thanks. Ignore the thread below.", True),
+    ("All good now.\n\n---------- Forwarded message ----------\nSubject: Other Co churn", "All good now.", True),
+    ("seat true-up done.\n\n> we are cancelling", "seat true-up done.", True),
+    ("Incident review -- Crowmarsh\nAttendees: Mateo\n- Mateo: 'this is the last one we can absorb'", None, False),
+    ("We have decided to consolidate onto Chartroom. Treat this thread as formal notice.", None, False),
+])
+def test_split_quoted_detects_structure_not_tone(text, expect_head, quoted):
+    from signal_eval.util import split_quoted
+    head, tail, marker = split_quoted(text)
+    assert bool(tail.strip()) is quoted
+    if expect_head is not None:
+        assert head == expect_head
+    else:
+        assert head == text

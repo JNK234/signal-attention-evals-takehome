@@ -14,11 +14,17 @@ def check_transitions(d, ctx, cx):
     """I1 backward, I2 after exit, I3 continuity, TM edge/trigger. Also records final state and visits."""
     out = []
     hyps = sorted(d.get("hypotheses") or [], key=lambda h: h.get("step") or 0)
-    cur, closed, exit_at = None, False, None
-    visits, backward = Counter(), 0
+    cur, closed, exit_at, prev_at = None, False, None, None
+    visits, backward, timed_out = Counter(), 0, False
+    detector = d.get("detector")
     for e in d.get("lifecycle") or []:
         s, f, t, trig = e.get("step"), e.get("from_state"), e.get("to_state"), e.get("trigger") or ""
+        at = ts(e.get("at"))
         visits[t] += 1
+        # I3 — timestamps strictly increasing (data dictionary: "transition timestamps are strictly increasing")
+        if at and prev_at and at <= prev_at:
+            out.append(violation(s, "I3", f"transition at {e.get('at')} is not after the previous one", 0.5))
+        prev_at = at or prev_at
         if f == t:                       # spec §4.2: staying in the current state is always valid
             cur = t
             continue
@@ -29,7 +35,11 @@ def check_transitions(d, ctx, cx):
             out.append(violation(s, "I3", f"lifecycle discontinuity: expected from_state {cur}, got {f}"))
         edge = (f, t)
         conf = next((h.get("confidence") for h in reversed(hyps) if (h.get("step") or 0) <= (s or 0)), None)
-        if edge in FORWARD_EDGES:
+        if edge == ("idle", "candidate"):
+            # spec §4.1: a signal opens when a detector fires
+            if detector and trig != f"detector:{detector}":
+                out.append(violation(s, "TM", f"opened by trigger {trig!r}, expected detector:{detector}", 0.5))
+        elif edge in FORWARD_EDGES:
             pass
         elif edge in BACKWARD_LOW_ONLY:
             backward += 1
@@ -38,6 +48,8 @@ def check_transitions(d, ctx, cx):
         elif edge == TIMEOUT_EDGE:
             if trig != "enrichment_timeout":
                 out.append(violation(s, "TM", f"{f}→{t} without enrichment_timeout (trigger={trig})"))
+            else:
+                timed_out = True
         elif t == "acknowledged":
             if trig != "human_preempt":
                 out.append(violation(s, "TM", f"{f}→acknowledged without human_preempt (trigger={trig})"))
@@ -46,8 +58,13 @@ def check_transitions(d, ctx, cx):
                 out.append(violation(s, "TM", f"{f}→suppressed is not an allowed edge"))
             if not (e.get("reason") or "").strip():
                 out.append(violation(s, "TM", "suppression without a stated reason", 0.5))
+            if timed_out:
+                # spec §4.5: a signal that timed out waiting for data must still reach a human
+                out.append(violation(s, "TM", "suppressed after enrichment_timeout; §4.5 requires the signal to be routed"))
         elif t == "expired":
-            pass
+            # spec §3.3 / §6.4: expiry is the staleness_timeout system event
+            if trig != "staleness_timeout":
+                out.append(violation(s, "TM", f"{f}→expired without staleness_timeout (trigger={trig})", 0.5))
         elif f in RANK and t in RANK and RANK[t] < RANK[f]:
             backward += 1
             out.append(violation(s, "I1", f"backward transition {f}→{t}"))
@@ -56,7 +73,7 @@ def check_transitions(d, ctx, cx):
         if t in EXIT_STATES:
             closed, exit_at = True, ts(e.get("at"))
         cur = t
-    ctx.update(exit_at=exit_at, final_state=cur, visits=visits, backward=backward)
+    ctx.update(exit_at=exit_at, final_state=cur, visits=visits, backward=backward, enrichment_timed_out=timed_out)
     return out
 
 
