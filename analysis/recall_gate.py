@@ -98,6 +98,33 @@ CASES = [
                                            "Nothing to worry about, back to normal after that.", "author_type": "customer"}),
     ("topic", None, {"text": "Could you resend the calendar invite for Tuesday's sync? The link in the last email did not come through.",
                      "author_type": "customer"}),
+    # held-out synthetic sentences for the three topics whose one-sentence hypotheses failed under the chosen model
+    # (analysis/model_bakeoff.py). Written before the rewritten hypotheses were scored; never edited afterwards.
+    # A "topic:<class>" label checks that one class's verdict, so a topic can have its own negatives.
+    ("topic:product_gap", True, {"text": "We still have no way to schedule exports to SFTP. Panelworks does this natively and our ops team "
+                                         "keeps asking why we cannot.", "author_type": "customer"}),
+    ("topic:product_gap", True, {"text": "Missing write-back to the warehouse. We have been blocked on this for months and are looking at "
+                                         "alternatives.", "author_type": "customer"}),
+    ("topic:product_gap", False, {"text": "The export to SFTP ran fine last night; thanks for turning the fix around so quickly.",
+                                  "author_type": "customer"}),
+    ("topic:product_gap", False, {"text": "Renewal paperwork is with procurement; expect the signed order form by Friday.",
+                                  "author_type": "customer"}),
+    ("topic:onboarding_failure", True, {"text": "Kickoff was in January and the workspace still has no data connected; none of the licensed "
+                                                "users has logged in.", "author_type": "internal"}),
+    ("topic:onboarding_failure", True, {"text": "Honestly nobody on my side ever got set up. We bought the seats but the rollout never happened.",
+                                        "author_type": "customer"}),
+    ("topic:onboarding_failure", False, {"text": "Adoption is strong: 80 of 100 seats active weekly and the finance team built their own "
+                                                 "dashboards.", "author_type": "internal"}),
+    ("topic:onboarding_failure", False, {"text": "Quick one: can you add two new joiners to the marketing workspace with admin rights?",
+                                         "author_type": "customer"}),
+    ("topic:benign_variation", True, {"text": "We are closed for the two-week factory shutdown in August, so expect the usage numbers to fall "
+                                              "until we are back.", "author_type": "customer"}),
+    ("topic:benign_variation", True, {"text": "We migrated our warehouse over the weekend as planned, so the drop in API calls this week is "
+                                              "expected.", "author_type": "customer"}),
+    ("topic:benign_variation", False, {"text": "Usage is down because the team has stopped trusting the numbers after the refresh failures.",
+                                       "author_type": "customer"}),
+    ("topic:benign_variation", False, {"text": "Third outage this month; the exec dashboard timed out during the board meeting.",
+                                       "author_type": "customer"}),
 ]
 
 
@@ -131,6 +158,8 @@ def main():
         scores = lab.get("scores") or {}
         if label == "topic":                            # show the score of the class we expected (or the one we got)
             score = scores.get(f"topic:{expected or got}") if (expected or got) else None
+        elif label.startswith("topic:"):                # one class's own verdict: True / False / None (abstain)
+            got, score = (lab.get("verdict") or {}).get(label), scores.get(label)
         else:
             score = scores.get(label)
         ok = (got == expected) and not lab.get("unverifiable")

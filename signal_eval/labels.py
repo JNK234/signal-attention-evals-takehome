@@ -48,10 +48,26 @@ LABEL_HYPOTHESES = {
     # spec §3.2 hypothesis classes — for Q2
     "topic:champion_departure": ["The internal advocate or budget holder is leaving or has left."],
     "topic:budget_pressure": ["The customer is under procurement, budget, or cost-cutting pressure."],
-    "topic:product_gap": ["The customer needs a missing capability or names a competitor with it."],
-    "topic:onboarding_failure": ["The customer never adopted the product; setup or rollout never happened."],
+    # §3.2 "A missing capability, often with a competitor named" — the one-sentence form scored 0.006 on a clear
+    # positive under the chosen model (analysis/model_bakeoff.py); each clause of the definition is its own sentence
+    "topic:product_gap": [
+        "The customer cannot do something they need because the product lacks the feature.",
+        "The customer names a competitor whose product has a feature this one lacks.",
+        "The product is missing a capability the customer needs.",
+    ],
+    # §3.2 "The account never reached value; adoption never started"
+    "topic:onboarding_failure": [
+        "The customer has not started using the product; setup or rollout never happened.",
+        "Months after purchase the workspace is still not set up or adopted.",
+        "The account never reached value from the product; adoption never started.",
+    ],
     "topic:reliability_erosion": ["Outages, latency, or errors have damaged the customer's trust."],
-    "topic:benign_variation": ["The change in usage is planned, seasonal, a holiday, or otherwise expected."],
+    # §3.2 "The anomaly is explained by seasonality, a data event, or a planned change"
+    "topic:benign_variation": [
+        "The drop in usage is expected: a holiday, a seasonal period, or a planned change.",
+        "Usage is lower for a known, planned reason and is not a concern.",
+        "The change in usage is explained by seasonality, a data event, or a planned change.",
+    ],
 }
 TRIGGER_LABELS = ("cancel_intent", "legal_reference", "security_incident", "departure", "billing_dispute")
 EXCLUSION_LABELS = ("sarcasm",)
