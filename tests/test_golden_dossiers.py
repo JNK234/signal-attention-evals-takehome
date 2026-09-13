@@ -160,15 +160,22 @@ def test_sig_0015_enrichment_timeout_then_routed_late(corpus):
     (required after timeout — satisfied); at s4 an action named notify_owner rides evidence_pending→scored
     → I4 (notify only on scored→routed); real notify 04:33Z = 12:33 Singapore, 204h after open vs P2 72h
     → T3 at full scale; slack/en-SG matches; 112,500 within [9,000, 287,500]; art_00234 is an internal
-    'asked abt dark mode lol' note — casual, not stale customer evidence."""
+    'asked abt dark mode lol' note — casual, not stale customer evidence. Hypothesis onboarding_failure
+    ('adoption never reached the contracted seat base') rests on art_00225, a QBR note reading 'weekly actives 30
+    … no red flags raised in the room', and that chat line; no metrics_claimed at all. Neither text is about
+    adoption never starting, and the account is 18 months into its contract at ~53% seat utilisation (30d mean
+    63 of 120 seats, peak 115) → spec §10 Q2 'the hypothesis should match what the evidence actually shows' →
+    Q2. That finding needs the NLI labels, so the closed-set assertion admits it and the label-gated block
+    requires it."""
     r = run(corpus, "sig_0015")
-    assert rules(r) == {"I4", "T3"}
+    assert {"I4", "T3"} <= rules(r) <= {"I4", "T3", "Q2"}
     assert only(r, "I4")[0]["step"] == 4 and "notify_owner" in only(r, "I4")[0]["explanation"]
     assert only(r, "T3")[0]["severity"] == 0.3
     f = r["_facts"]
     assert f["reached_human"] is True and f["triggers"] == [] and f["days_to_renewal"] == 34
     needs_labels(corpus)
     assert [e["status"] for e in f["evidence"]] == ["verified", "verified"]
+    assert "Q2" in rules(r) and any("onboarding_failure" in v["explanation"] for v in only(r, "Q2"))
 
 
 def test_sig_0278_legacy_double_count_artifact_and_backward_move(corpus):
