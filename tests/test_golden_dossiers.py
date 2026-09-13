@@ -235,8 +235,12 @@ def test_sig_0058_departure_notice_suppressed_after_timeout(corpus):
     → P1 1.0; hypothesis benign_variation while a trigger is present → Q2 (§10 Q2); art_01637 is a bulleted
     internal incident review asking for a credit — not a legal reference, and with no quoted email thread it is
     current evidence → verified; email_thread + meeting_note are two genuine source types (§8.5), so high
-    confidence is honest here and no P5 is expected."""
+    confidence is honest here and no P5 is expected. Structural note: the P1 rests on the departure reading of
+    art_01647 alone — the exec_churn_language detector no longer stands in for a cancel trigger, so without a
+    readable label cache this dossier carries no P1 (and an UNEVALUATED entry instead)."""
     r = run(corpus, "sig_0058")
+    if not corpus[0].cx.labels_cover_corpus:
+        assert "P1" not in rules(r) and any(v["rule"] == "UNEVALUATED" for v in r["violations"])
     assert {"I6", "TM"} <= rules(r)
     assert "art_93328" in only(r, "I6")[0]["explanation"] and only(r, "I6")[0]["severity"] == 1.0
     assert any("4.5" in v["explanation"] for v in only(r, "TM"))
