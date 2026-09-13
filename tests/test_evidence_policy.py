@@ -3,7 +3,7 @@ ABOUTME: Known-answer tests for evidence currency (quote location vs quoted hist
 ABOUTME: handling, P3/P5 policy conditions and M3/M4 "routed" semantics. No NLI model ever runs here.
 """
 
-from conftest import ARTIFACT, SignalEvaluator, happy_dossier, rules
+from conftest import ARTIFACT, SignalEvaluator, happy_dossier, rules, with_labels
 
 THREAD = ("Sorted, thanks. Ignore the thread below.\n\n"
           "On 20 Sep 2025, Kenji Iyer wrote:\n"
@@ -21,8 +21,8 @@ def facts(r):
 
 
 def synthetic_label(**over):
-    """Label dict in the shape classifier.assemble builds; every trigger/topic off unless overridden."""
-    lab = {"unverifiable": False, "n_chunks": 1, "scores": {}, "quoted_history": False, "quote_marker": None,
+    """Old-style label dict in the shape context.label_artifact builds; every trigger/topic off unless overridden."""
+    lab = {"unverifiable": False, "scores": {}, "quoted_history": False, "historical": [],
            "cancel_intent": False, "legal_reference": False, "security_incident": False, "departure": False,
            "billing_dispute": False, "sarcasm": False, "topic": None, "triggers_belong_elsewhere": False}
     lab.update(over)
@@ -53,7 +53,7 @@ def routed_then_expired_dossier():
 
 # ── is_stale ─────────────────────────────────────────────────────────────────
 def test_is_stale_by_quote_location_not_by_label():
-    from signal_eval.classifier import is_stale
+    from signal_eval.text import is_stale
     hist = synthetic_label(quoted_history=True)
     assert is_stale(hist, "customer") is False                        # informational only
     assert is_stale(hist, "customer", quote_in_tail=True) is True
@@ -118,35 +118,33 @@ def test_verbatim_quote_is_verified_and_not_I6(ev):
     assert "I6" not in rules(r) and r["_facts"]["has_attached_text"] is True
 
 
-# ── evidence: sarcasm via synthetic labels (model never runs) ────────────────
-def _activate_labels(ev, monkeypatch, label):
-    monkeypatch.setattr(ev.cx, "label_artifact", lambda art: dict(label))
-    monkeypatch.setattr(ev.cx, "use_classifier", True)
-    monkeypatch.setattr(ev.cx, "classifier_active", True)
-
-
-def test_customer_sarcasm_is_stale(ev, monkeypatch):
-    _activate_labels(ev, monkeypatch, synthetic_label(sarcasm=True))
+# ── evidence: sarcasm via the TableLabeller (model never runs) ───────────────
+# Migrated from monkeypatching label_artifact: the meaning is injected through the labeller contract
+# (conftest.with_labels), so the block layer and the reading adapter are exercised, not bypassed.
+def test_customer_sarcasm_is_stale(ev):
+    with_labels(ev, {"backfill": {"sarcasm": 0.9}})
     r = ev.evaluate(happy_dossier())
     assert facts(r)["status"] == "stale" and facts(r)["quote_location"] == "head"
     q4 = only(r, "Q4")
     assert q4 and "sarcasm" in q4[0]["explanation"]
 
 
-def test_internal_author_sarcasm_is_not_stale(ev, monkeypatch):
+def test_internal_author_sarcasm_is_not_stale(ev):
     with_artifact(ev, author_type="internal")
-    _activate_labels(ev, monkeypatch, synthetic_label(sarcasm=True))
+    with_labels(ev, {"backfill": {"sarcasm": 0.9}})
     r = ev.evaluate(happy_dossier())
     assert facts(r)["status"] == "verified" and "Q4" not in rules(r)
 
 
-def test_quoted_history_label_alone_does_not_make_head_quote_stale(ev, monkeypatch):
+def test_quoted_history_alone_does_not_make_head_quote_stale(ev):
+    """quoted_history is structural (a depth ≥ 1 block exists); the head quote is still current."""
     with_artifact(ev, text=THREAD)
-    _activate_labels(ev, monkeypatch, synthetic_label(quoted_history=True, quote_marker="(?m)^On "))
+    with_labels(ev, {"done with this vendor": {"cancel_intent": 0.9}})
     d = happy_dossier()
     d["evidence"][0]["quote"] = HEAD_QUOTE
     r = ev.evaluate(d)
     assert facts(r)["status"] == "verified" and facts(r)["labels"]["quoted_history"] is True
+    assert facts(r)["labels"]["cancel_intent"] is False and facts(r)["labels"]["historical"] == ["cancel_intent"]
     assert "Q4" not in rules(r)
 
 
@@ -198,10 +196,10 @@ def test_restricted_artifact_with_empty_quote_is_not_P3(ev):
 def test_cold_path_P3_falls_back_to_dossier_restricted_flag():
     d = happy_dossier()
     d["evidence"][0]["restricted"] = True
-    r = SignalEvaluator(use_classifier=False).evaluate(d)
+    r = SignalEvaluator(labeller=None).evaluate(d)
     assert only(r, "P3")[0]["severity"] == 1.0
     d["evidence"][0]["restricted"] = False
-    assert "P3" not in rules(SignalEvaluator(use_classifier=False).evaluate(d))
+    assert "P3" not in rules(SignalEvaluator(labeller=None).evaluate(d))
 
 
 # ── P5 ───────────────────────────────────────────────────────────────────────
@@ -251,10 +249,10 @@ def test_high_confidence_second_source_bot_alert_is_P5(ev):
 def test_cold_path_P5_counts_attached_non_bot_sources():
     d = happy_dossier()
     d["hypotheses"][0]["confidence"] = "high"
-    assert "P5" in rules(SignalEvaluator(use_classifier=False).evaluate(d))
+    assert "P5" in rules(SignalEvaluator(labeller=None).evaluate(d))
     d["evidence"].append({"step": 2, "artifact_id": "art_X", "source": "crm_note", "restricted": False,
                           "attached_at": "2026-03-02T09:40:00Z", "quote": "anything"})
-    assert "P5" not in rules(SignalEvaluator(use_classifier=False).evaluate(d))
+    assert "P5" not in rules(SignalEvaluator(labeller=None).evaluate(d))
 
 
 # ── M3 / M4 ──────────────────────────────────────────────────────────────────

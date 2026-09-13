@@ -21,8 +21,8 @@ def _label_of(a):
 def departure_attributed(art, account):
     """spec §8.1 bullet 4: 'Departure of the economic buyer or named champion'. A departure label is the
     trigger only when it is about one of those two people: the artefact's author IS one of them, or the
-    text names one of them. The label dict carries only the max over the generic and the {names}
-    hypothesis sentences (classifier.assemble), so the name test stands in for the per-sentence score.
+    text names one of them. The label dict carries only the max over the generic, {names} and {role}
+    hypothesis sentences (context.label_artifact), so the name test stands in for the per-sentence score.
     Matching a person's name from the account record is identity matching, not phrase matching."""
     names = [n for n in ((account or {}).get("champion"), (account or {}).get("economic_buyer")) if n]
     if not names:

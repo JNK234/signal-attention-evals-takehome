@@ -9,7 +9,9 @@ Run locally:
 Design (see signal_eval/):
     spec.py        the specification transcribed into constants + the RULES table
     context.py     truth layer: cleaned telemetry, cohort baseline, indexes, cached NLI labels
-    classifier.py  optional zero-shot NLI labeller for the spec points that are about meaning
+    text.py        block layer: quote depth + signature tagging, nothing discarded
+    labels.py      hypothesis sentences per label, per-model threshold bands, decide()
+    labellers/     engines behind one contract (NLI, cache, table double) and resolve()
     checks/        one module per rule group; each check is (dossier, ctx, cx) -> [violation]
     scoring.py     layer 2: quality / risk / deserved (placeholder rubric, defined from the facts)
     evaluator.py   SignalEvaluator wiring the above together
@@ -23,7 +25,7 @@ from pathlib import Path
 from signal_eval import RULES, SignalEvaluator  # noqa: F401  (re-exported for the grader)
 
 DATA = Path("data")
-LABEL_CACHE = Path("analysis/.cache/labels.json")
+LABEL_CACHE = None   # default: analysis/.cache/labels_<model-slug>.json (labellers.default_cache_path)
 
 
 def _load(name):
@@ -39,7 +41,7 @@ def main():
     if dossiers is None:
         print("No data found. Make sure data/signal_dossiers.jsonl exists.")
         return
-    evaluator = SignalEvaluator(label_cache_path=LABEL_CACHE if LABEL_CACHE.exists() else None)
+    evaluator = SignalEvaluator(label_cache_path=LABEL_CACHE)
     evaluator.load_context(_load("accounts.jsonl"), _load("owners.jsonl"), _load("telemetry.jsonl"),
                            _load("artifacts.jsonl"), dossiers)
 

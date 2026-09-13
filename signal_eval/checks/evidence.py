@@ -4,22 +4,16 @@ ABOUTME: Labels each entry with the model when possible: from the artefact if th
 ABOUTME: from the bare quote if not — so the cold path still reads.
 """
 
-from ..classifier import is_stale
 from ..spec import violation
-from ..util import norm, split_quoted, ts
+from ..text import blocks, find_quote, is_stale
+from ..util import norm, ts
 
 
-def quote_location(quote, text):
-    """Where a verbatim quote sits in the artefact: "head" (the new message), "tail" (quoted / forwarded
-    history split off by util.split_quoted), "both", or None when empty or spanning the boundary.
+def quote_location(quote, subject, text):
+    """Where a verbatim quote sits in the artefact: "head" (a current depth-0 block), "tail" (quoted / forwarded
+    history at depth ≥ 1, per text.blocks), "both", or None when empty or spanning the boundary.
     docs/domain.md 'Quoted history': only the tail repeats the old complaint; the head is current."""
-    if not quote:
-        return None
-    head, tail, _ = split_quoted(text)
-    in_head, in_tail = quote in head, quote in tail
-    if in_head and in_tail:
-        return "both"
-    return "head" if in_head else "tail" if in_tail else None
+    return find_quote(quote, blocks(subject, text))
 
 
 def check_evidence(d, ctx, cx):
@@ -74,7 +68,7 @@ def check_evidence(d, ctx, cx):
             continue
         # verbatim and same-account. Is the content current, or quoted history / a joke?
         # Currency is decided by where the quote sits (docs/domain.md 'Quoted history'), then by the label.
-        loc = quote_location(q, hay)
+        loc = quote_location(q, art.get("subject"), art.get("text"))
         lab = cx.label_artifact(art) if cx.use_classifier else {"unverifiable": True}
         lab = dict(lab, stale=is_stale(lab, art.get("author_type"), quote_in_tail=loc == "tail"))
         f.update(labels=lab, label_source="artifact", quote_location=loc)
