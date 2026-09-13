@@ -26,7 +26,10 @@ def check_materiality(d, ctx, cx):
         out.append(violation(step, "M4", f"routed with arr_at_risk {risk:,.0f} below floor {floor:,.0f}"))
     elif routed and None not in (risk, arr) and risk > arr:
         out.append(violation(step, "M3", f"routed with arr_at_risk {risk:,.0f} above arr_annual {arr:,.0f}", certain=False))
-    # M5 — restatements: 12× is the MRR/ARR bug; equal to arr_annual is the other named confusion
+    # M5 — restatements: 12× is the MRR/ARR bug; equal to arr_annual is the other named confusion. Any other
+    # figure is certain only when no enrichment came back between the score and the restatement (spec §9 M5
+    # "unless a subsequent enrichment formally revises it") — the record cannot say whether it did.
+    returned = [e.get("step") for e in d.get("lifecycle") or [] if e.get("trigger") == "enrichment_returned" and e.get("step") is not None]
     for m in d.get("metrics_claimed") or []:
         if m.get("metric") != "arr_at_risk":
             continue
@@ -34,13 +37,18 @@ def check_materiality(d, ctx, cx):
         if stated is None or not risk or abs(stated - risk) < 1:
             continue
         ratio = max(stated, risk) / max(min(stated, risk), 1)
+        certain = True
         if abs(ratio - 12) < 0.6:
             why = "12× restatement (MRR/ARR confusion)"
         elif arr and abs(stated - arr) < 1:
             why = "arr_annual restated as arr_at_risk"
         else:
-            why = "inconsistent restatement with no enrichment revision"
-        out.append(violation(m.get("step"), "M5", f"arr_at_risk {risk:,.0f} later stated as ${stated:,.0f}: {why}"))
+            revised_at = [r for r in returned if step < r <= (m.get("step") or 0)]
+            if revised_at:
+                why, certain = f"inconsistent restatement after enrichment_returned at step {revised_at[0]}; may be a formal revision", False
+            else:
+                why = "inconsistent restatement with no enrichment revision"
+        out.append(violation(m.get("step"), "M5", f"arr_at_risk {risk:,.0f} later stated as ${stated:,.0f}: {why}", certain=certain))
     for a in d.get("actions") or []:
         if a.get("action") == "score_signal":
             p = num((a.get("params") or {}).get("arr_at_risk"))

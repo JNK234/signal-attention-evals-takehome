@@ -27,6 +27,18 @@ def _hub_cache_dir():
     return Path.home() / ".cache" / "huggingface" / "hub"
 
 
+def other_account_name(artifact):
+    """`mentions_other_account` normalised to the other account's name, or None. The data dictionary says the
+    field is 'set when forwarded text names a different customer' and the corpus carries that name; a bare
+    boolean (older shape) must not be mistaken for one. None / False / "" → None; True → "<unnamed>"."""
+    v = (artifact or {}).get("mentions_other_account")
+    if v is None or v is False or v == "":
+        return None
+    if v is True:
+        return "<unnamed>"
+    return str(v).strip() or None
+
+
 def local_model_present(model_id=NLI_MODEL):
     """Is the model already on disk? A plain directory scan of the hub cache — imports nothing from
     transformers/huggingface_hub and never touches the network (README l.225-226: self-contained)."""
@@ -241,7 +253,7 @@ class Context:
         wrote it. Every labelled artefact is also indexed by account for the unattached-trigger scan,
         so artefacts first seen inside evaluate() are covered too."""
         text = ((artifact.get("subject") or "") + "\n" + (artifact.get("text") or "")).strip()
-        lab = self.label_text(text, self.accounts.get(artifact.get("account_id")), bool(artifact.get("mentions_other_account")))
+        lab = self.label_text(text, self.accounts.get(artifact.get("account_id")), other_account_name(artifact) is not None)
         if lab.get("unverifiable"):
             return lab
         lab = dict(lab, stale=is_stale(lab, artifact.get("author_type")))
@@ -321,7 +333,8 @@ class Context:
         facts = {
             "arr": src.get("arr_annual", md.get("arr_annual")),
             "floor": src.get("materiality_floor", md.get("materiality_floor")),
-            "flags": set((acc or {}).get("flags") or md.get("account_flags") or []),
+            # an account record with an empty flag list wins over the snapshot: [] is an answer, None is not
+            "flags": set(acc["flags"]) if acc is not None and acc.get("flags") is not None else set(md.get("account_flags") or []),
             "region": src.get("region"),
             "collector": src.get("collector"),
             "seats": src.get("seats_contracted", md.get("seats_contracted")),

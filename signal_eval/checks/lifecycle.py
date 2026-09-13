@@ -34,11 +34,12 @@ def check_transitions(d, ctx, cx):
     for e in d.get("lifecycle") or []:
         s, f, t, trig = e.get("step"), e.get("from_state"), e.get("to_state"), e.get("trigger") or ""
         at = ts(e.get("at"))
-        visits[t] += 1
         # I3 — timestamps strictly increasing (data dictionary: "transition timestamps are strictly increasing")
         if at and prev_at and at <= prev_at:
             out.append(violation(s, "I3", f"transition at {e.get('at')} is not after the previous one", certain=False))
         prev_at = at or prev_at
+        if f != t:
+            visits[t] += 1        # Q1 counts arrivals in a state; staying put (§4.2) is not a visit
         if f == t:
             # spec §4.2: staying in the *current* state is always valid. §7 I3: a signal is in exactly one
             # state, so "staying" in a state the machine is not in is a discontinuity. The machine does not

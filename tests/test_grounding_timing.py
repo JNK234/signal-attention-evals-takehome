@@ -231,3 +231,26 @@ def test_earlier_signal_never_closed_is_Q5():
     e = SignalEvaluator(use_classifier=False)
     e.load_context([ACCOUNT], [OWNER], telemetry([50] * 7, [50] * 7), [ARTIFACT], [first, second])
     assert "Q5" in rules(e.evaluate(second))
+
+
+# ── Q5: "inside a week" is Δ ≤ 7×24h inclusive; the earlier signal must still be open (half-open) ──
+
+def _open_pair(second_opened_at):
+    first = happy_dossier()                                                # opened 2026-03-02T08:00:00Z, never closed
+    first["closed_at"] = None
+    second = copy.deepcopy(first)
+    second["signal_id"] = "sig_T2"
+    second["opened_at"] = second_opened_at
+    e = SignalEvaluator(use_classifier=False)
+    e.load_context([ACCOUNT], [OWNER], telemetry([50] * 7, [50] * 7), [ARTIFACT], [first, second])
+    return e.evaluate(second)
+
+
+def test_signal_opened_exactly_seven_days_later_is_Q5():
+    """spec §10 Q5 'inside a week': Δ = 7.00 days is on the closed bound. One duplicate → soft weight × 1/3."""
+    q5 = _by_rule(_open_pair("2026-03-09T08:00:00Z"), "Q5")
+    assert len(q5) == 1 and q5[0]["severity"] == round(0.1 * 1 / 3, 3)
+
+
+def test_signal_opened_seven_days_and_one_minute_later_is_not_Q5():
+    assert not _by_rule(_open_pair("2026-03-09T08:01:00Z"), "Q5")

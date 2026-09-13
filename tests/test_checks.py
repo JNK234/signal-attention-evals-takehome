@@ -344,6 +344,30 @@ def test_twelvefold_restatement_is_M5(ev):
     assert any(v["rule"] == "M5" and v["step"] == 5 and "12×" in v["explanation"] for v in r["violations"])
 
 
+def test_restatement_after_enrichment_returned_is_uncertain_M5_unless_twelvefold(ev):
+    """spec §9 M5: a later figure is consistent 'unless a subsequent enrichment formally revises it'. An
+    enrichment_returned entry between the score step and the restatement makes a plain restatement uncertain
+    (half weight); a 12× figure is the MRR/ARR bug whatever came back, so it stays certain."""
+    d = happy_dossier()                                          # score_signal at step 5
+    d["lifecycle"].insert(6, {"step": 6, "from_state": "scored", "to_state": "scored", "at": "2026-03-02T13:30:00Z",
+                              "trigger": "enrichment_returned", "reason": "late payload"})
+    for e in d["lifecycle"][7:]:
+        e["step"] += 1
+    d["actions"][3]["step"] = 7
+    d["notifications"][0]["step"] = 7
+    restate = {"step": 7, "metric": "arr_at_risk", "window_days": 0, "as_of": None, "value_before": None, "value_after": None, "claim": None}
+    d["metrics_claimed"] = [dict(restate, claim="ARR at risk restated as $45,000")]
+    m5 = only(ev.evaluate(d), "M5")
+    assert len(m5) == 1 and m5[0]["severity"] == pytest.approx(SEV_WEIGHT["high"] * UNCERTAIN_FACTOR)
+    assert "enrichment_returned at step 6" in m5[0]["explanation"]
+    d["metrics_claimed"] = [dict(restate, claim="ARR at risk restated as $360,000")]
+    m5 = only(ev.evaluate(d), "M5")
+    assert len(m5) == 1 and m5[0]["severity"] == SEV_WEIGHT["high"] and "12×" in m5[0]["explanation"]
+    d["lifecycle"].pop(6)                                        # no enrichment came back: plain restatement is certain
+    d["metrics_claimed"] = [dict(restate, claim="ARR at risk restated as $45,000")]
+    assert only(ev.evaluate(d), "M5")[0]["severity"] == SEV_WEIGHT["high"]
+
+
 def test_customer_visible_play_on_legal_hold_is_P2(ev):
     d = happy_dossier()
     d["decision"].update(recommended_play="csm_checkin", customer_visible=True)
@@ -351,6 +375,22 @@ def test_customer_visible_play_on_legal_hold_is_P2(ev):
     try:
         r = ev.evaluate(d)
         assert "P2" in rules(r) and only(r, "P2")[0]["step"] == 6
+    finally:
+        ev.cx.accounts["acct_T"]["flags"] = []
+
+
+def test_empty_account_flags_win_over_metadata_flags(ev):
+    """The account record is authoritative even when its flag list is empty: metadata claiming legal_hold on an
+    unflagged account is stale context, not a restriction (no P2); the disagreement is recorded as context_loss."""
+    d = happy_dossier()
+    d["decision"].update(recommended_play="csm_checkin", customer_visible=True)
+    d["metadata"]["account_flags"] = ["legal_hold"]
+    r = explain(ev, d)                                            # ACCOUNT["flags"] == []
+    assert "P2" not in rules(r)
+    assert any("flags" in m for m in r["_facts"]["context_loss"] or [])
+    ev.cx.accounts["acct_T"]["flags"] = None                     # no record at all → metadata is all we have
+    try:
+        assert "P2" in rules(ev.evaluate(d))
     finally:
         ev.cx.accounts["acct_T"]["flags"] = []
 
@@ -554,6 +594,22 @@ def test_single_low_confidence_backward_move_is_not_Q1(ev):
     assert not {"Q1", "I1", "TM", "I3"} & rules(r)
 
 
+def test_self_transitions_do_not_count_as_visits_for_Q1(ev):
+    """spec §10 Q1 is about oscillating *between* states; §4.2 says staying put is always valid. Two stays in
+    corroborating (three entries landing there) are not three visits."""
+    d = happy_dossier()
+    stays = [{"step": 0, "from_state": "corroborating", "to_state": "corroborating", "at": f"2026-03-02T09:{m}:00Z",
+              "trigger": "agent_action", "reason": "bot alert, staying"} for m in ("20", "40")]
+    d["lifecycle"] = d["lifecycle"][:2] + stays + d["lifecycle"][2:]
+    for i, e in enumerate(d["lifecycle"]):
+        e["step"] = i
+    for a in d["actions"]:
+        a["step"] += 2
+    d["evidence"][0]["step"] += 2
+    d["notifications"][0]["step"] += 2
+    assert not {"Q1", "I1", "TM", "I3", "I4"} & rules(ev.evaluate(d))
+
+
 def _evaluator_with_dau(level):
     e = SignalEvaluator(use_classifier=False)
     e.load_context([ACCOUNT], [OWNER], telemetry([level] * 7, [level] * 7), [ARTIFACT], [])
@@ -645,6 +701,22 @@ def test_malformed_dossier_never_raises_cold(ev):
     r = explain(SignalEvaluator(use_classifier=False), {"signal_id": "x", "account_id": "acct_T"})
     assert set(r) >= {"quality_score", "risk_score", "deserved_attention", "violations"}
     assert r["_facts"]["errors"] == [], r["_facts"]["errors"]
+
+
+@pytest.mark.parametrize("raw,expected", [
+    (None, None),                    # field absent
+    ("", None),                      # present but empty
+    (True, "<unnamed>"),             # older shape: a bare flag
+    ("Other Co", "Other Co"),        # the corpus shape: the other account's name
+])
+def test_mentions_other_account_normalised_to_name_or_none(raw, expected):
+    """docs/data_dictionary: `mentions_other_account` is 'set when forwarded text names a different customer'.
+    The corpus carries the name; a bare boolean must not be mistaken for one, and ''/None mean not set."""
+    from signal_eval.context import other_account_name
+    art = dict(ARTIFACT)
+    if raw is not None:
+        art["mentions_other_account"] = raw
+    assert other_account_name(art) == expected
 
 
 @pytest.mark.parametrize("text,expect_head,quoted", [

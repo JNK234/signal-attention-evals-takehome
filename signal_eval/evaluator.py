@@ -164,6 +164,7 @@ class SignalEvaluator:
             "context_loss": ctx.get("context_loss"),
             "final_state": ctx.get("final_state"),
             "closed_at_after_terminal": ctx.get("closed_at_after_terminal"),
+            "restricted_quoted_unrouted": ctx.get("restricted_quoted_unrouted", []),
             "routed": ctx.get("routed"),
             "customer_visible": ctx.get("visible"),
             "errors": ctx.get("errors", []),

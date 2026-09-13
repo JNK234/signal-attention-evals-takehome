@@ -160,12 +160,14 @@ def test_restricted_verbatim_quote_reaching_human_is_critical_P3(ev):
     assert "art_T1" in p3[0]["explanation"] and "verbatim" in p3[0]["explanation"]
 
 
-def test_restricted_quote_not_reaching_human_is_partial_P3(ev):
+def test_restricted_quote_not_reaching_human_is_fact_not_P3(ev):
+    """spec §8.3 forbids quoting restricted material 'in a dossier that is routed to the account team'. A
+    suppressed dossier nobody read is not that; the quote is recorded as a fact for the analysis, not a P3."""
     with_artifact(ev, restricted=True)
-    r = ev.evaluate(suppressed_dossier())
-    p3 = only(r, "P3")
-    # 0.5 = critical × UNCERTAIN_FACTOR: no human read it, so the leak is uncertain, not a bespoke 0.3 scale
-    assert len(p3) == 1 and p3[0]["severity"] == 0.5 and "no human" in p3[0]["explanation"]
+    r = explain(ev, suppressed_dossier())
+    assert "P3" not in rules(r)
+    assert r["_facts"]["restricted_quoted_unrouted"] == ["art_T1"]
+    assert explain(ev, happy_dossier())["_facts"]["restricted_quoted_unrouted"] == []
 
 
 def test_restricted_routed_then_expired_is_still_critical_P3(ev):
