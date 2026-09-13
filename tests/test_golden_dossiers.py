@@ -52,7 +52,6 @@ def needs_labels(corpus):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-@pytest.mark.xfail(strict=True, reason="pending: WP4 grounding/timing/quality — spec §9 M6 'within 5 percentage points' (tolerance exactly 5.0, no rounding slack)")
 def test_sig_0001_fabricated_quote_skipped_enrichment_artifact_claim(corpus):
     """Raw facts: lifecycle s3 hypothesis_formed→scored ('fast-tracked') → TM (§4.7); score_signal rides that edge
     → I4 (§5); art_00620 text says '90M rows', quote says '180M rows' → I6 (§7 I6); dau_seats 7d mean 127.9 → 89.9
@@ -103,7 +102,6 @@ def test_sig_0005_restricted_quote_quoted_history_missing_day_artifact(corpus):
     assert "Q2" in rules(r)          # product_gap with no supporting text and only artefact claims
 
 
-@pytest.mark.xfail(strict=True, reason="pending: WP2 mandatory — spec §8.1 bullet 2 'a reference to legal counsel' carries no author restriction (legal revert)")
 def test_sig_0005_internal_legal_reference_is_a_trigger_but_not_P1(corpus):
     """Raw facts: art_02564 (internal security review, attached and quoted) says 'Account-facing communication is
     embargoed until legal signs off' — a reference to legal counsel. Spec §8.1 bullet 2 restricts neither author
@@ -129,7 +127,6 @@ def test_sig_0013_legal_hold_with_customer_visible_play(corpus):
     assert f["days_to_renewal"] == 49
 
 
-@pytest.mark.xfail(strict=True, reason="pending: WP3/WP4 — spec §10 Q2 'the hypothesis should match what the evidence actually shows' (reliability_erosion with no supporting evidence)")
 def test_sig_0013_reliability_erosion_unsupported_is_Q2(corpus):
     """Raw facts: hypothesis reliability_erosion rests on a single internal CRM note, art_00506: 'champion moved to
     a new team internally but still owns the platform. no risk change.' — nothing about outages, latency or errors;

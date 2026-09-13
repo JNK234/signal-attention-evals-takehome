@@ -80,7 +80,6 @@ def test_skipped_state_with_continuity_is_TM_not_I3(ev):
     assert only(r, "TM")[0]["step"] == 2 and "candidate→hypothesis_formed" in only(r, "TM")[0]["explanation"]
 
 
-@pytest.mark.xfail(strict=True, reason="pending: WP1 lifecycle — spec §7 I3 one state at a time (a self-transition must start from the current state)")
 def test_self_transition_from_wrong_state_is_I3_at_that_step(ev):
     """spec §4.2 makes staying in the *current* state valid; scored→scored while the signal is in corroborating
     is a discontinuity at that step (I3), not a free teleport that only surfaces on the next entry."""

@@ -10,7 +10,14 @@ from ..classifier import NLI_THRESHOLD, TOPIC_LABELS
 from ..spec import ADOPTION_FULL_FRACTION, violation
 from ..util import day, first_hypothesis, mean, ts
 
-TEXT_HYPOTHESES = {"champion_departure", "budget_pressure", "product_gap"}   # need text to be supported
+# spec §10 Q2: "the hypothesis should match what the evidence actually shows". Every named cause needs
+# support from somewhere — text that reads as that cause, or grounded telemetry in the metric family the
+# cause is about. benign_variation is supported by a cohort-wide move; no_hypothesis claims nothing.
+TELEMETRY_SUPPORT = {
+    "reliability_erosion": {"query_p95_ms", "error_rate_pct"},
+    "onboarding_failure": {"dau_seats"},
+}
+NEEDS_SUPPORT = {"champion_departure", "budget_pressure", "product_gap", "reliability_erosion", "onboarding_failure"}
 TOPIC_NAMES = {k[len("topic:"):] for k in TOPIC_LABELS}
 
 
@@ -51,12 +58,10 @@ def check_quality(d, ctx, cx):
     if labs and hyp in TOPIC_NAMES:
         support = max(lab["scores"].get(f"topic:{hyp}", 0.0) for lab in labs)
         grounded_metrics = {c["metric"] for c in ctx.get("claim_detail", []) if c.get("status") == "grounded"}
-        telemetry_support = ((hyp == "reliability_erosion" and grounded_metrics & {"query_p95_ms", "error_rate_pct"})
-                             or (hyp == "onboarding_failure" and "dau_seats" in grounded_metrics)
-                             or (hyp == "benign_variation" and "cohort" in ctx.get("claim_status", [])))
+        telemetry_support = bool(grounded_metrics & TELEMETRY_SUPPORT.get(hyp, set()))
         ctx["hypothesis_text_support"] = support
-        if support < NLI_THRESHOLD and not telemetry_support and hyp in TEXT_HYPOTHESES:
-            out.append(violation(hstep, "Q2", f"{hyp} is not supported by any verified evidence (best text support {support:.2f})"))
+        if hyp in NEEDS_SUPPORT and support < NLI_THRESHOLD and not telemetry_support:
+            out.append(violation(hstep, "Q2", f"{hyp} is not supported by any verified evidence (best text support {support:.2f}, no grounded telemetry for it)"))
     topics = Counter(lab["topic"] for lab in labs if lab.get("topic"))
     ctx["evidence_topics"] = dict(topics)
     if topics:

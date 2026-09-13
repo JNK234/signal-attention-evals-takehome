@@ -142,7 +142,7 @@ def main():
         else:
             counted += 1
             fails += 0 if ok else 1
-    cx.save_cache()
+    cx.flush_cache()
     print(f"\n{counted - fails}/{counted} passed")
     if pending:
         print(f"{len(pending)} pending (source fix not landed; not counted):")
