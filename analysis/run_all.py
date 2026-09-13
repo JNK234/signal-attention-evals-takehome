@@ -35,7 +35,7 @@ def model_slug(model_id):
 def main():
     D = E._load("signal_dossiers.jsonl")
     A = E._load("artifacts.jsonl")
-    ev = SignalEvaluator(label_cache_path=E.LABEL_CACHE if E.LABEL_CACHE.exists() else None)
+    ev = SignalEvaluator(label_cache_path=E.LABEL_CACHE)      # None → labellers.default_cache_path(MODEL_ID)
     ev.load_context(E._load("accounts.jsonl"), E._load("owners.jsonl"), E._load("telemetry.jsonl"), A, D)
     arts = ev.cx.artifacts
     outcomes = {o["signal_id"]: o for o in E._load("outcomes.jsonl")}

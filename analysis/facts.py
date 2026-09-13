@@ -125,11 +125,13 @@ def main():
             "claim_pcts": "|".join(str(pct(m["claim"])) for m in d["metrics_claimed"] if m["metric"] in TELEMETRY_METRICS),
             "cohort_key": (r["_facts"].get("cohort_match") or {}).get("key", ""),
             "n_arr_restatements": len([m for m in d["metrics_claimed"] if m["metric"] == "arr_at_risk"]),
-            # triggers (structural + model, asymmetric) and account-level misses
+            # triggers (confirmed ∪ uncertain), their split, and account-level misses
             "triggers": "|".join(r["_facts"]["triggers"]),
-            "trigger_proxy_only": bool((r["_facts"]["trigger_source"] or {}).get("proxy")),
-            "triggers_added_by_model": "|".join((r["_facts"]["trigger_source"] or {}).get("added_by_model", [])),
-            "triggers_removed_by_model": "|".join((r["_facts"]["trigger_source"] or {}).get("removed_by_model", [])),
+            "triggers_confirmed": "|".join((r["_facts"]["trigger_source"] or {}).get("confirmed", [])),
+            "triggers_uncertain": "|".join((r["_facts"]["trigger_source"] or {}).get("uncertain", [])),
+            "triggers_historical": "|".join((r["_facts"]["trigger_source"] or {}).get("historical", [])),
+            "triggers_unattributed": "|".join((r["_facts"]["trigger_source"] or {}).get("unattributed", [])),
+            "unevaluated": "|".join(r["_facts"].get("unevaluated", [])),
             "account_trigger_unattached": "|".join(sorted({t for _, _, ts_ in r["_facts"]["account_triggers_unattached"] for t in ts_})),
             "account_trigger_artifacts": "|".join(aid for _, aid, _ in r["_facts"]["account_triggers_unattached"]),
             "n_stale_evidence": r["_facts"]["n_stale_evidence"],
