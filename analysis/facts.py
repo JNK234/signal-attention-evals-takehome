@@ -123,7 +123,7 @@ def main():
             "claim_status": "|".join(r["_facts"]["claim_status"]),
             "claim_metrics": "|".join(m["metric"] for m in d["metrics_claimed"] if m["metric"] in TELEMETRY_METRICS),
             "claim_pcts": "|".join(str(pct(m["claim"])) for m in d["metrics_claimed"] if m["metric"] in TELEMETRY_METRICS),
-            "cohort_note": (r["_facts"]["cohort_notes"] or [""])[0][:80],
+            "cohort_key": (r["_facts"].get("cohort_match") or {}).get("key", ""),
             "n_arr_restatements": len([m for m in d["metrics_claimed"] if m["metric"] == "arr_at_risk"]),
             # triggers (structural + model, asymmetric) and account-level misses
             "triggers": "|".join(r["_facts"]["triggers"]),

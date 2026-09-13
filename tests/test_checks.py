@@ -460,10 +460,11 @@ def test_legacy_double_count_claim_is_labelled_artifact():
     assert any("legacy double-count" in v["explanation"] and v["step"] == 2 for v in r["violations"] if v["rule"] == "M6")
 
 
-def test_degraded_window_is_unverifiable():
-    """spec §9 M6: windows whose ingest_status is not ok are excluded; a claim over such a window cannot be
-    grounded. Reported as an uncertain M6 (UNCERTAIN_FACTOR of the high-class weight; the old ad-hoc 0.4 scale
-    is gone) naming the degraded day."""
+def test_degraded_day_is_excluded_and_the_claim_is_judged_on_the_clean_pairs():
+    """spec §9 M6: rows whose ingest_status is not ok are excluded. Under the paired-day method the degraded
+    day costs its pair (6 of 7 remain, above the strict-majority minimum) and the claim is judged on the rest:
+    still −40%, so grounded, with the exclusion on record. A whole window is unverifiable only when fewer than
+    MIN_PAIRS(w) pairs survive (tests/test_grounding_paired.py)."""
     e = SignalEvaluator(use_classifier=False)
     rows = telemetry([100] * 7, [60] * 7)
     rows[10]["ingest_status"] = "degraded"
@@ -472,11 +473,9 @@ def test_degraded_window_is_unverifiable():
     d["metrics_claimed"] = [{"step": 2, "metric": "dau_seats", "window_days": 7, "as_of": "2026-03-01",
                              "value_before": 700, "value_after": 420, "claim": "dau_seats -40% week over week"}]
     r = explain(e, d)
-    assert r["_facts"]["claim_status"] == ["unverifiable"]
-    m6 = only(r, "M6")
-    assert len(m6) == 1 and m6[0]["step"] == 2
-    assert m6[0]["severity"] == pytest.approx(SEV_WEIGHT["high"] * UNCERTAIN_FACTOR)
-    assert "degraded" in m6[0]["explanation"]
+    assert r["_facts"]["claim_status"] == ["grounded"] and not only(r, "M6")
+    rec = r["_facts"]["claim_detail"][0]
+    assert rec["n_pairs"] == 6 and rec["excluded"] == {"degraded": 1} and "1 day(s) degraded" in rec["events"]
 
 
 def test_duplicate_signal_is_Q5_only_while_earlier_is_open():

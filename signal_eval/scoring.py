@@ -46,8 +46,8 @@ def deserved_attention(d, ctx, loaded):
     # the agent's arr_at_risk may simply be under-scoped, so the floor does not veto
     if cust and hyp != "benign_variation":
         return True, "customer text with non-benign hypothesis"
-    if st and all(s in ("artifact", "unverifiable", "cohort") for s in st) and not cust:
-        return False, ("cohort-wide move, not this account" if "cohort" in st else "claims are pipeline artefacts; no customer text")
+    if st and all(s in ("artifact", "unverifiable") for s in st) and not cust:
+        return False, "claims are pipeline artefacts; no customer text"
     if below_floor:
         return False, "below materiality floor"
     if hyp == "benign_variation" and real_claim and not cust:
@@ -72,7 +72,7 @@ def risk_score(d, ctx, violations, deserved):
         r += 0.25 * max(scale, 0.5)
     if any(v["rule"] == "I6" and v["severity"] >= 0.9 for v in violations):
         r += 0.2
-    if ctx.get("reached_human") and ({"artifact", "cohort"} & set(ctx.get("claim_status", []))):
+    if ctx.get("reached_human") and ("artifact" in ctx.get("claim_status", []) or ctx.get("cohort_match")):
         r += 0.2
     if ctx.get("reached_human") and "P3" in rules:
         r += 0.15

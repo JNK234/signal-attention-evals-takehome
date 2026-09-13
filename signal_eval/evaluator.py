@@ -151,7 +151,7 @@ class SignalEvaluator:
             "days_to_renewal": ctx.get("days_to_renewal"),
             "claim_status": ctx.get("claim_status", []),
             "claim_detail": ctx.get("claim_detail", []),
-            "cohort_notes": ctx.get("cohort_notes", []),
+            "cohort_match": ctx.get("cohort_match"),
             "security_review": ctx.get("security_review", False),
             "evidence": ctx.get("evidence_facts", []),
             "verified_sources": sorted(s for s in ctx["verified_sources"] if s) if ctx.get("verified_sources") is not None else None,

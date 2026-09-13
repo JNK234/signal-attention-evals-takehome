@@ -120,6 +120,13 @@ TELEMETRY_METRICS = {"api_calls", "dau_seats", "query_p95_ms", "error_rate_pct",
                      "dashboards_created", "data_volume_gb"}
 DUPLICATE_WINDOW_DAYS = 7                # spec §10 Q5 "inside a week" — read as 7×24h
 
+
+def MIN_PAIRS(w):
+    """Clean (d, d−w) pairs a w-day claim needs before its paired change counts as computed.
+    Strict majority of the window; with 4 of 7 pairs the paired estimate is still weekday-balanced."""
+    return w // 2 + 1
+
+
 # ── docs/domain.md  known platform data events (deployment-specific defaults) ─
 LEGACY_DOUBLE_COUNT_END = date(2026, 5, 18)   # api_calls ×2 before this on collector=legacy
 P95_STEP_DATE = date(2026, 4, 27)             # query_p95_ms ×1.8 from this date (instrumentation)
@@ -128,9 +135,10 @@ INGEST_GAP = (date(2026, 6, 11), date(2026, 6, 13))
 INGEST_GAP_REGIONS = frozenset({"apac", "emea"})
 
 # ── evaluator judgment constants (not in the spec; stated in the writeup) ────
-COHORT_MIN_DROP_PCT = 20.0     # region median must itself move at least this much...
+COHORT_MIN_DROP_PCT = 20.0     # cohort median must itself move at least this much...
 COHORT_MATCH_PP = 12.0         # ...and land within this many points of the account's move
-COHORT_MIN_ACCOUNTS = 5        # a region median built from fewer accounts than this is not a cohort
+COHORT_MIN_ACCOUNTS = 5        # a median built from fewer peer accounts than this is not a cohort
+COHORT_KEYS = ("industry", "region")   # account fields a cohort is keyed on, in order of precedence
 RECENT_EVIDENCE_DAYS = 14      # customer evidence this close to opened_at counts as current
 ADOPTION_FULL_FRACTION = 0.8   # dau_seats / seats_contracted above this = adoption happened
-SEATS_OVERSHOOT_TOL = 1.05     # dau_seats above seats_contracted × this = bad row
+SEATS_OVERSHOOT_TOL = 1.05     # dau_seats above seats_contracted × this is recorded as a fact, never excluded

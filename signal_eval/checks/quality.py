@@ -72,8 +72,10 @@ def check_quality(d, ctx, cx):
             out.append(violation(hstep, "Q2", f"hypothesis {hyp} but evidence reads as {top} ({n}/{sum(topics.values())} artefacts)"))
     if hyp not in ("no_hypothesis", "benign_variation", None) and not ctx.get("verified") and ctx.get("stale"):
         out.append(violation(hstep, "Q2", f"{hyp} rests only on quoted-history / sarcastic evidence"))
-    if hyp not in ("benign_variation", None) and ctx.get("cohort_notes") and not ctx.get("has_customer_text"):
-        out.append(violation(hstep, "Q2", f"{hyp} on a cohort-wide move: " + ctx["cohort_notes"][0]))
+    if hyp not in ("benign_variation", None) and ctx.get("cohort_match") and not ctx.get("has_customer_text"):
+        cm = ctx["cohort_match"]
+        out.append(violation(hstep, "Q2", f"{hyp} on a cohort-wide move: {cm['metric']} median {cm['median_pct']:+.0f}% across "
+                             f"{cm['n']} other {cm['key']}={cm['value']} accounts over the same window (calendar / cohort event)"))
     if hyp not in ("benign_variation", None) and ctx.get("claim_status") and all(s == "artifact" for s in ctx["claim_status"]) and not ctx.get("has_customer_text"):
         out.append(violation(hstep, "Q2", f"{hyp} rests only on pipeline-artefact claims"))
 

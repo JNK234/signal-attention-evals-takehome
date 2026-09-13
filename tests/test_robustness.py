@@ -273,7 +273,7 @@ def test_existing_facts_keys_preserved(ev):
     r = explain(ev, happy_dossier())
     assert set(r["_facts"]) >= {
         "context_loaded", "classifier_active", "labels_cover_corpus", "deserved_reason", "triggers", "trigger_source",
-        "account_triggers_unattached", "reached_human", "days_to_renewal", "claim_status", "claim_detail", "cohort_notes",
+        "account_triggers_unattached", "reached_human", "days_to_renewal", "claim_status", "claim_detail", "cohort_match",
         "security_review", "evidence", "verified_sources", "has_customer_text", "has_attached_text", "n_stale_evidence",
         "evidence_topics", "hypothesis_text_support", "duplicates", "context_loss", "final_state", "routed",
         "customer_visible", "errors", "classifier_reason",

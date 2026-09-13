@@ -54,10 +54,11 @@ def needs_labels(corpus):
 # ─────────────────────────────────────────────────────────────────────────────
 def test_sig_0001_fabricated_quote_skipped_enrichment_artifact_claim(corpus):
     """Raw facts: lifecycle s3 hypothesis_formed→scored ('fast-tracked') → TM (§4.7); score_signal rides that edge
-    → I4 (§5); art_00620 text says '90M rows', quote says '180M rows' → I6 (§7 I6); dau_seats 7d mean 127.9 → 89.9
-    = −29.6% against a claim of −35% = 5.35pp, outside spec §9 M6 'within 5 percentage points'; the raw sum with
-    one day of the window missing (read as zero) gives −39.7%, within 5pp of −35 → the claim is a pipeline artefact
-    and M6 names the missing day; onboarding_failure resting only on that artefact claim with no verified customer
+    → I4 (§5); art_00620 text says '90M rows', quote says '180M rows' → I6 (§7 I6); dau_seats paired-day change
+    over the 6 clean (d, d−7) pairs (2026-02-26 is missing from telemetry) is Σ539.7 vs Σ751.2 = −28.2% against a
+    claim of −35% = 6.8pp, outside spec §9 M6 'within 5 percentage points'; the raw zero-filled sum gives −39.7%,
+    within 5pp of −35 → the claim is a pipeline artefact inflating a real decline, and M6 names the missing day;
+    onboarding_failure resting only on that artefact claim with no verified customer
     text (the only evidence is the fabricated quote) → Q2 (§10 Q2); notify 00:28Z = 16:28 Los Angeles, 29.1h after
     open (P2 target 72h); email/en-US matches owner; 20,000 within [18,000, 75,000]; acknowledged by owner."""
     r = run(corpus, "sig_0001")
@@ -67,12 +68,13 @@ def test_sig_0001_fabricated_quote_skipped_enrichment_artifact_claim(corpus):
     i6 = only(r, "I6")[0]
     assert i6["step"] == 2 and i6["severity"] == 1.0 and "art_00620" in i6["explanation"]
     m6 = only(r, "M6")[0]
-    assert m6["step"] == 2 and "missing day" in m6["explanation"]
+    assert m6["step"] == 2 and m6["severity"] == 0.6 and "missing day" in m6["explanation"] and "inflated real decline" in m6["explanation"]
     f = r["_facts"]
     assert f["evidence"][0]["status"] == "fabricated"
     assert f["claim_status"] == ["artifact"]
-    assert abs(f["claim_detail"][0]["corrected_pct"] - (-29.6)) < 0.5
-    assert abs(f["claim_detail"][0]["raw_pct"] - (-39.7)) < 0.5
+    c = f["claim_detail"][0]
+    assert c["n_pairs"] == 6 and c["excluded"] == {"missing": 1} and c["cohort"] is None
+    assert abs(c["paired_pct"] - (-28.2)) < 0.1 and abs(c["raw_pct"] - (-39.7)) < 0.1
     assert f["has_customer_text"] is False and f["triggers"] == [] and f["reached_human"] is True
     assert f["days_to_renewal"] == 165
 
@@ -82,7 +84,8 @@ def test_sig_0005_restricted_quote_quoted_history_missing_day_artifact(corpus):
     quoted, human notified → P3 1.0 (§8.3); art_02546 is 'Sorted, thanks. Ignore the thread below…' with an
     'On … wrote:' quoted section → stale → Q4 (§4.2 / §10 Q4); notify 15:33Z = 16:33 Berlin (in window) via
     email/en-US but owner is slack/de-DE → two P6 (§8.6); arr_at_risk 17,500 < floor 18,000 and routed → M4 (§9 M4);
-    dau_seats corrected −18.1% vs claim −30%, raw sum −29.8% with 02-23 missing → artifact (§9 M6); flags [pilot]
+    dau_seats paired-day change Σ186.7 vs Σ222.1 = −15.9% on 6 clean pairs vs claim −30%, raw zero-filled sum −29.8%
+    with 2026-02-23 missing → artifact inflating a real decline (§9 M6); flags [pilot]
     → no P2; confidence low → no P5; routed with the owner notified → no P1 whatever the triggers say (§8.1 asks
     for a human, and one was put on it). The trigger expectation itself lives in the companion test below."""
     r = run(corpus, "sig_0005")
@@ -93,7 +96,9 @@ def test_sig_0005_restricted_quote_quoted_history_missing_day_artifact(corpus):
     assert "17,500" in only(r, "M4")[0]["explanation"]
     f = r["_facts"]
     assert f["claim_status"] == ["artifact"]
-    assert any("missing day" in e for e in f["claim_detail"][0]["events"])
+    c = f["claim_detail"][0]
+    assert any("missing day" in e for e in c["events"]) and c["n_pairs"] == 6
+    assert abs(c["paired_pct"] - (-15.9)) < 0.1 and abs(c["raw_pct"] - (-29.8)) < 0.1
     assert f["reached_human"] is True
     needs_labels(corpus)
     assert [e["status"] for e in f["evidence"]] == ["stale", "verified"]
@@ -182,30 +187,38 @@ def test_sig_0278_legacy_double_count_artifact_and_backward_move(corpus):
     """Raw facts: s3 hypothesis_formed→candidate (backward, never allowed) → I1; s4 candidate→hypothesis_formed
     (not in matrix) → TM; notify 08:47Z = 10:47 Berlin, 91.3h vs P2 72h → T3 at the medium class weight (the
     breach is certain; the 19h magnitude lives in the explanation, not the severity); routed with 2,500 <
-    floor 6,000 → M4; legacy collector, api_calls claim −66% with window spanning 2026-05-18: corrected mean
-    −21.8%, raw sum −66.5% → artifact named 'legacy'; customer chat 'team is on holiday' is real text."""
+    floor 6,000 → M4; legacy collector, api_calls claim −66% with window spanning 2026-05-18: paired-day change
+    on corrected rows (pre-05-18 halved) Σ81,898 vs Σ106,426.5 = −23.0% on 6 clean pairs (2026-05-19 missing), raw
+    uncorrected sum −66.5% → artifact named 'legacy', inflating a real decline; customer chat 'team is on holiday'
+    is real text."""
     r = run(corpus, "sig_0278")
     assert rules(r) == {"I1", "TM", "T3", "M4", "M6"}
     assert only(r, "I1")[0]["step"] == 3 and only(r, "TM")[0]["step"] == 4
     assert only(r, "T3")[0]["severity"] == 0.3 and "91.3h" in only(r, "T3")[0]["explanation"]
     assert "2,500" in only(r, "M4")[0]["explanation"]
-    assert "legacy" in only(r, "M6")[0]["explanation"]
+    assert "legacy" in only(r, "M6")[0]["explanation"] and "inflated real decline" in only(r, "M6")[0]["explanation"]
     f = r["_facts"]
     assert f["claim_status"] == ["artifact"] and f["triggers"] == []
+    c = f["claim_detail"][0]
+    assert c["n_pairs"] == 6 and abs(c["paired_pct"] - (-23.0)) < 0.1 and abs(c["raw_pct"] - (-66.5)) < 0.1
     assert [e["status"] for e in f["evidence"]] == ["verified", "verified", "verified"]
     assert f["has_customer_text"] is True
 
 
 def test_sig_0420_ingest_gap_artifact(corpus):
     """Raw facts: apac account, dau_seats claim −30% with window 06-01..06-14 containing the 06-11→13 ingest
-    gap (3 missing days); corrected mean on the 4 clean days is +22.1%, raw sum −30.2% → artifact named
-    'ingest gap'; acknowledged with 14,500 < floor 18,000 → M4; confidence high with support_ticket +
-    crm_note = 2 sources → no P5; notify 12:59 Singapore, 61.2h → ok."""
+    gap (3 missing days, the only missing rows in the span); the 4 clean (d, d−7) pairs give Σ149.5 vs Σ151.9 =
+    −1.6% — a strict majority of 7, so computable; the raw zero-filled sum gives −30.2% → the −30% is manufactured
+    by the gap → artifact at full severity named 'ingest gap'; acknowledged with 14,500 < floor 18,000 → M4;
+    confidence high with support_ticket + crm_note = 2 sources → no P5; notify 12:59 Singapore, 61.2h → ok."""
     r = run(corpus, "sig_0420")
     assert rules(r) == {"M4", "M6"}
-    assert "ingest gap" in only(r, "M6")[0]["explanation"]
+    m6 = only(r, "M6")[0]
+    assert "ingest gap" in m6["explanation"] and "manufactured decline" in m6["explanation"] and m6["severity"] == 0.6
     f = r["_facts"]
-    assert f["claim_status"] == ["artifact"] and f["claim_detail"][0]["missing_days"] == 3
+    c = f["claim_detail"][0]
+    assert f["claim_status"] == ["artifact"] and c["excluded"] == {"missing": 3} and c["n_pairs"] == 4 and c["min_pairs"] == 4
+    assert abs(c["paired_pct"] - (-1.6)) < 0.1 and abs(c["raw_pct"] - (-30.2)) < 0.1
     assert f["has_customer_text"] is True and f["triggers"] == []
 
 
@@ -235,9 +248,11 @@ def test_sig_0058_departure_notice_suppressed_after_timeout(corpus):
 def test_sig_0111_cross_tenant_and_twelvefold_restatement(corpus):
     """Raw facts: at s5 an action named notify_owner rides evidence_received→scored → I4; notify 09:48Z =
     11:48 Madrid, 72.2h vs 72h → T3 tiny; routed with 16,000 < floor 18,000 → M4; restated '$192,000' =
-    12 × 16,000 → M5; art_00849 belongs to acct_0039 → P4; dau_seats corrected −28.7%, raw −38.9%, claim −48%
-    → neither reproduces → 'wrong'; art_03224 is a credit memo *resolving* a dispute — not a billing trigger;
-    none of the four same-account artefacts quote older text."""
+    12 × 16,000 → M5; art_00849 belongs to acct_0039 → P4; dau_seats paired-day change Σ387.6 vs Σ526.8 = −26.4%
+    on 6 clean pairs (2026-04-01 missing), raw zero-filled −38.9%, claim −48% → neither reproduces → 'wrong'; the
+    other 14 manufacturing accounts moved a median −23.3% over the same paired window, within 12pp of −26.4 →
+    cohort_match on industry (a fact, the claim stays 'wrong'); art_03224 is a credit memo *resolving* a dispute —
+    not a billing trigger; none of the four same-account artefacts quote older text."""
     r = run(corpus, "sig_0111")
     assert rules(r) == {"I4", "T3", "M4", "M5", "P4", "M6"}
     assert only(r, "I4")[0]["step"] == 5
@@ -245,6 +260,10 @@ def test_sig_0111_cross_tenant_and_twelvefold_restatement(corpus):
     assert "art_00849" in only(r, "P4")[0]["explanation"] and "acct_0039" in only(r, "P4")[0]["explanation"]
     f = r["_facts"]
     assert f["claim_status"] == ["wrong"]
+    c = f["claim_detail"][0]
+    assert c["n_pairs"] == 6 and abs(c["paired_pct"] - (-26.4)) < 0.1 and abs(c["raw_pct"] - (-38.9)) < 0.1
+    assert c["cohort"]["key"] == "industry" and c["cohort"]["value"] == "manufacturing" and c["cohort"]["n"] == 14
+    assert abs(c["cohort"]["median_pct"] - (-23.3)) < 0.1
     assert [e["status"] for e in f["evidence"]] == ["verified", "verified", "verified", "verified", "other_account"]
     assert f["triggers"] == [] and f["has_customer_text"] is True
 
@@ -253,8 +272,8 @@ def test_sig_0208_out_of_window_renotify_altered_quote(corpus):
     """Raw facts: s3 hypothesis_formed→scored → TM + I4; notifications 09:41Z = 05:41 New York (outside
     08–19, severity P3 not exempt) → T1, then 15:25Z = 11:25 with a 5.7h gap → T2; acknowledged with 2,500 <
     floor 6,000 → M4; restated '$30,000' = 12 × 2,500 → M5; quote says '4 wks', artefact says '2 wks' → I6;
-    dau_seats corrected −18.8%, raw −30.4% with one missing day → artifact; hypothesis no_hypothesis resting
-    only on that artefact claim → Q2."""
+    dau_seats paired-day change Σ35.7 vs Σ39.8 = −10.3% on 6 clean pairs (2026-04-28 missing), raw zero-filled
+    −30.4% → artifact inflating a real decline; hypothesis no_hypothesis resting only on that artefact claim → Q2."""
     r = run(corpus, "sig_0208")
     assert rules(r) == {"TM", "I4", "T1", "T2", "M4", "M5", "I6", "M6", "Q2"}
     assert only(r, "T1")[0]["step"] == 4 and "05:41" in only(r, "T1")[0]["explanation"]
@@ -263,4 +282,6 @@ def test_sig_0208_out_of_window_renotify_altered_quote(corpus):
     assert only(r, "I6")[0]["severity"] == 1.0
     f = r["_facts"]
     assert f["claim_status"] == ["artifact"] and f["evidence"][0]["status"] == "fabricated"
+    c = f["claim_detail"][0]
+    assert c["n_pairs"] == 6 and abs(c["paired_pct"] - (-10.3)) < 0.1 and abs(c["raw_pct"] - (-30.4)) < 0.1
     assert f["has_customer_text"] is False and f["reached_human"] is True

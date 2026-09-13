@@ -1,6 +1,6 @@
 """
 ABOUTME: The truth layer. Indexes accounts/owners/artefacts, cleans telemetry (dedup, documented
-ABOUTME: event corrections, bad-row flags), builds the cohort baseline, and serves semantic labels
+ABOUTME: event corrections, bad-row flags), computes paired-day changes and cohorts, and serves semantic labels
 ABOUTME: for any text (artefact or bare quote) through a text-hash cache.
 """
 
@@ -16,6 +16,31 @@ from .util import day, median, split_quoted, ts
 
 CACHE_FLUSH_EVERY = 50      # new labels pending before save_cache() actually writes
 _NEVER = datetime.min.replace(tzinfo=timezone.utc)   # a row with no parseable ingested_at loses every dedup tie
+
+
+def paired_change(rows, metric, end, w):
+    """Week-over-week change from paired days: each day d of the w days ending at `end` is paired with d−w and
+    the pair counts only when both rows exist and are usable. Missing days, weekend composition and the apac
+    UTC-day shift then cancel out with no day-of-week model. pct = (Σafter − Σbefore) / Σbefore × 100 over the
+    pairs; None when there are no pairs or Σbefore is 0. `excluded` counts the rows that cost a pair, by reason."""
+    sum_after, sum_before, n, excluded = 0.0, 0.0, 0, Counter()
+    for i in range(w):
+        da = end - timedelta(days=i)
+        pair = (rows.get(da), rows.get(da - timedelta(days=w)))
+        ok = True
+        for r in pair:
+            if r is None or r.get(metric) is None:
+                excluded["missing"] += 1
+                ok = False
+            elif not r.get("usable", True):
+                excluded[r.get("bad_reason") or "non-ok"] += 1
+                ok = False
+        if ok:
+            n += 1
+            sum_after += pair[0][metric]
+            sum_before += pair[1][metric]
+    pct = (sum_after - sum_before) / sum_before * 100 if n and sum_before else None
+    return {"pct": pct, "n_pairs": n, "sum_after": sum_after, "sum_before": sum_before, "excluded": dict(excluded)}
 
 
 def _hub_cache_dir():
@@ -60,7 +85,8 @@ class Context:
         self.owners = {}
         self.artifacts = {}
         self.tel = {}                        # account_id -> {date -> corrected row}
-        self.cohort = {}                     # region -> {date -> {metric: median, _n: accounts}}
+        self.cohort_groups = {}              # (key, value) -> [account_id] for key in spec.COHORT_KEYS
+        self.cohort_cache = {}               # (key, value, metric, end, w) -> {account_id: paired pct}
         self.by_account = defaultdict(list)  # account_id -> [(opened_at, detector, signal_id)]
         self.account_triggers = defaultdict(list)  # account_id -> [(timestamp, artifact_id, {trigger,...})]
         # semantic labels: text_key -> label dict. Filled lazily; persisted to label_cache_path if given.
@@ -112,7 +138,8 @@ class Context:
             if d.get("opened_at"):
                 self.by_account[d["account_id"]].append((ts(d["opened_at"]), d.get("detector"), d.get("signal_id")))
         self.tel = self._clean_telemetry(telemetry or [])
-        self.cohort = self._cohort_baseline(self.tel)
+        self.cohort_groups = self._cohort_groups()
+        self.cohort_cache = {}
         if self.use_classifier:
             # README l.226: a model download (True mode) or a slow model load may happen here, never inside
             # evaluate(). Cache-only auto mode has no model to warm; a miss there is simply unverifiable.
@@ -145,38 +172,43 @@ class Context:
             # 3. domain.md: p95 instrumentation stepped ×factor; rescale earlier values up
             if self.p95_step and d < self.p95_step and row.get("query_p95_ms") is not None:
                 row["query_p95_ms"] = row["query_p95_ms"] * self.p95_factor
-            # 4. bad rows: dead collector (all zero, status still ok), degraded, or dau above contracted seats
-            dead = api == 0 and dau == 0
+            # 4. bad rows: dead collector (docs/domain.md "every metric zero while status reads ok" — read as
+            #    every *volume* metric zero, since a stalled collector can still report a latency) or degraded.
+            #    dau_seats above contracted seats is recorded as a fact only: spec §9 M6 names no such exclusion.
+            dead = api == 0 and dau == 0 and (row.get("data_volume_gb") or 0) == 0
             degraded = row.get("ingest_status") == "degraded"
             seats = acc.get("seats_contracted")
-            over = bool(seats) and dau > seats * spec.SEATS_OVERSHOOT_TOL
-            row["usable"] = not (dead or degraded or over)
+            row["usable"] = not (dead or degraded)
             row["dead"] = dead
-            row["bad_reason"] = ("dead collector" if dead else "degraded" if degraded
-                                 else "dau_seats above contracted seats" if over else None)
+            row["seats_overshoot"] = bool(seats) and dau > seats * spec.SEATS_OVERSHOOT_TOL
+            row["bad_reason"] = "dead collector" if dead else "degraded" if degraded else None
             tel[acct][d] = row
         # 5. missing dates stay missing — never zero-filled
         return tel
 
-    def _cohort_baseline(self, tel):
-        """Per-region daily median of each metric over usable rows. A move the whole region
+    # ── cohort: leave-one-out paired change of the other accounts sharing an attribute ───────
+    def _cohort_groups(self):
+        groups = defaultdict(list)
+        for aid, acc in self.accounts.items():
+            for key in spec.COHORT_KEYS:
+                if acc.get(key) is not None:
+                    groups[(key, acc[key])].append(aid)
+        return groups
+
+    def cohort_change(self, metric, end, w, key, value, exclude_account):
+        """(median_pct, n_accounts) of paired_change over the *other* accounts with accounts[key] == value,
+        counting only accounts whose window has at least MIN_PAIRS(w) clean pairs. A move the whole cohort
         shares on the same days is a calendar or pipeline event, not one customer's behaviour."""
-        buckets = defaultdict(lambda: defaultdict(list))
-        for acct, days in tel.items():
-            region = self.accounts.get(acct, {}).get("region", "ALL")
-            for d, row in days.items():
-                if not row["usable"]:
-                    continue
-                for metric in spec.TELEMETRY_METRICS:
-                    if row.get(metric) is not None:
-                        buckets[(region, d)][metric].append(row[metric])
-                        buckets[("ALL", d)][metric].append(row[metric])
-        cohort = defaultdict(dict)
-        for (region, d), ms in buckets.items():
-            entry = {m: median(v) for m, v in ms.items()}
-            entry["_n"] = max((len(v) for v in ms.values()), default=0)
-            cohort[region][d] = entry
-        return cohort
+        k = (key, value, metric, end, w)
+        if k not in self.cohort_cache:
+            vals = {}
+            for aid in self.cohort_groups.get((key, value), []):
+                p = paired_change(self.tel.get(aid, {}), metric, end, w)
+                if p["pct"] is not None and p["n_pairs"] >= spec.MIN_PAIRS(w):
+                    vals[aid] = p["pct"]
+            self.cohort_cache[k] = vals
+        others = [v for aid, v in self.cohort_cache[k].items() if aid != exclude_account]
+        return median(others), len(others)
 
     # ── labels ───────────────────────────────────────────────────────────────
     # Cache shape: text_key -> {"s": {sentence: score}, "n": n_chunks}. Sentences are the unit, so a
