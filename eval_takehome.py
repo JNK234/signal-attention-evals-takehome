@@ -45,7 +45,8 @@ def main():
 
     run_all = "--all" in sys.argv
     subset = dossiers if run_all else dossiers[:10]
-    print(f"Evaluating {len(subset)} dossiers (classifier {'on' if evaluator.cx.classifier_active else 'off'})...")
+    print(f"Evaluating {len(subset)} dossiers (classifier {'on' if evaluator.cx.classifier_active else 'off'}: "
+          f"{evaluator.cx.classifier_reason})...")
     counts, results = Counter(), []
     for d in subset:
         r = evaluator.evaluate(d)
@@ -59,6 +60,11 @@ def main():
         for rid, ref, _, _ in RULES:
             print(f"{rid:<5}{counts.get(rid, 0):>9}  {ref}")
     print(f"\nEvaluated {len(results)} dossiers.")
+    # evaluate() only persists labels in batches (README l.226: no per-call side effects); write the tail now.
+    try:
+        evaluator.cx.flush_cache()
+    except OSError as exc:
+        print(f"label cache not written: {exc!r}")
 
 
 if __name__ == "__main__":

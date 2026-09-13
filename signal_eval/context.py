@@ -5,6 +5,7 @@ ABOUTME: for any text (artefact or bare quote) through a text-hash cache.
 """
 
 import json
+import os
 from collections import Counter, defaultdict
 from datetime import timedelta
 from pathlib import Path
@@ -13,11 +14,32 @@ from . import spec
 from .classifier import NLI_MODEL, NLI_THRESHOLD, TextClassifier, assemble, filled_hypotheses, is_stale, text_key
 from .util import day, median, split_quoted, ts
 
+CACHE_FLUSH_EVERY = 50      # new labels pending before save_cache() actually writes
+
+
+def _hub_cache_dir():
+    """Where huggingface_hub keeps downloaded models, resolved the way the library does (env first)."""
+    if os.environ.get("HF_HUB_CACHE"):
+        return Path(os.environ["HF_HUB_CACHE"])
+    if os.environ.get("HF_HOME"):
+        return Path(os.environ["HF_HOME"]) / "hub"
+    return Path.home() / ".cache" / "huggingface" / "hub"
+
+
+def local_model_present(model_id=NLI_MODEL):
+    """Is the model already on disk? A plain directory scan of the hub cache — imports nothing from
+    transformers/huggingface_hub and never touches the network (README l.225-226: self-contained)."""
+    snapshots = _hub_cache_dir() / f"models--{model_id.replace('/', '--')}" / "snapshots"
+    try:
+        return snapshots.is_dir() and any(p.is_dir() and any(p.iterdir()) for p in snapshots.iterdir())
+    except OSError:
+        return False
+
 
 class Context:
     """Everything a check may consult beyond the dossier itself. Works empty (cold path) or loaded."""
 
-    def __init__(self, *, use_classifier=True, label_scope="evidence", label_cache_path=None,
+    def __init__(self, *, use_classifier="auto", label_scope="evidence", label_cache_path=None,
                  legacy_double_count_end=spec.LEGACY_DOUBLE_COUNT_END, p95_step_date=spec.P95_STEP_DATE,
                  p95_factor=spec.P95_FACTOR, ingest_gap=spec.INGEST_GAP, ingest_gap_regions=spec.INGEST_GAP_REGIONS):
         self.loaded = False
@@ -29,12 +51,13 @@ class Context:
         self.by_account = defaultdict(list)  # account_id -> [(opened_at, detector, signal_id)]
         self.account_triggers = defaultdict(list)  # account_id -> [(timestamp, artifact_id, {trigger,...})]
         # semantic labels: text_key -> label dict. Filled lazily; persisted to label_cache_path if given.
-        self.use_classifier = use_classifier
+        self.classifier_mode = use_classifier   # True | False | "auto" (as requested)
         self.label_scope = label_scope       # "evidence" (artefacts cited by dossiers) or "all"
         self.label_cache_path = Path(label_cache_path) if label_cache_path else None
         self._labels = {}
         self._indexed = set()
         self._cache_dirty = False
+        self._dirty_count = 0                # new labels since the last write
         self._classifier = None
         self.labels_cover_corpus = False
         self.classifier_active = None        # None = not yet tried
@@ -45,6 +68,27 @@ class Context:
         self.ingest_gap = ingest_gap
         self.ingest_gap_regions = set(ingest_gap_regions)
         self._load_cache()
+        # use_classifier is the resolved bool the checks read; classifier_reason says why.
+        self.use_classifier, self.classifier_reason = self._resolve_classifier_mode()
+
+    def _resolve_classifier_mode(self):
+        """README l.225-226: the evaluator is self-contained and makes no external calls inside evaluate().
+        "auto" (the default) therefore only turns the model on when it cannot possibly need the network:
+        a populated label cache for this model, or the model files already on disk. Nothing here imports
+        transformers; that stays lazy inside TextClassifier."""
+        mode = self.classifier_mode
+        if mode is False:
+            return False, "disabled"
+        if mode is True:
+            return True, "enabled"
+        # setdefault: an explicit user setting wins. Must happen before transformers/huggingface_hub is
+        # first imported, which is why it lives here and not next to the pipeline call.
+        os.environ.setdefault("HF_HUB_OFFLINE", "1")
+        if local_model_present():
+            return True, "local model"
+        if self._labels:
+            return True, "cache"
+        return False, "auto: no cache and no local model"
 
     # ── loading ──────────────────────────────────────────────────────────────
     def load(self, accounts, owners, telemetry, artifacts, dossiers):
@@ -57,6 +101,10 @@ class Context:
         self.tel = self._clean_telemetry(telemetry or [])
         self.cohort = self._cohort_baseline(self.tel)
         if self.use_classifier:
+            # README l.226: a model download (True mode) or a slow model load may happen here, never inside
+            # evaluate(). Cache-only auto mode has no model to warm; a miss there is simply unverifiable.
+            if self.classifier_reason != "cache":
+                self._classifier_ready()
             self._label_artifacts(dossiers or [])
         else:
             self._update_coverage()
@@ -132,12 +180,21 @@ class Context:
             self._labels = {k: v for k, v in data.items() if k != "_meta"}
 
     def save_cache(self):
+        """Write only once CACHE_FLUSH_EVERY new labels are pending — persistence is a side effect and must not
+        cost a file write per dossier. Raises on I/O failure; evaluate() records that instead of surfacing it
+        (README l.225-226: the result must not depend on the host filesystem)."""
+        if self._dirty_count >= CACHE_FLUSH_EVERY:
+            self.flush_cache()
+
+    def flush_cache(self):
+        """Force-write pending labels now (end of load_context, end of a CLI run). Raises on failure."""
         if self.label_cache_path and self._cache_dirty:
             self.label_cache_path.parent.mkdir(parents=True, exist_ok=True)
             payload = dict(self._labels)
             payload["_meta"] = {"model": NLI_MODEL, "format": "sentences-v2"}
             self.label_cache_path.write_text(json.dumps(payload))
             self._cache_dirty = False
+            self._dirty_count = 0
 
     def _classifier_ready(self):
         if not self.use_classifier:
@@ -145,6 +202,8 @@ class Context:
         if self._classifier is None:
             self._classifier = TextClassifier()
             self.classifier_active = self._classifier.available
+            if not self.classifier_active:
+                self.classifier_reason = f"unavailable: {self._classifier.error}"
         return self._classifier.available
 
     def label_text(self, text, account=None, mentions_other_account=False):
@@ -172,6 +231,7 @@ class Context:
             entry["n"] = n
             self._labels[key] = entry
             self._cache_dirty = True
+            self._dirty_count += 1
         return assemble(entry["s"], filled, NLI_THRESHOLD, mentions_other_account, entry.get("n"),
                         quoted_history=quoted, quote_marker=marker)
 
@@ -207,18 +267,25 @@ class Context:
 
     def _label_artifacts(self, dossiers):
         """Pre-warm: label the non-bot artefacts in scope (cited as evidence, or the whole corpus).
-        Optional — evaluate() labels anything it meets on demand. Cache is flushed every 200 labels."""
+        Optional — evaluate() labels anything it meets on demand. Cache is written every CACHE_FLUSH_EVERY
+        new labels and flushed at the end; an unwritable cache path is not fatal here — evaluate() reports
+        it per call (README l.222: load_context is optional and must not be the thing that breaks a run)."""
         if self.label_scope == "all":
             ids = list(self.artifacts)
         else:
             ids = {ev.get("artifact_id") for d in dossiers for ev in d.get("evidence", []) or []}
-        for n, aid in enumerate(ids, 1):
+        for aid in ids:
             art = self.artifacts.get(aid)
             if art and art.get("author_type") != "bot":
                 self.label_artifact(art)
-            if n % 200 == 0:
+            try:
                 self.save_cache()
-        self.save_cache()
+            except OSError:
+                pass
+        try:
+            self.flush_cache()
+        except OSError:
+            pass
         if self.classifier_active is None:
             self.classifier_active = bool(self._labels)
         self._update_coverage()

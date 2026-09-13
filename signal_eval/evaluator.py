@@ -10,6 +10,46 @@ from .checks import CHECKS
 from .context import Context
 from .util import ts
 
+# The dossier fields every check iterates as a list of dicts (README l.218-222: a check must see well-typed input
+# so one malformed entry cannot hide findings on the valid ones).
+LIST_FIELDS = ("lifecycle", "actions", "evidence", "notifications", "hypotheses", "metrics_claimed")
+
+
+def _drop_malformed_entries(field, items, errors):
+    """Keep the dict entries of a list field; record and drop everything else (README l.222: the valid
+    entries still get evaluated instead of the whole check dying on the first bad one)."""
+    kept = []
+    for i, item in enumerate(items):
+        if isinstance(item, dict):
+            kept.append(item)
+        else:
+            errors.append({"check": "input", "error": f"{field}[{i}] is {type(item).__name__}, expected dict; dropped"})
+    return kept
+
+
+def _sanitize(dossier, errors):
+    """Coerce the input to the shape the checks expect, recording every coercion in `errors`
+    (README l.222: evaluate() "must still return something sensible"). One place, so no check has to
+    defend itself against a string where a list should be. None means absent and is left alone."""
+    if not isinstance(dossier, dict):
+        errors.append({"check": "input", "error": f"dossier is {type(dossier).__name__}, expected dict; treated as {{}}"})
+        return {}
+    d = dict(dossier)
+    md = d.get("metadata")
+    if md is not None and not isinstance(md, dict):
+        errors.append({"check": "input", "error": f"metadata is {type(md).__name__}, expected dict; treated as {{}}"})
+        d["metadata"] = {}
+    for field in LIST_FIELDS:
+        v = d.get(field)
+        if v is None:
+            continue
+        if not isinstance(v, list):
+            errors.append({"check": "input", "error": f"{field} is {type(v).__name__}, expected list; treated as []"})
+            d[field] = []
+            continue
+        d[field] = _drop_malformed_entries(field, v, errors)
+    return d
+
 
 class SignalEvaluator:
     """
@@ -35,8 +75,14 @@ class SignalEvaluator:
 
     # ── evaluation ───────────────────────────────────────────────────────────
     def evaluate(self, dossier: dict) -> dict:
-        d, cx = dossier or {}, self.cx
-        ctx = {"acct": cx.account_facts(d), "errors": []}
+        errors = []
+        d, cx = _sanitize(dossier, errors), self.cx
+        ctx = {"errors": errors}
+        try:
+            ctx["acct"] = cx.account_facts(d)
+        except Exception as exc:  # e.g. unhashable account_id — fall back to the empty snapshot
+            ctx["acct"] = cx.account_facts({})
+            errors.append({"check": "account_facts", "error": repr(exc)})
         violations = []
         for check, needs_context in CHECKS:
             if needs_context and not cx.loaded:
@@ -44,26 +90,39 @@ class SignalEvaluator:
             try:
                 violations += check(d, ctx, cx)
             except Exception as exc:  # a malformed field must never take the whole evaluation down
-                ctx["errors"].append({"check": check.__name__, "error": repr(exc),
-                                      "where": traceback.format_exc(limit=1).strip().splitlines()[-1]})
-        cx.save_cache()
+                errors.append({"check": check.__name__, "error": repr(exc),
+                               "where": traceback.format_exc(limit=1).strip().splitlines()[-1]})
+        try:
+            cx.save_cache()
+        except Exception as exc:  # README l.225-226: a read-only host must not change the verdict
+            errors.append({"check": "label_cache", "error": repr(exc)})
 
         try:
             deserved, why = scoring.deserved_attention(d, ctx, cx.loaded)
         except Exception as exc:
             deserved, why = False, f"scoring error: {exc!r}"
-            ctx["errors"].append({"check": "deserved_attention", "error": repr(exc)})
+            errors.append({"check": "deserved_attention", "error": repr(exc)})
         try:
             risk = scoring.risk_score(d, ctx, violations, deserved)
         except Exception as exc:
             risk = 0.0
-            ctx["errors"].append({"check": "risk_score", "error": repr(exc)})
+            errors.append({"check": "risk_score", "error": repr(exc)})
+        try:
+            quality = scoring.quality_score(violations)
+        except Exception as exc:
+            quality = 0.0
+            errors.append({"check": "quality_score", "error": repr(exc)})
+        try:
+            facts = self._facts(ctx, why)
+        except Exception as exc:  # README l.202-215: the contract keys and the findings ship regardless
+            errors.append({"check": "facts", "error": repr(exc)})
+            facts = self._facts({"errors": errors}, why)
         return {
-            "quality_score": scoring.quality_score(violations),
+            "quality_score": quality,
             "risk_score": risk,
             "deserved_attention": bool(deserved),
             "violations": violations,
-            "_facts": self._facts(ctx, why),
+            "_facts": facts,
         }
 
     def _facts(self, ctx, deserved_reason):
@@ -72,6 +131,7 @@ class SignalEvaluator:
         return {
             "context_loaded": cx.loaded,
             "classifier_active": bool(cx.classifier_active),
+            "classifier_reason": cx.classifier_reason,
             "labels_cover_corpus": bool(getattr(cx, "labels_cover_corpus", False)),
             "deserved_reason": deserved_reason,
             "triggers": sorted(ctx.get("triggers", [])),
