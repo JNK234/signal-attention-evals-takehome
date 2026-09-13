@@ -76,10 +76,43 @@ BOT_LABELS = ("billing_dispute",)     # a bot artefact is a system record: only 
 
 # ── thresholds ────────────────────────────────────────────────────────────────
 # (low, high) per label per model: score ≤ low → False, ≥ high → True, between → None (abstain).
-# Default band until analysis/calibrate_thresholds.py (WP-D) sets the calibrated table for MODEL_ID.
+# Default band for a label analysis/calibrate_thresholds.py could not calibrate (fewer than 2 positives or 2
+# negatives on the calibration half) and for any model without a table.
 DEFAULT_BAND = (0.35, 0.65)
+# Set by analysis/calibrate_thresholds.py on the calibration half of the recall-gate fixtures (split by
+# sha1(label | current text) % 2, 72 calib / 69 held-out rows) and pasted here after review. A band is the gap
+# midpoint ± 0.05 when the classes separate on calib, the whole overlap when they do not, and never lets a True
+# verdict below 0.35 or a False verdict above 0.65 ("guarded"). Held-out confusion under this table
+# (expected × got; P? / N? = abstain on a positive / negative):
+#   label                        n  TP  FN  P?  TN  FP  N?   errors
+#   cancel_intent               18   6   0   0  12   0   0
+#   legal_reference              8   6   0   0   2   0   0
+#   security_incident            3   1   0   0   2   0   0
+#   departure                   10   2   0   4   4   0   0   (the 4 abstains: crm "confirmed last day is EOM" notes at 0.15)
+#   billing_dispute              4   2   0   0   2   0   0
+#   sarcasm                      8   8   0   0   0   0   0
+#   topic:champion_departure     1   1   0   0   0   0   0
+#   topic:budget_pressure        2   1   0   0   1   0   0
+#   topic:product_gap            5   1   0   1   3   0   0
+#   topic:onboarding_failure     5   1   1   1   2   0   0   art_03132 ("30 weeks past kickoff … never completed a full sync", 0.04)
+#   topic:reliability_erosion    2   1   0   0   1   0   0
+#   topic:benign_variation       3   1   0   1   0   0   1
+#   total                       69  31   1   7  29   0   1   → 60/69 correct, 1 error, 8 abstain (11.6%)
 THRESHOLDS = {
-    "MoritzLaurer/deberta-v3-base-zeroshot-v2.0": {label: DEFAULT_BAND for label in LABEL_HYPOTHESES},
+    "MoritzLaurer/deberta-v3-base-zeroshot-v2.0": {
+        "cancel_intent": (0.533, 0.633),
+        "legal_reference": (0.350, 0.650),   # uncalibrated: n too small
+        "security_incident": (0.350, 0.650),   # uncalibrated: n too small
+        "departure": (0.011, 0.350),   # overlapping; guarded (raw 0.011–0.111: calib positives down to 0.119)
+        "billing_dispute": (0.350, 0.650),   # uncalibrated: n too small
+        "sarcasm": (0.121, 0.922),   # classes overlap: 'jk' chat at 0.13, internal 'lol' template at 0.91
+        "topic:champion_departure": (0.350, 0.650),   # uncalibrated: n too small
+        "topic:budget_pressure": (0.350, 0.650),   # uncalibrated: n too small
+        "topic:product_gap": (0.350, 0.650),   # uncalibrated: n too small
+        "topic:onboarding_failure": (0.350, 0.650),   # uncalibrated: n too small
+        "topic:reliability_erosion": (0.350, 0.650),   # uncalibrated: n too small
+        "topic:benign_variation": (0.000, 0.350),   # classes overlap; guarded (raw 0.000–0.011: a positive at the noise floor)
+    },
 }
 
 # Block-context pins (plan, decision 1): (block text, label, expected verdict). Deterministic tests replay them

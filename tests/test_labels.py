@@ -28,11 +28,24 @@ def reader(table, **art):
 
 # ── 1. decide is three-way ──────────────────────────────────────────────────
 def test_decide_three_way():
-    assert decide(0.9, "cancel_intent", MODEL_ID) is True
-    assert decide(0.1, "cancel_intent", MODEL_ID) is False
-    assert decide(0.5, "cancel_intent", MODEL_ID) is None
+    low, high = labels.THRESHOLDS[MODEL_ID]["cancel_intent"]
+    assert low < high
+    assert decide(high, "cancel_intent", MODEL_ID) is True
+    assert decide(low, "cancel_intent", MODEL_ID) is False
+    assert decide((low + high) / 2, "cancel_intent", MODEL_ID) is None
     assert decide(None, "cancel_intent", MODEL_ID) is None
     assert decide(0.9, "cancel_intent", "unknown/model") is True      # default band for an uncalibrated model
+    assert decide(0.5, "cancel_intent", "unknown/model") is None
+
+
+def test_threshold_table_is_well_formed():
+    """Every label has a band for the model, low < high, and no band lets True below 0.35 or False above 0.65
+    (the calibration guard in analysis/calibrate_thresholds.py)."""
+    table = labels.THRESHOLDS[MODEL_ID]
+    assert set(table) == set(labels.LABEL_HYPOTHESES)
+    for label, (low, high) in table.items():
+        assert 0.0 <= low < high <= 1.0, label
+        assert high >= labels.DEFAULT_BAND[0] and low <= labels.DEFAULT_BAND[1], label
 
 
 # ── 2. unreadable block → verdict None, adapter says unverifiable ───────────
