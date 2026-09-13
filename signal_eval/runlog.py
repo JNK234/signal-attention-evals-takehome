@@ -3,10 +3,20 @@ ABOUTME: Run persistence — every full-corpus evaluation is saved as one JSONL 
 ABOUTME: line per dossier with result + facts) so runs can be diffed and re-analysed without re-evaluating.
 """
 
+import dataclasses
 import json
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
+
+
+def _jsonable(o):
+    """json.dumps default: dataclasses (text.Block) become dicts, sets become sorted lists."""
+    if dataclasses.is_dataclass(o):
+        return dataclasses.asdict(o)
+    if isinstance(o, (set, frozenset)):
+        return sorted(o, key=str)
+    raise TypeError(f"Object of type {type(o).__name__} is not JSON serializable")
 
 
 def git_sha():
@@ -34,9 +44,9 @@ def save_run(path, rows, meta):
     }
     full.update({k: v for k, v in meta.items() if k not in full})
     with open(path, "w") as f:
-        f.write(json.dumps({"_meta": full}) + "\n")
+        f.write(json.dumps({"_meta": full}, default=_jsonable) + "\n")
         for row in rows:
-            f.write(json.dumps(row) + "\n")
+            f.write(json.dumps(row, default=_jsonable) + "\n")
     return full
 
 

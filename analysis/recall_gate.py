@@ -13,8 +13,8 @@ from signal_eval.context import Context  # noqa: E402
 # A current cancellation notice written above a quoted, harmless old thread: the head is operative, the tail is history.
 CANCEL_OVER_QUOTE = {"text": "We are cancelling at term end.\n\nOn 01 Mar 2026, X wrote:\n> all good here", "author_type": "customer"}
 
-# ≥ 3,000 chars: a benign 2,900-char preamble, then the notice. classifier.CHUNK_CHARS is 1,200 — the label must
-# come from the last chunk, proving the scorer reads to the tail rather than the first window only.
+# ≥ 3,000 chars: a benign 2,900-char preamble, then the notice. text.MAX_BLOCK_CHARS is 1,500 — a longer block is
+# scored as one truncated document and flagged; this fixture records what the model still reads past the budget.
 LONG_PREAMBLE = ("Weekly usage summary: dashboards refreshed on schedule, no incidents reported, no open tickets. " * 40)[:2900]
 LONG_CANCEL = {"text": LONG_PREAMBLE + "\n\nSeparately, and to be clear: we have decided not to renew and will let the "
                        "contract lapse at term end. Treat this as our formal notice.", "author_type": "customer"}
@@ -104,7 +104,7 @@ CASES = [
 def main():
     arts = E._load("artifacts.jsonl")
     by_id = {a["artifact_id"]: a for a in arts}
-    cx = Context(label_cache_path=Path("analysis/.cache/labels.json"))
+    cx = Context(labeller="nli")     # default cache: analysis/.cache/labels_<model-slug>.json
     cx.accounts = {a["account_id"]: a for a in E._load("accounts.jsonl")}
 
     def find(loc):

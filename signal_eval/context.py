@@ -1,20 +1,19 @@
 """
 ABOUTME: The truth layer. Indexes accounts/owners/artefacts, cleans telemetry (dedup, documented
-ABOUTME: event corrections, bad-row flags), computes paired-day changes and cohorts, and serves semantic labels
-ABOUTME: for any text (artefact or bare quote) through a text-hash cache.
+ABOUTME: event corrections, bad-row flags), computes paired-day changes and cohorts, and reads artefacts
+ABOUTME: block by block through the labeller (read_artifact -> Reading) with a score cache.
 """
 
-import json
-import os
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
 from . import spec
-from .classifier import NLI_MODEL, NLI_THRESHOLD, TextClassifier, assemble, filled_hypotheses, is_stale, text_key
-from .util import day, median, split_quoted, ts
+from .labellers import resolve
+from .labels import BOT_LABELS, EXCLUSION_LABELS, LABEL_HYPOTHESES, TOPIC_LABELS, TRIGGER_LABELS, decide, filled_hypotheses
+from .text import MAX_BLOCK_CHARS, blocks, is_stale
+from .util import day, median, ts
 
-CACHE_FLUSH_EVERY = 50      # new labels pending before save_cache() actually writes
+
 _NEVER = datetime.min.replace(tzinfo=timezone.utc)   # a row with no parseable ingested_at loses every dedup tie
 
 
@@ -43,13 +42,14 @@ def paired_change(rows, metric, end, w):
     return {"pct": pct, "n_pairs": n, "sum_after": sum_after, "sum_before": sum_before, "excluded": dict(excluded)}
 
 
-def _hub_cache_dir():
-    """Where huggingface_hub keeps downloaded models, resolved the way the library does (env first)."""
-    if os.environ.get("HF_HUB_CACHE"):
-        return Path(os.environ["HF_HUB_CACHE"])
-    if os.environ.get("HF_HOME"):
-        return Path(os.environ["HF_HOME"]) / "hub"
-    return Path.home() / ".cache" / "huggingface" / "hub"
+def reading_facts(r):
+    """The JSON-safe view of a Reading for _facts / saved runs: blocks as dicts, sets as sorted lists. The live
+    Reading (with text.Block objects) stays internal to the checks."""
+    return {"artifact_id": r.get("artifact_id"), "model_id": r.get("model_id"),
+            "blocks": [{"depth": b.depth, "text": b.text, "is_signature": b.is_signature} for b in r.get("blocks", [])],
+            "verdict": r.get("verdict"), "score": r.get("score"), "best": r.get("best"),
+            "historical": sorted(r.get("historical", ())), "unreadable": list(r.get("unreadable", [])),
+            "other_account": r.get("other_account"), "truncated": bool(r.get("truncated"))}
 
 
 def other_account_name(artifact):
@@ -59,25 +59,17 @@ def other_account_name(artifact):
     v = (artifact or {}).get("mentions_other_account")
     if v is None or v is False or v == "":
         return None
-    if v is True:
+    if not isinstance(v, str):                  # True, a list, anything non-textual: flagged but unnamed
         return "<unnamed>"
-    return str(v).strip() or None
+    return v.strip() or None
 
 
-def local_model_present(model_id=NLI_MODEL):
-    """Is the model already on disk? A plain directory scan of the hub cache — imports nothing from
-    transformers/huggingface_hub and never touches the network (README l.225-226: self-contained)."""
-    snapshots = _hub_cache_dir() / f"models--{model_id.replace('/', '--')}" / "snapshots"
-    try:
-        return snapshots.is_dir() and any(p.is_dir() and any(p.iterdir()) for p in snapshots.iterdir())
-    except OSError:
-        return False
 
 
 class Context:
     """Everything a check may consult beyond the dossier itself. Works empty (cold path) or loaded."""
 
-    def __init__(self, *, use_classifier="auto", label_scope="evidence", label_cache_path=None,
+    def __init__(self, *, labeller="auto", label_cache_path=None, label_scope="evidence", use_classifier=None,
                  legacy_double_count_end=spec.LEGACY_DOUBLE_COUNT_END, p95_step_date=spec.P95_STEP_DATE,
                  p95_factor=spec.P95_FACTOR, ingest_gap=spec.INGEST_GAP, ingest_gap_regions=spec.INGEST_GAP_REGIONS):
         self.loaded = False
@@ -89,45 +81,31 @@ class Context:
         self.cohort_cache = {}               # (key, value, metric, end, w) -> {account_id: paired pct}
         self.by_account = defaultdict(list)  # account_id -> [(opened_at, detector, signal_id)]
         self.account_triggers = defaultdict(list)  # account_id -> [(timestamp, artifact_id, {trigger,...})]
-        # semantic labels: text_key -> label dict. Filled lazily; persisted to label_cache_path if given.
-        self.classifier_mode = use_classifier   # True | False | "auto" (as requested)
+        # use_classifier is the deprecated alias of labeller: True -> "auto", False -> None
+        if use_classifier is not None:
+            labeller = "auto" if use_classifier is True else None if use_classifier is False else use_classifier
+        self.classifier_mode = labeller if isinstance(labeller, (str, type(None))) else "explicit"
         self.label_scope = label_scope       # "evidence" (artefacts cited by dossiers) or "all"
-        self.label_cache_path = Path(label_cache_path) if label_cache_path else None
-        self._labels = {}
+        self.label_cache_path = label_cache_path
         self._indexed = set()
-        self._cache_dirty = False
-        self._dirty_count = 0                # new labels since the last write
-        self._classifier = None
         self.labels_cover_corpus = False
-        self.classifier_active = None        # None = not yet tried
         # deployment-specific telemetry events (docs/domain.md); overridable for other deployments
         self.legacy_end = legacy_double_count_end
         self.p95_step = p95_step_date
         self.p95_factor = p95_factor
         self.ingest_gap = ingest_gap
         self.ingest_gap_regions = set(ingest_gap_regions)
-        self._load_cache()
-        # use_classifier is the resolved bool the checks read; classifier_reason says why.
-        self.use_classifier, self.classifier_reason = self._resolve_classifier_mode()
+        self.set_labeller(labeller)
 
-    def _resolve_classifier_mode(self):
-        """README l.225-226: the evaluator is self-contained and makes no external calls inside evaluate().
-        "auto" (the default) therefore only turns the model on when it cannot possibly need the network:
-        a populated label cache for this model, or the model files already on disk. Nothing here imports
-        transformers; that stays lazy inside TextClassifier."""
-        mode = self.classifier_mode
-        if mode is False:
-            return False, "disabled"
-        if mode is True:
-            return True, "enabled"
-        # setdefault: an explicit user setting wins. Must happen before transformers/huggingface_hub is
-        # first imported, which is why it lives here and not next to the pipeline call.
-        os.environ.setdefault("HF_HUB_OFFLINE", "1")
-        if local_model_present():
-            return True, "local model"
-        if self._labels:
-            return True, "cache"
-        return False, "auto: no cache and no local model"
+    def set_labeller(self, labeller):
+        """Resolve the engine. use_classifier is the bool the checks read; classifier_reason says why;
+        classifier_active is None until a model has been tried (True for cache-only / table engines)."""
+        self.labeller, self.classifier_reason = resolve(labeller, self.label_cache_path)
+        self.use_classifier = self.labeller is not None
+        self.classifier_active = (None if getattr(self.labeller, "available", True) is None else
+                                  bool(getattr(self.labeller, "available", True))) if self.labeller else False
+        self._indexed = set()
+        return self.labeller
 
     # ── loading ──────────────────────────────────────────────────────────────
     def load(self, accounts, owners, telemetry, artifacts, dossiers):
@@ -141,13 +119,11 @@ class Context:
         self.cohort_groups = self._cohort_groups()
         self.cohort_cache = {}
         if self.use_classifier:
-            # README l.226: a model download (True mode) or a slow model load may happen here, never inside
-            # evaluate(). Cache-only auto mode has no model to warm; a miss there is simply unverifiable.
-            if self.classifier_reason != "cache":
-                self._classifier_ready()
+            # README l.226: a model download ("nli" mode) or a slow model load may happen here, never inside
+            # evaluate(). Cache-only mode has no model to warm; a miss there is simply unverifiable.
+            self._classifier_ready()
             self._label_artifacts(dossiers or [])
-        else:
-            self._update_coverage()
+        self._update_coverage()
         self.loaded = True
         return self
 
@@ -211,84 +187,112 @@ class Context:
         return median(others), len(others)
 
     # ── labels ───────────────────────────────────────────────────────────────
-    # Cache shape: text_key -> {"s": {sentence: score}, "n": n_chunks}. Sentences are the unit, so a
-    # hypothesis change only rescores the sentences that changed, not the whole corpus.
-    def _load_cache(self):
-        if not (self.label_cache_path and self.label_cache_path.exists()):
-            return
-        try:
-            data = json.loads(self.label_cache_path.read_text())
-        except Exception:
-            return
-        meta = data.get("_meta", {})
-        if meta.get("model") == NLI_MODEL and meta.get("format") == "sentences-v2":
-            self._labels = {k: v for k, v in data.items() if k != "_meta"}
+    # The labeller is wrapped in a LabelCache keyed on (block text, hypothesis sentence, model id): a
+    # hypothesis change rescores only the sentences that changed, and engines can be compared on one corpus.
+    @property
+    def cache(self):
+        return getattr(self.labeller, "cache", None)
 
     def save_cache(self):
-        """Write only once CACHE_FLUSH_EVERY new labels are pending — persistence is a side effect and must not
+        """Write only once CACHE_FLUSH_EVERY new keys are pending — persistence is a side effect and must not
         cost a file write per dossier. Raises on I/O failure; evaluate() records that instead of surfacing it
         (README l.225-226: the result must not depend on the host filesystem)."""
-        if self._dirty_count >= CACHE_FLUSH_EVERY:
-            self.flush_cache()
+        if self.cache is not None:
+            self.cache.save()
 
     def flush_cache(self):
-        """Force-write pending labels now (end of load_context, end of a CLI run). Raises on failure."""
-        if self.label_cache_path and self._cache_dirty:
-            self.label_cache_path.parent.mkdir(parents=True, exist_ok=True)
-            payload = dict(self._labels)
-            payload["_meta"] = {"model": NLI_MODEL, "format": "sentences-v2"}
-            self.label_cache_path.write_text(json.dumps(payload))
-            self._cache_dirty = False
-            self._dirty_count = 0
+        """Force-write pending scores now (end of load_context, end of a CLI run). Raises on failure."""
+        if self.cache is not None:
+            self.cache.flush()
 
     def _classifier_ready(self):
+        """Warm the engine (builds the NLI pipeline). classifier_active / classifier_reason record the outcome."""
         if not self.use_classifier:
             return False
-        if self._classifier is None:
-            self._classifier = TextClassifier()
-            self.classifier_active = self._classifier.available
-            if not self.classifier_active:
-                self.classifier_reason = f"unavailable: {self._classifier.error}"
-        return self._classifier.available
+        warm = getattr(self.labeller, "warm", None)
+        ok = warm() if warm else True
+        self.classifier_active = bool(ok)
+        if not ok:
+            self.classifier_reason = f"unavailable: {getattr(self.labeller, 'error', None)}"
+        return bool(ok)
 
-    def label_text(self, text, account=None, mentions_other_account=False):
-        """Label any text. Quoted / forwarded material is split off syntactically and only the head (the new
-        message) is read. Cached sentence scores are reused; only missing sentences hit the model."""
-        if not text or not str(text).strip():
+    def read_artifact(self, artifact, account=None):
+        """Reading of one artefact: blocks (text.blocks), per-label verdict from the depth-0 content blocks
+        (decide over the max score), the deciding block text, labels True only in quoted history, the blocks
+        the engine could not read, the other account a forward names, and whether any block was truncated.
+        Bot artefacts are system records: only the billing read (labels.BOT_LABELS). Blocks at depth ≥ 1 are
+        scored too, so history is recorded rather than dropped."""
+        account = account or self.accounts.get(artifact.get("account_id"))
+        bs = blocks(artifact.get("subject"), artifact.get("text"))
+        bot = artifact.get("author_type") == "bot"
+        wanted = BOT_LABELS if bot else tuple(LABEL_HYPOTHESES)
+        filled = filled_hypotheses(account, wanted)
+        sentences = sorted({s for ss in filled.values() for s in ss})
+        content = [i for i, b in enumerate(bs) if not b.is_signature and b.text.strip()]
+        texts = [bs[i].text.strip() for i in content]
+        model_id = getattr(self.labeller, "model_id", None)
+        if self.labeller is not None and texts:
+            res = self.labeller.label(texts, sentences)
+            per_block = dict(zip(content, zip(res.scores, res.readable)))
+        else:
+            per_block = {i: ({}, False) for i in content}
+        reading = {"artifact_id": artifact.get("artifact_id"), "blocks": bs, "model_id": model_id,
+                   "verdict": {label: None for label in LABEL_HYPOTHESES}, "score": {}, "best": {}, "historical": set(),
+                   "unreadable": [i for i in content if not per_block[i][1]],
+                   "other_account": other_account_name(artifact),
+                   "truncated": any(len(b.text) > MAX_BLOCK_CHARS for b in bs)}
+        for label, ss in filled.items():
+            head = [(max((per_block[i][0].get(s, 0.0) for s in ss), default=0.0), i)
+                    for i in content if bs[i].depth == 0 and per_block[i][1]]
+            if head:
+                score, i = max(head)
+                reading["score"][label] = score
+                reading["best"][label] = bs[i].text.strip()
+                reading["verdict"][label] = decide(score, label, model_id)
+            else:
+                reading["verdict"][label] = None
+            if reading["verdict"][label] is not True and any(
+                    decide(max((per_block[i][0].get(s, 0.0) for s in ss), default=0.0), label, model_id) is True
+                    for i in content if bs[i].depth >= 1 and per_block[i][1]):
+                reading["historical"].add(label)
+        return reading
+
+    def label_text(self, text, account=None, mentions_other_account=None):
+        """Old-style label dict for a bare text (cold path: the dossier's quote is all we have)."""
+        return self.label_artifact({"text": text, "author_type": None, "mentions_other_account": mentions_other_account},
+                                   account=account)
+
+    def label_artifact(self, artifact, account=None):
+        """Old-style label dict built from read_artifact(): {unverifiable, scores, <label>: bool, topic,
+        triggers_belong_elsewhere, quoted_history, historical, stale, reading}. `stale` is decided here because
+        it depends on who wrote it. Every labelled artefact is also indexed by account for the unattached-trigger
+        scan, so artefacts first seen inside evaluate() are covered too. Checks read this shape until WP-D
+        moves them onto the Reading."""
+        if not (artifact.get("text") or artifact.get("subject") or "").strip():
             return {"unverifiable": True, "reason": "empty text"}
-        head, tail, marker = split_quoted(text)
-        quoted = bool(tail.strip())
-        filled = filled_hypotheses(account)
-        if not head.strip():                      # nothing but quoted material — nothing current to read
-            return assemble({}, filled, NLI_THRESHOLD, mentions_other_account, 0, quoted_history=True, quote_marker=marker)
-        needed = {s for ss in filled.values() for s in ss}
-        key = text_key(text, account)
-        entry = self._labels.get(key) or {"s": {}, "n": None}
-        missing = needed - set(entry["s"])
-        if missing:
-            if not self._classifier_ready():
-                return {"unverifiable": True, "reason": "classifier unavailable"}
-            try:
-                scores, n = self._classifier.score_sentences(head, missing)
-            except Exception as exc:
-                return {"unverifiable": True, "reason": repr(exc)}
-            entry["s"].update(scores)
-            entry["n"] = n
-            self._labels[key] = entry
-            self._cache_dirty = True
-            self._dirty_count += 1
-        return assemble(entry["s"], filled, NLI_THRESHOLD, mentions_other_account, entry.get("n"),
-                        quoted_history=quoted, quote_marker=marker)
-
-    def label_artifact(self, artifact):
-        """Label an artefact (lazily, cache-first); `stale` is decided here because it depends on who
-        wrote it. Every labelled artefact is also indexed by account for the unattached-trigger scan,
-        so artefacts first seen inside evaluate() are covered too."""
-        text = ((artifact.get("subject") or "") + "\n" + (artifact.get("text") or "")).strip()
-        lab = self.label_text(text, self.accounts.get(artifact.get("account_id")), other_account_name(artifact) is not None)
-        if lab.get("unverifiable"):
-            return lab
-        lab = dict(lab, stale=is_stale(lab, artifact.get("author_type")))
+        if self.labeller is None:
+            return {"unverifiable": True, "reason": f"labeller unavailable ({self.classifier_reason})"}
+        r = self.read_artifact(artifact, account)
+        current = [b for b in r["blocks"] if b.depth == 0 and not b.is_signature and b.text.strip()]
+        quoted = any(b.depth >= 1 for b in r["blocks"])
+        if not current:                           # nothing but quoted material — nothing current to read
+            lab = {"unverifiable": False, "reason": "nothing current to read", "scores": {}, "quoted_history": True}
+        elif not r["score"]:                      # current text exists but no depth-0 block could be read
+            return {"unverifiable": True, "reason": "unreadable", "reading": reading_facts(r)}
+        else:
+            lab = {"unverifiable": False, "scores": dict(r["score"]), "quoted_history": quoted}
+        for lab_name in TRIGGER_LABELS + EXCLUSION_LABELS:
+            lab[lab_name] = r["verdict"].get(lab_name) is True
+        topics = {k[len("topic:"):]: r["score"][k] for k in TOPIC_LABELS if k in r["score"]}
+        best = max(topics, key=topics.get) if topics else None
+        lab["topic"] = best if best and r["verdict"].get(f"topic:{best}") is True else None
+        # triggers found inside forwarded text about another account belong to that account, not this one
+        lab["triggers_belong_elsewhere"] = r["other_account"] is not None
+        lab["historical"] = sorted(r["historical"])
+        lab["verdict"] = r["verdict"]
+        lab["model_id"] = r["model_id"]
+        lab["reading"] = reading_facts(r)
+        lab["stale"] = is_stale(r, artifact.get("author_type"))
         self._index_triggers(artifact, lab)
         return lab
 
@@ -316,17 +320,17 @@ class Context:
             self.account_triggers[art.get("account_id")].append((ts(art["timestamp"]), aid, trig))
 
     def _label_artifacts(self, dossiers):
-        """Pre-warm: label the non-bot artefacts in scope (cited as evidence, or the whole corpus).
-        Optional — evaluate() labels anything it meets on demand. Cache is written every CACHE_FLUSH_EVERY
-        new labels and flushed at the end; an unwritable cache path is not fatal here — evaluate() reports
-        it per call (README l.222: load_context is optional and must not be the thing that breaks a run)."""
+        """Pre-warm: read the artefacts in scope (cited as evidence, or the whole corpus). Optional —
+        evaluate() reads anything it meets on demand. Cache is written every CACHE_FLUSH_EVERY new keys and
+        flushed at the end; an unwritable cache path is not fatal here — evaluate() reports it per call
+        (README l.222: load_context is optional and must not be the thing that breaks a run)."""
         if self.label_scope == "all":
             ids = list(self.artifacts)
         else:
             ids = {ev.get("artifact_id") for d in dossiers for ev in d.get("evidence", []) or []}
         for aid in ids:
             art = self.artifacts.get(aid)
-            if art and art.get("author_type") != "bot":
+            if art:
                 self.label_artifact(art)
             try:
                 self.save_cache()
@@ -336,23 +340,20 @@ class Context:
             self.flush_cache()
         except OSError:
             pass
-        if self.classifier_active is None:
-            self.classifier_active = bool(self._labels)
-        self._update_coverage()
 
     def _update_coverage(self):
-        """Does the label cache cover (nearly) every non-bot artefact in the loaded corpus?"""
+        """Does the score cache cover (nearly) every non-bot artefact in the loaded corpus? A cache lookup per
+        content block, no model call."""
         non_bot = [a for a in self.artifacts.values() if a.get("author_type") != "bot"]
-        if not non_bot:
+        cache, model_id = self.cache, getattr(self.labeller, "model_id", None)
+        if not non_bot or cache is None:
             self.labels_cover_corpus = False
             return
         def covered_(a):
             acc = self.accounts.get(a.get("account_id"))
-            entry = self._labels.get(text_key(((a.get("subject") or "") + "\n" + (a.get("text") or "")).strip(), acc))
-            if not entry:
-                return False
-            needed = {s for ss in filled_hypotheses(acc).values() for s in ss}
-            return needed <= set(entry.get("s", {}))
+            sentences = sorted({s for ss in filled_hypotheses(acc).values() for s in ss})
+            texts = [b.text.strip() for b in blocks(a.get("subject"), a.get("text")) if not b.is_signature and b.text.strip()]
+            return all(len(hit) == len(sentences) for hit in cache.get_many(texts, sentences, model_id))
         covered = sum(1 for a in non_bot if covered_(a))
         self.labels_cover_corpus = covered >= 0.9 * len(non_bot)
 

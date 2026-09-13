@@ -11,6 +11,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from signal_eval import SignalEvaluator  # noqa: E402
+from signal_eval.labellers import TableLabeller  # noqa: E402
 
 ACCOUNT = {"account_id": "acct_T", "name": "Test Co", "tier": "mid_market", "region": "emea", "industry": "x",
            "arr_annual": 100_000, "seats_contracted": 100, "materiality_floor": 18_000, "flags": [],
@@ -81,12 +82,30 @@ def set_row(rows, d, **fields):
     return rows
 
 
-@pytest.fixture
-def ev():
-    """Evaluator loaded with the synthetic corpus, classifier off (no model in unit tests)."""
-    e = SignalEvaluator(use_classifier=False)
+def _loaded(e):
     e.load_context([ACCOUNT], [OWNER], telemetry([50] * 7, [50] * 7), [ARTIFACT, OTHER_ARTIFACT], [happy_dossier()])
     return e
+
+
+@pytest.fixture
+def ev():
+    """Evaluator loaded with the synthetic corpus and an empty TableLabeller: every block is readable and
+    every score is 0, so every verdict is False (no model in unit tests)."""
+    return _loaded(SignalEvaluator(labeller=TableLabeller({})))
+
+
+@pytest.fixture
+def ev_nolabeller():
+    """Same corpus, no labeller at all: every label read is unverifiable."""
+    return _loaded(SignalEvaluator(labeller=None))
+
+
+def with_labels(ev, table):
+    """Swap in a TableLabeller {substring: {label: score}} — a fresh score cache and trigger index come with it,
+    so earlier reads cannot leak into the new meaning."""
+    ev.cx.set_labeller(TableLabeller(table))
+    ev.cx.account_triggers.clear()
+    return ev
 
 
 def rules(result):

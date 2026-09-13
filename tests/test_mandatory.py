@@ -3,8 +3,8 @@ ABOUTME: Known-answer tests for the mandatory-route check (spec §8.1 / §4.3) w
 ABOUTME: injected in place of the model, so trigger attribution and the P1 rule are pinned without any inference.
 """
 
-from conftest import ARTIFACT, explain, happy_dossier, rules
-from signal_eval.classifier import TRIGGER_LABELS
+from conftest import explain, ARTIFACT, happy_dossier, rules
+from signal_eval.labels import TRIGGER_LABELS
 from signal_eval.util import ts
 
 INTERNAL_NOTE = dict(ARTIFACT, artifact_id="art_INT", type="internal_note", source="crm_note", author="Owner",

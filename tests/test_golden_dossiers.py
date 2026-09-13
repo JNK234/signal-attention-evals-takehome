@@ -15,7 +15,6 @@ sys.path.insert(0, str(ROOT))
 from signal_eval import SignalEvaluator  # noqa: E402
 
 DATA = ROOT / "data"
-CACHE = ROOT / "analysis" / ".cache" / "labels.json"
 pytestmark = pytest.mark.skipif(not (DATA / "signal_dossiers.jsonl").exists(), reason="corpus not present")
 
 
@@ -27,7 +26,9 @@ def _load(name):
 @pytest.fixture(scope="module")
 def corpus():
     dossiers = _load("signal_dossiers.jsonl")
-    ev = SignalEvaluator(label_cache_path=CACHE if CACHE.exists() else None)
+    # cache-only: label-dependent expectations read the relabelled corpus (analysis/label_all_artifacts.py)
+    # and skip until it exists; the model itself never runs inside the test suite
+    ev = SignalEvaluator(labeller="cache")
     ev.load_context(_load("accounts.jsonl"), _load("owners.jsonl"), _load("telemetry.jsonl"), _load("artifacts.jsonl"), dossiers)
     by_id = {d["signal_id"]: d for d in dossiers}
     return ev, by_id
@@ -47,8 +48,8 @@ def only(r, rule):
 
 
 def needs_labels(corpus):
-    if not corpus[0].cx.classifier_active:
-        pytest.skip("NLI classifier not available; label-dependent expectations skipped")
+    if not corpus[0].cx.labels_cover_corpus:
+        pytest.skip("score cache does not cover the corpus; label-dependent expectations skipped")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

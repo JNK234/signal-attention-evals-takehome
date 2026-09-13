@@ -17,8 +17,10 @@ def only(result, rule):
     return [v for v in result["violations"] if v["rule"] == rule]
 
 
-def test_happy_path_has_no_violations(ev):
-    assert rules(ev.evaluate(happy_dossier())) == set()
+def test_happy_path_has_no_violations(ev_nolabeller):
+    """Deterministic rules only: with a labeller that reads the evidence as nothing, Q2 (hypothesis
+    unsupported) is a correct finding on this fixture and is pinned in test_labels / test_mandatory."""
+    assert rules(ev_nolabeller.evaluate(happy_dossier())) == set()
 
 
 def test_uncertain_finding_is_half_class_weight():

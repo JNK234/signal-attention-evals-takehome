@@ -6,7 +6,7 @@ ABOUTME: Hypothesis fit uses telemetry contradictions and, when available, the N
 from collections import Counter
 from datetime import timedelta
 
-from ..classifier import NLI_THRESHOLD, TOPIC_LABELS
+from ..labels import TOPIC_LABELS, decide
 from ..spec import ADOPTION_FULL_FRACTION, violation
 from ..util import day, first_hypothesis, mean, ts
 
@@ -60,7 +60,9 @@ def check_quality(d, ctx, cx):
         grounded_metrics = {c["metric"] for c in ctx.get("claim_detail", []) if c.get("status") == "grounded"}
         telemetry_support = bool(grounded_metrics & TELEMETRY_SUPPORT.get(hyp, set()))
         ctx["hypothesis_text_support"] = support
-        if hyp in NEEDS_SUPPORT and support < NLI_THRESHOLD and not telemetry_support:
+        # decide() under the labeller's band: an abstain (None) is not "unsupported" (WP-D revisits certainty)
+        supported = decide(support, f"topic:{hyp}", next((lab.get("model_id") for lab in labs), None))
+        if hyp in NEEDS_SUPPORT and supported is False and not telemetry_support:
             out.append(violation(hstep, "Q2", f"{hyp} is not supported by any verified evidence (best text support {support:.2f}, no grounded telemetry for it)"))
     topics = Counter(lab["topic"] for lab in labs if lab.get("topic"))
     ctx["evidence_topics"] = dict(topics)
