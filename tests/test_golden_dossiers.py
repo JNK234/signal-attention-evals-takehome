@@ -265,9 +265,11 @@ def test_sig_0111_cross_tenant_and_twelvefold_restatement(corpus):
     on 6 clean pairs (2026-04-01 missing), raw zero-filled −38.9%, claim −48% → neither reproduces → 'wrong'; the
     other 14 manufacturing accounts moved a median −23.3% over the same paired window, within 12pp of −26.4 →
     cohort_match on industry (a fact, the claim stays 'wrong'); art_03224 is a credit memo *resolving* a dispute —
-    not a billing trigger; none of the four same-account artefacts quote older text."""
+    not a billing trigger; none of the four same-account artefacts quote older text. Hypothesis benign_variation
+    while two customer tickets (art_03222, art_03215: 'Feature request: dark mode … Half the team asked') read as a
+    product gap and the one claim is wrong → spec §10 Q2, label-dependent, so admitted here and required below."""
     r = run(corpus, "sig_0111")
-    assert rules(r) == {"I4", "T3", "M4", "M5", "P4", "M6"}
+    assert {"I4", "T3", "M4", "M5", "P4", "M6"} <= rules(r) <= {"I4", "T3", "M4", "M5", "P4", "M6", "Q2"}
     assert only(r, "I4")[0]["step"] == 5
     assert "12×" in only(r, "M5")[0]["explanation"]
     assert "art_00849" in only(r, "P4")[0]["explanation"] and "acct_0039" in only(r, "P4")[0]["explanation"]
@@ -279,6 +281,8 @@ def test_sig_0111_cross_tenant_and_twelvefold_restatement(corpus):
     assert abs(c["cohort"]["median_pct"] - (-23.3)) < 0.1
     assert [e["status"] for e in f["evidence"]] == ["verified", "verified", "verified", "verified", "other_account"]
     assert f["triggers"] == [] and f["has_customer_text"] is True
+    needs_labels(corpus)
+    assert "Q2" in rules(r) and any("benign_variation" in v["explanation"] for v in only(r, "Q2"))
 
 
 def test_sig_0208_out_of_window_renotify_altered_quote(corpus):
