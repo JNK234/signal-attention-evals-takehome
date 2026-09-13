@@ -63,7 +63,7 @@ BOT_LABELS = ("billing_dispute",)     # a bot artefact is a system record: only 
 # Default band until analysis/calibrate_thresholds.py (WP-D) sets the calibrated table for MODEL_ID.
 DEFAULT_BAND = (0.35, 0.65)
 THRESHOLDS = {
-    "MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7": {label: DEFAULT_BAND for label in LABEL_HYPOTHESES},
+    "MoritzLaurer/deberta-v3-base-zeroshot-v2.0": {label: DEFAULT_BAND for label in LABEL_HYPOTHESES},
 }
 
 # Block-context pins (plan, decision 1): (block text, label, expected verdict). Deterministic tests replay them

@@ -1,5 +1,5 @@
 """
-ABOUTME: Zero-shot NLI labeller: multilingual mDeBERTa scoring hypothesis sentences on whole blocks. The
+ABOUTME: Zero-shot NLI labeller: a zeroshot-v2.0 DeBERTa scoring hypothesis sentences on whole blocks. The
 ABOUTME: pipeline is built lazily (warm()/first label()), never at import; a batch failure marks its texts unreadable.
 """
 
@@ -8,7 +8,10 @@ from pathlib import Path
 
 from .base import LabelResult
 
-MODEL_ID = "MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7"
+# Chosen by analysis/model_bakeoff.py (2026-09-13): the zeroshot-v2.0 recipe separates 11/12 labels with bimodal
+# scores and reads de/es/pt/ja cancel notices at ≥0.98; plain-NLI multilingual models (mDeBERTa-xnli) score almost
+# everything near 1.0 and separate only 7/12. bge-m3-zeroshot-v2.0 sits between (9/12).
+MODEL_ID = "MoritzLaurer/deberta-v3-base-zeroshot-v2.0"
 BATCH_SIZE = 16
 
 
