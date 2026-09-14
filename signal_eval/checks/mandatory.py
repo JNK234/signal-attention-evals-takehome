@@ -8,7 +8,7 @@ from datetime import timedelta
 from ..labels import TRIGGER_LABELS
 from ..spec import BILLING_DISPUTE_PCT, DEPARTURE_WINDOW_DAYS, EXIT_STATES, TTA_HOURS, violation
 from ..text import blocks
-from ..util import days_to_renewal, money, norm, reached_human, ts
+from ..util import author_class, days_to_renewal, money, norm, reached_human, ts
 
 ACCOUNT_LOOKBACK_DAYS = 30    # a trigger this far before opened_at should have been found by the lookup
 ACCOUNT_LOOKAHEAD_DAYS = 14   # ...or arrived while the signal was still open
@@ -102,7 +102,7 @@ def triggers_from_reading(reading, artifact, account, dtr, detector=None, arr=No
     Returns {"confirmed", "uncertain", "historical", "unattributed": set, "facts": dict}."""
     out = {"confirmed": set(), "uncertain": set(), "historical": set(), "unattributed": set(), "facts": {}}
     facts = out["facts"]
-    author_type = artifact.get("author_type")
+    author_type = author_class(artifact.get("author_type"))   # unrecognised reads as unknown, not as not-a-customer
     texts = _depth0_texts(reading, artifact)
     verdict = (reading or {}).get("verdict") or {}
     scored = (reading or {}).get("score") or {}                 # labels the model actually produced a number for

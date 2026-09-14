@@ -181,6 +181,19 @@ def norm(s):
     return WS_RE.sub(" ", folded).strip().lower()
 
 
+def author_class(author_type):
+    """'customer' | 'internal' | 'bot' | None, case- and whitespace-tolerant.
+
+    None means unknown — either the field was absent or it carried a value outside the vocabulary. Both
+    deserve the same caution: an export writing 'Customer' or 'end_user' must not read as positive evidence
+    that a human customer did NOT write the text, which is what an exact-match comparison concludes."""
+    from .spec import AUTHOR_TYPES
+    if not isinstance(author_type, str):
+        return None
+    v = author_type.strip().lower()
+    return v if v in AUTHOR_TYPES else None
+
+
 def mean(xs):
     return sum(xs) / len(xs) if xs else None
 

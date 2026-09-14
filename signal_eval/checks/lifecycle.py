@@ -5,8 +5,8 @@ ABOUTME: A finite-state acceptor over lifecycle[]; every edge is tested against 
 
 from collections import Counter
 
-from ..spec import (ACTION_EDGE, ACTION_PARAMS, ATTACH_STATES, BACKWARD_LOW_ONLY, EXIT_STATES, FORWARD_EDGES, RANK,
-                    SUPPRESS_FORBIDDEN_FROM, TIMEOUT_EDGE, violation)
+from ..spec import (ACTION_EDGE, ACTION_PARAMS, ATTACH_STATES, BACKWARD_LOW_ONLY, EXIT_STATES, FORWARD_EDGES,
+                    HYPOTHESIS_CLASSES, RANK, SUPPRESS_FORBIDDEN_FROM, TIMEOUT_EDGE, violation)
 from ..util import reached_human, ts
 
 # spec §4.1 Table (happy path): two forward edges are driven by a platform event, not an agent action —
@@ -20,8 +20,7 @@ FORWARD_EDGE_TRIGGER = {
 PREEMPT_TRIGGER = "human_preempt"
 
 # spec §3.2 Table: "Every signal is assigned exactly one of these seven classes."
-HYPOTHESIS_CLASSES = frozenset({"no_hypothesis", "champion_departure", "budget_pressure", "product_gap",
-                                "onboarding_failure", "reliability_erosion", "benign_variation"})
+
 
 
 def check_transitions(d, ctx, cx):

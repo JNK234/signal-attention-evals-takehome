@@ -5,7 +5,8 @@ ABOUTME: standard; each is sourced at its definition. Layer 1 (checks) does not 
 """
 
 from .labels import TOPIC_LABELS
-from .spec import META_RULES, RULE_SEVERITY, SEV_WEIGHT
+from .spec import BENIGN_CLASS, META_RULES, RULE_SEVERITY, SEV_WEIGHT
+from .util import author_class
 
 # What one rule of each class costs quality_score. One penalty per rule id (its worst instance).
 #
@@ -66,12 +67,12 @@ def current_customer_topic(ctx):
     """The first non-benign topic a verified, current (check_evidence drops stale), customer-authored artefact
     reads as at depth 0, or None. The reading's verdicts are the only witness — not the agent's hypothesis."""
     for a in ctx.get("verified") or []:
-        if a.get("author_type") != "customer":
+        if author_class(a.get("author_type")) != "customer":
             continue
         verdict = ((a.get("_label") or {}).get("reading") or {}).get("verdict") or {}
         for label in TOPIC_LABELS:
             topic = label[len("topic:"):]
-            if topic != "benign_variation" and verdict.get(label) is True:
+            if topic != BENIGN_CLASS and verdict.get(label) is True:
                 return topic
     return None
 

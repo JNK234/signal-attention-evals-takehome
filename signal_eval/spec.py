@@ -124,6 +124,19 @@ MAX_NOTIFICATIONS = 3
 TTA_HOURS = {"P0": 4, "P1": 24, "P2": 72, "P3": 168}
 STALENESS_DAYS = 14
 
+# ── spec §3.2  hypothesis classes ─────────────────────────────────────────────
+# The one definition. checks/lifecycle.py validates against it, labels.py names its topic: hypotheses from
+# it, and scoring.py excludes BENIGN_CLASS by this name — a second copy would let the two drift and silently
+# change what deserves attention.
+HYPOTHESIS_CLASSES = frozenset({"no_hypothesis", "champion_departure", "budget_pressure", "product_gap",
+                                "onboarding_failure", "reliability_erosion", "benign_variation"})
+BENIGN_CLASS = "benign_variation"        # §3.2 "explained by seasonality, a data event, or a planned change"
+
+# ── artefact author ───────────────────────────────────────────────────────────
+# docs/data_dictionary.md `artifacts[].author_type`. Anything outside this set is UNKNOWN, not "not a
+# customer": a value we do not recognise is weaker evidence than a value we do, never stronger.
+AUTHOR_TYPES = frozenset({"customer", "internal", "bot"})
+
 # ── spec §8  policy ───────────────────────────────────────────────────────────
 CUSTOMER_VISIBLE_PLAYS = {"csm_checkin", "exec_escalation", "commercial_review",
                           "solutions_review", "reliability_rca_share"}

@@ -182,6 +182,9 @@ class SignalEvaluator:
             "trigger_source": ctx.get("trigger_source"),
             "account_triggers_unattached": ctx.get("account_triggers_unattached", []),
             "reached_human": ctx.get("reached_human"),
+            # risk_score prices a missed churn by tier; an unrecognised tier silently takes the smallest
+            # scale, so the value we actually saw has to be visible in the record
+            "acct_tier": (ctx.get("acct") or {}).get("tier"),
             "days_to_renewal": ctx.get("days_to_renewal"),
             "claim_status": ctx.get("claim_status", []),
             "claim_detail": ctx.get("claim_detail", []),

@@ -6,7 +6,7 @@ ABOUTME: from the bare quote if not — so the cold path still reads.
 
 from ..spec import violation
 from ..text import blocks, find_quote, is_stale
-from ..util import norm, ts
+from ..util import author_class, norm, ts
 
 
 def quote_location(quote, subject, text):
@@ -85,7 +85,7 @@ def check_evidence(d, ctx, cx):
     ctx.update(
         verified=verified, stale=stale, evidence_facts=facts,
         verified_sources={a.get("source") for a in verified if a.get("source") != "bot_alert"},
-        has_customer_text=any(a.get("author_type") == "customer" for a in verified),
+        has_customer_text=any(author_class(a.get("author_type")) == "customer" for a in verified),
         has_attached_text=bool(verified),
     )
     return out

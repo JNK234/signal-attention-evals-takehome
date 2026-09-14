@@ -55,7 +55,12 @@ def check_timing(d, ctx, cx):
     if routed_edge and opened:
         if notes:
             hours = (ts(notes[0]["at"]) - opened).total_seconds() / 3600
-            target = TTA_HOURS.get(sev)
+            # An unrecognised severity still has a deadline: silently skipping T3 would read as a pass.
+            # checks/mandatory.py falls back to the P1 target for the same case; the two must not disagree.
+            target = TTA_HOURS.get(sev, TTA_HOURS["P1"])
+            if sev not in TTA_HOURS:
+                ctx.setdefault("errors", []).append(
+                    {"check": "check_timing", "error": f"unknown severity {sev!r}; T3 judged against the P1 target"})
             if target and hours > target:
                 # the breach is certain; how late (hours vs target) is stated, not folded into the severity
                 out.append(violation(notes[0].get("step"), "T3", f"first notification {hours:.1f}h after open; {sev} target {target}h"))

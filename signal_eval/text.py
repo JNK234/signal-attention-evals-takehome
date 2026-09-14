@@ -6,7 +6,7 @@ ABOUTME: one quote depth) and tags trailing signatures; nothing is discarded, no
 import re
 from dataclasses import dataclass
 
-from .util import EMAIL_RE, has_phone
+from .util import EMAIL_RE, author_class, has_phone
 
 # Known limit: closings and quote headers are list-based. A closing not listed here stays in the content
 # block (harmless for labels: one more line of text); a quote convention not listed reads as current text.
@@ -151,4 +151,4 @@ def is_stale(reading_or_label, author_type=None, quote_in_tail=False):
         if lab.get("unverifiable"):
             return False
         sarcasm = bool(lab.get("sarcasm"))
-    return sarcasm and author_type in ("customer", None)
+    return sarcasm and author_class(author_type) in ("customer", None)
