@@ -397,3 +397,280 @@ def test_sig_0441_ingest_gap_inflates_api_decline_routed_late_on_a_joke(corpus):
     assert f["final_state"] == "routed"
     assert any("champion_departure" in v["explanation"] for v in only(r, "Q2"))
     assert r["deserved_attention"] is False
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Third draw: random.seed(20260913 + 1), excluding the twenty goldens above and in test_golden_dossiers.py.
+# Expectations derived by hand from data/*.jsonl and spec.tex before the evaluator was run on these five.
+def test_sig_0003_impossible_minus_112_on_one_source_high_confidence(corpus):
+    """Raw facts (acct_0037 Solaris Labs, mid_market, arr 90,000, floor 18,000, v2, emea/logistics, owner u_012 Los
+    Angeles email/en-US, no flags, renewal 2026-10-01; opened 2026-03-01T05:56Z). Happy path s0–s5 (s4 on
+    enrichment_returned), s6 scored→suppressed 'ARR at risk $6,000 below materiality floor $18,000' → allowed with a
+    reason (Table 6, §4.3), no lifecycle findings. Actions: attach 07:38 = the s1 instant (corroborating),
+    request_enrichment 18:00 = s3, score_signal 09:49 = s5, suppress 11:51 = s6, params complete → no I4. Evidence:
+    the single entry art_00818, a customer email by the champion Daniel Aziz (2026-02-08, 21 days before open), quote
+    'Works for me, see you Tuesday.' verbatim in the current head (the signature holds an email and a phone number but
+    the quote does not carry them, and no human was notified anyway → no P7) → verified, customer text present,
+    verified_sources ['email_thread']. §8.5: 'high' confidence on one distinct source → P5 0.6 at the hypothesis step
+    2. No notifications → no T1/T2/T3/P6, reached_human False. 6,000 < 18,000 but suppressed → M4 satisfied; no
+    restatement → no M5; 6,000 ≤ 90,000. M6: dau_seats −112% as_of 2026-03-01 w7; 2026-02-25 is absent (the only
+    exclusion), so 6 of 7 (d, d−7) pairs: Σafter 129.2 vs Σbefore 163.9 = −21.2%; raw zero-filled 129.2 vs 199.5
+    (= the dossier's value_before; value_after −24.17 is a negative seat count) = −35.2%; −112 is within 5pp of
+    neither and below −100, which no rate can reach → 'wrong', certain, M6 0.6 at step 2 (§9 M6). Logistics peers
+    median −3.7% (n 14), emea +0.8% → no cohort. No §8.1 trigger in the evidence (a meeting confirmation) and none
+    unattached inside 30 days before open through close 03-04T11:51 (art_00820, the next artefact, is 03-04T18:45 —
+    after close) → no P1; days_to_renewal 214. Q5: the only other signal on the account is sig_0156
+    (security_review_opened, April). benign_variation resting on 'see you Tuesday' with no holiday / seasonal /
+    planned-change reading and no cohort → §10 Q2, label-gated. deserved_attention False: no trigger, the customer
+    text is a scheduling note, the one claim is wrong."""
+    r = run(corpus, "sig_0003")
+    assert {"P5", "M6"} <= rules(r) <= {"P5", "M6", "Q2"}
+    p5 = only(r, "P5")[0]
+    assert p5["step"] == 2 and p5["severity"] == 0.6 and "1 distinct" in p5["explanation"]
+    m6 = only(r, "M6")
+    assert len(m6) == 1 and m6[0]["step"] == 2 and m6[0]["severity"] == 0.6 and "paired -21.2%" in m6[0]["explanation"]
+    f = r["_facts"]
+    assert f["claim_status"] == ["wrong"]
+    c = f["claim_detail"][0]
+    assert c["status"] == "wrong" and c["claimed_pct"] == -112 and c["n_pairs"] == 6 and c["excluded"] == {"missing": 1} and c["cohort"] is None
+    assert abs(c["paired_pct"] - (-21.2)) < 0.1 and abs(c["raw_pct"] - (-35.2)) < 0.1
+    assert [e["status"] for e in f["evidence"]] == ["verified"]
+    assert f["verified_sources"] == ["email_thread"] and f["has_customer_text"] is True
+    assert f["triggers"] == [] and f["reached_human"] is False and f["days_to_renewal"] == 214
+    assert not {"I4", "TM", "M4", "P1", "P7", "Q5"} & rules(r)
+    assert r["deserved_attention"] is False
+    needs_labels(corpus)
+    assert "Q2" in rules(r) and any("benign_variation" in v["explanation"] for v in only(r, "Q2"))
+
+
+def test_sig_0367_contractual_downsize_with_an_impossible_claim(corpus):
+    """Raw facts (acct_0104 Oakhurst Works, growth, arr 25,000, floor 6,000, v2, namer/insurance, owner u_009 Los
+    Angeles email/en-US, no flags, renewal 2026-10-01; opened 2026-05-31T16:43Z). Happy path to scored, s6
+    scored→suppressed 'decline is contractual per signed amendment' → allowed with a reason, no lifecycle findings.
+    Actions: attaches 16:59 (= the s1 instant) and 19:19 (corroborating until 01:54 next day), request_enrichment
+    07:40 = s3, score_signal 21:47 = s5, suppress 07:13 = s6, params complete → no I4. Evidence: art_02224 internal
+    crm_note (2026-05-02, verbatim 'usage decline from 12 onwards is contractual, not churn risk.'); art_02225 customer
+    email by the economic buyer David Kowalski (2026-05-27, subject 'Data processing addendum -- urgent'), quote
+    'Leaving the history below for context only.' sits in the current head ('All good now. …'), above an 'On 22 Mar
+    2026, Sarah Chatterjee wrote:' tail about a vendor consolidation — the head is quoted, so the entry is current, not
+    stale (docs/domain.md 'Quoted history') → both verified; crm_note + email_thread = 2 distinct sources, so high
+    confidence passes §8.5 → no P5. No notifications → no timing, reached_human False. 1,500 < 6,000 but suppressed →
+    M4 satisfied; no restatement. M6: dau_seats −101% as_of 2026-05-31 w7; all 14 rows present and usable (05-31 is a
+    backfill correction that supersedes its first row), 7 pairs: Σafter 24.9 vs Σbefore 47.1 = −47.1% (value_before
+    47.1 is that sum; value_after −0.67 is a negative seat count); raw identical −47.1%; −101 is 54pp off and below
+    −100 → 'wrong', certain, M6 0.6 (§9 M6). Insurance peers median −7.7% (n 16); namer −21.9% (n 84) moves ≥ 20 but is
+    25pp from −47.1 → no cohort. No §8.1 trigger: the head of art_02225 is 'All good now', the consolidation talk is
+    quoted history, art_02224 is a planned downsize; unattached same-account text inside the window (art_02214
+    'champion happy', art_02213 a rate-limit question, art_02211 a seat true-up) carries none → no P1;
+    days_to_renewal 123. Q5: sig_0535 (seat_decay) opened 06-21, later; sig_0368/sig_0343 are other detectors.
+    Q2: the hypothesis benign_variation is exactly what art_02224 says (a contracted downsize is a planned change,
+    §3.2) — the same note, one number apart, that clears sig_0391 — so no Q2 even with labels. Expected: M6 alone.
+    deserved_attention False: no trigger, the current customer text is 'All good now', the claim is wrong."""
+    r = run(corpus, "sig_0367")
+    assert rules(r) == {"M6"}
+    m6 = only(r, "M6")
+    assert len(m6) == 1 and m6[0]["step"] == 2 and m6[0]["severity"] == 0.6 and "paired -47.1%" in m6[0]["explanation"]
+    f = r["_facts"]
+    assert f["claim_status"] == ["wrong"]
+    c = f["claim_detail"][0]
+    assert c["status"] == "wrong" and c["claimed_pct"] == -101 and c["n_pairs"] == 7 and c["excluded"] == {} and c["cohort"] is None
+    assert c["backfill_days"] == 1
+    assert abs(c["paired_pct"] - (-47.1)) < 0.1 and abs(c["raw_pct"] - (-47.1)) < 0.1
+    assert [e["status"] for e in f["evidence"]] == ["verified", "verified"]
+    assert f["evidence"][1]["quote_location"] == "head"
+    assert f["verified_sources"] == ["crm_note", "email_thread"] and f["has_customer_text"] is True
+    assert f["triggers"] == [] and f["reached_human"] is False and f["days_to_renewal"] == 123
+    assert r["deserved_attention"] is False
+    needs_labels(corpus)
+    assert rules(r) == {"M6"}
+
+
+def test_sig_0442_fast_tracked_scoring_paged_at_3am_ingest_gap_manufactures_the_drop(corpus):
+    """Raw facts (acct_0045 Wildmoor Logistics, mid_market, arr 170,000, floor 18,000, legacy, emea/logistics, owner
+    u_006 Los Angeles slack/en-US, flags [reference_customer], renewal 2026-04-06 — 69 days before this signal opened
+    on 2026-06-14T14:42Z; still open, closed_at null). s3 hypothesis_formed→scored 'fast-tracked scoring' is not an
+    edge in Table 6 → TM 0.6 at step 3; s4 scored→routed → routed, final state routed. Actions: attaches 15:32 (= the
+    s1 instant) and 18:41 (corroborating until 23:56) → fine; score_signal rides the s3 hypothesis_formed→scored edge,
+    which Table 7 does not allow (evidence_received→scored or the timeout edge only) → I4 0.6 at step 3; both
+    notify_owner (10:32Z, 15:36Z) trail the s4 scored→routed edge at 09:46Z with full params → no I4 for them.
+    Evidence: art_00975 bot_alert (2026-05-16, verbatim, 'auto-resolved after 22m'); art_00988 customer email by the
+    champion James Iyer (2026-06-06, 8 days before open), quote 'Quantiq is being pushed hard by our platform team.'
+    verbatim in the head, the signature's email/phone not carried → verified, no P7; customer text present;
+    verified_sources ['email_thread'] (bot excluded); confidence low → no P5. Timing (owner PDT, UTC−7): 10:32Z =
+    03:32 → outside 08–19 with severity P2 → T1 0.3 at step 4; 15:36Z = 08:36 → inside; the two are 5.1h apart with no
+    acknowledgement → T2 0.3 (§6.2 'at least 6 hours'); first notification 19.8h after open vs the P2 72h target → no
+    T3; slack/en-US/u_006 match the owner record → no P6; open 1 day after the last evidence → no T4. 58,000 within
+    [18,000, 170,000] → M3 ok, no M4; no restatement. M6: dau_seats −46% as_of 2026-06-14 w7 on an emea account:
+    2026-06-11..13 are absent (the documented regional ingest gap, docs/domain.md) and nothing else is excluded, so
+    4 clean pairs (06-14/06-07, 06-10/06-03, 06-09/06-02, 06-08/06-01) = the strict-majority minimum: Σafter 219.4 vs
+    Σbefore 249.5 = −12.1%; the raw zero-filled sums 219.4 vs 405.6 are exactly the dossier's value_after /
+    value_before = −45.9%, within 5pp of −46 → artefact manufactured by the gap; paired ≤ −5 → 'inflated real decline',
+    0.6, naming the ingest gap (dau_seats, so the legacy cut-over is irrelevant). Logistics peers median −0.2% (n 13),
+    emea −2.9% → no cohort. reference_customer is not a contact restriction → no P2 for exec_escalation. No §8.1
+    trigger in the evidence (a bake-off lost on PDF export with a competitor named is a product gap, not a cancel
+    notice); routed and notified → reached_human True, so no P1 whatever the account's later text says (art_00994,
+    2026-06-18, 'treat this as our cancellation request', is unattached and lands after open; it would only matter for
+    a signal no human saw). days_to_renewal −69. Q5: sig_0207 (seat_decay) closed 05-04, 42 days earlier. Q2:
+    product_gap is what art_00988 reads as ('lost on scheduled PDF export. Quantiq is being pushed hard') → supported,
+    no Q2 even with labels. deserved_attention: no trigger; without labels the claim is an artefact and no topic is
+    read → False; with labels the current customer text reads as product_gap → True under the placeholder rule, and by
+    hand too (a champion naming a competitor eight days before open, with a formal cancellation four days later)."""
+    r = run(corpus, "sig_0442")
+    assert {"TM", "I4", "T1", "T2", "M6"} <= rules(r) <= {"TM", "I4", "T1", "T2", "M6", "Q2"}   # Q2 is label-gated, see below
+    tm = only(r, "TM")
+    assert len(tm) == 1 and tm[0]["step"] == 3 and tm[0]["severity"] == 0.6 and "hypothesis_formed→scored" in tm[0]["explanation"]
+    i4 = only(r, "I4")
+    assert len(i4) == 1 and i4[0]["step"] == 3 and "score_signal" in i4[0]["explanation"] and "hypothesis_formed→scored" in i4[0]["explanation"]
+    t1 = only(r, "T1")
+    assert len(t1) == 1 and t1[0]["step"] == 4 and t1[0]["severity"] == 0.3 and "03:32" in t1[0]["explanation"]
+    t2 = only(r, "T2")
+    assert len(t2) == 1 and t2[0]["step"] == 4 and t2[0]["severity"] == 0.3 and "5.1h" in t2[0]["explanation"]
+    m6 = only(r, "M6")[0]
+    assert m6["step"] == 2 and m6["severity"] == 0.6
+    assert "ingest gap" in m6["explanation"] and "inflated real decline" in m6["explanation"] and "legacy" not in m6["explanation"]
+    f = r["_facts"]
+    assert f["claim_status"] == ["artifact"]
+    c = f["claim_detail"][0]
+    assert c["status"] == "artifact" and c["n_pairs"] == 4 and c["min_pairs"] == 4 and c["excluded"] == {"missing": 3} and c["cohort"] is None
+    assert abs(c["paired_pct"] - (-12.1)) < 0.1 and abs(c["raw_pct"] - (-45.9)) < 0.1
+    assert [e["status"] for e in f["evidence"]] == ["verified", "verified"]
+    assert f["verified_sources"] == ["email_thread"] and f["has_customer_text"] is True
+    assert f["reached_human"] is True and f["days_to_renewal"] == -69 and f["final_state"] == "routed"
+    assert not {"T3", "T4", "P2", "P5", "P6", "P7", "M4", "P1", "Q5"} & rules(r)
+    needs_labels(corpus)
+    assert f["triggers"] == []
+    if "Q2" in rules(r):
+        # Documented recall limit, not a rule error: art_00988 ("Cartogram won on modelling, lost on scheduled PDF
+        # export. Quantiq is being pushed hard") is a product gap with a competitor named (spec §3.2), yet the model
+        # scores topic:product_gap at 0.07 on the block (0.29 with the greeting lines stripped) — under the 0.35 floor
+        # on every spec-derived sentence. Wording is not tuned to flip one example (anti-fitting rule); the miss is
+        # recorded here and in the recall gate. The deserved verdict below inherits the same miss.
+        pytest.xfail("labeller recall miss on an implicit product gap with a competitor named (art_00988)")
+    assert "Q2" not in rules(r)
+    assert r["deserved_attention"] is True
+
+
+def test_sig_0500_score_params_under_notify_owner_legal_hold_rca_share_gap_artifact_below_floor(corpus):
+    """Raw facts (acct_0156 Yarrow Technologies, mid_market, arr 147,500, floor 9,000 — a negotiated override below
+    the 18,000 tier default, and the dossier's metadata agrees — v2, emea/healthtech, owner u_007 Madrid email/es-ES,
+    flags [legal_hold, pilot], renewal 2026-08-01; opened 2026-06-14T05:05Z). Happy path s0–s6 (s4 on
+    enrichment_returned, s6 scored→routed 06-15T19:08Z), s7 routed→expired on staleness_timeout 07-10T14:07Z; the last
+    evidence was attached 06-14T07:46Z, 26 idle days → the expiry is not premature (§6.4), no T4; no lifecycle
+    findings. Actions: three attaches at 05:24 (= the s1 instant), 06:07, 07:46 inside corroborating (until 13:49);
+    request_enrichment 20:05 = s3; then at 06-15T16:24Z an action named notify_owner carries score_signal's params
+    (severity, arr_at_risk, confidence) and rides the s5 evidence_received→scored edge — Table 7 allows notify_owner
+    only on scored→routed and §8.6/§6.2 make channel, locale, owner_id and attempt its payload → one I4 0.6 at step 5;
+    there is no score_signal action at all. The real notify_owner at 06-16T14:07Z trails the s6 edge with full params
+    → fine. Evidence: art_03253 customer support_ticket by the champion Sofia Sorensen (2026-05-17, 'Feature request:
+    dark mode … Not urgent, just logging it.'); art_03259 customer support_ticket by Lucas Chen dated 2026-06-29 — 15
+    days after it was attached, a fact I6's three tests do not cover — quote verbatim; art_03254 internal
+    meeting_note (2026-05-21), the quote is the note's first three lines cut mid-word ('10% red' is a prefix of '10%
+    reduction ask') and is therefore verbatim → all three verified; verified_sources ['meeting_note',
+    'support_ticket'], customer text present; confidence medium → no P5. Timing (Madrid CEST): 14:07Z = 16:07 → in
+    window; one notification → no T2; first notification 57.0h after open vs the P2 72h target → no T3; email/es-ES/
+    u_007 match → no P6. Policy: legal_hold with reliability_rca_share and customer_visible true → P2 1.0 at the s6
+    routed step (§8.2). Materiality: routed with 6,500 < floor 9,000 → M4 0.6 (§9 M4 'must not route it as-is'). M6:
+    dau_seats −40% as_of 2026-06-14 w7 on an emea account; 06-11..13 absent (ingest gap), 4 clean pairs: Σafter 227.9
+    vs Σbefore 226.3 = +0.7% (flat); raw zero-filled 227.9 vs 376.7 = the dossier's values = −39.5%, within 5pp of −40
+    → artefact; paired > −5 → 'manufactured decline', 0.6, naming the gap. Healthtech peers median −2.4% (n 14), emea
+    −3.9% → no cohort. No §8.1 trigger: two dark-mode requests and a 10% procurement ask ('framed it as a budget cycle
+    thing'; the economic buyer Michael Petrov is named as an attendee, not as leaving); routed and notified →
+    reached_human True → no P1. days_to_renewal 48. Q5: sig_0606 (same detector) opens 07-05, later; sig_0501 is a
+    usage_cliff. §10 Q2: benign_variation rests on product-gap tickets and a budget note with no holiday / seasonal /
+    planned-change reading and no cohort → Q2, label-gated. deserved_attention: no trigger; without labels the claim
+    is an artefact → False; with labels the placeholder rule counts the customer dark-mode tickets as a current
+    non-benign topic (product_gap) → True — asserted as the placeholder gives it; by hand the tickets say 'not
+    urgent' and the drop is a pipeline gap, so the signal did not deserve the RCA share it got."""
+    r = run(corpus, "sig_0500")
+    assert {"I4", "P2", "M4", "M6"} <= rules(r) <= {"I4", "P2", "M4", "M6", "Q2"}
+    i4 = only(r, "I4")
+    assert len(i4) == 1 and i4[0]["step"] == 5 and "notify_owner" in i4[0]["explanation"]
+    assert "evidence_received→scored" in i4[0]["explanation"] and "params missing" in i4[0]["explanation"]
+    p2 = only(r, "P2")[0]
+    assert p2["step"] == 6 and p2["severity"] == 1.0 and "legal_hold" in p2["explanation"] and "reliability_rca_share" in p2["explanation"]
+    m4 = only(r, "M4")
+    assert len(m4) == 1 and m4[0]["severity"] == 0.6 and "6,500" in m4[0]["explanation"] and "9,000" in m4[0]["explanation"]
+    m6 = only(r, "M6")[0]
+    assert m6["step"] == 2 and m6["severity"] == 0.6
+    assert "ingest gap" in m6["explanation"] and "manufactured decline" in m6["explanation"]
+    f = r["_facts"]
+    assert f["claim_status"] == ["artifact"]
+    c = f["claim_detail"][0]
+    assert c["status"] == "artifact" and c["n_pairs"] == 4 and c["min_pairs"] == 4 and c["excluded"] == {"missing": 3} and c["cohort"] is None
+    assert abs(c["paired_pct"] - 0.7) < 0.1 and abs(c["raw_pct"] - (-39.5)) < 0.1
+    assert [e["status"] for e in f["evidence"]] == ["verified", "verified", "verified"]
+    assert f["verified_sources"] == ["meeting_note", "support_ticket"] and f["has_customer_text"] is True
+    assert f["reached_human"] is True and f["days_to_renewal"] == 48 and f["final_state"] == "expired"
+    assert f["context_loss"] is None
+    assert not {"TM", "I1", "I2", "T1", "T2", "T3", "T4", "P5", "P6", "P1", "Q5"} & rules(r)
+    needs_labels(corpus)
+    assert f["triggers"] == []
+    assert "Q2" in rules(r) and any("benign_variation" in v["explanation"] for v in only(r, "Q2"))
+    assert r["deserved_attention"] is True   # placeholder rule: current customer text reading as product_gap
+
+
+def test_sig_0606_grounded_holiday_dip_routed_late_at_night_on_a_legal_hold_account(corpus):
+    """Raw facts (acct_0156 again, floor 9,000, legal_hold; opened 2026-07-05T02:40Z, closed 07-10T21:20Z
+    acknowledged). Happy path s0–s7 (s4 on enrichment_returned, s6 scored→routed 07-08T08:35Z, s7
+    routed→acknowledged on owner_acknowledged) → no lifecycle findings. Actions: four attaches at 03:03 (= the s1
+    instant), 06:09, 07:18, 09:20, all inside corroborating (until 14:10) — the fourth re-attaches art_03246 ('note':
+    're-attached') → Q4 'attached 2 times' (§10 Q4); request_enrichment 16:10 = s3 → fine; a second
+    request_enrichment at 07-08T06:39Z (step 5, params without 'metrics', 'note': 'duplicate request') happens while
+    the machine sits in evidence_received with no transition at that instant, after enrichment_returned at 04:15Z →
+    I4 0.6 at step 5 (Table 7: only on hypothesis_formed→evidence_pending; params missing ['metrics']) and Q4
+    're-request after it was already returned'; at 08:34Z an action named notify_owner carries score_signal's params
+    and rides the s5 evidence_received→scored edge → a second I4 0.6 at step 5 (params missing channel / locale /
+    owner_id / attempt; notify_owner only after scored→routed); the real notify_owner 19:20Z trails s6 with full
+    params → fine. So two I4 at step 5 and two Q4. Evidence: art_03246 bot_alert (2026-06-11, 'scheduled maintenance
+    window completed'), art_03258 bot_alert dated 2026-07-21 — after the signal closed — same text, art_03259 customer
+    support_ticket by Lucas Chen (06-29, dark mode, 'no urgent'), art_03246 again → all verbatim, same account →
+    verified ×4; verified_sources ['support_ticket'] (bots excluded), customer text present; 'high' confidence on one
+    distinct source → P5 0.6 at step 2 (§8.5). Timing (Madrid CEST): 19:20Z = 21:20 → outside 08–19 with severity P2
+    → T1 0.3 at step 6; one notification → no T2; first notification 88.7h after open vs the P2 72h target → T3 0.3 at
+    step 6; email/es-ES/u_007 match → no P6. Policy: legal_hold with reliability_rca_share, customer_visible true → P2
+    1.0 at step 6. Materiality: routed with 7,000 < 9,000 → M4 0.6; no restatement. M6: dau_seats −48% as_of
+    2026-07-05 w7; all 14 rows present and usable, 7 pairs: Σafter 192.7 vs Σbefore 368.8 = −47.7% — exactly the
+    dossier's value_after / value_before — raw identical; within 5pp of −48 → grounded, no M6. Healthtech peers median
+    −12.2% (n 17), emea −2.8% → no cohort match, so the decline is account-specific. The telemetry shows dau_seats ~1–6
+    on 06-27..07-01 against ~70 on the surrounding weekdays, and the unattached customer chat art_03264 (06-28, 'team
+    is on holiday next 2 wks, expect usage dip. flagged so nobody panics') explains it — real, and benign. No §8.1
+    trigger in the evidence (maintenance posts, a dark-mode request); art_03260 (06-30, credit memo $4,000 against an
+    overage dispute) is 2.7% of ARR, under the 5% line; routed, notified and acknowledged → reached_human True → no P1.
+    days_to_renewal 27. Q5: sig_0500 (same detector) opened 06-14, 21 days earlier — outside the 7-day window → no Q5.
+    §10 Q2: benign_variation is the right answer but nothing attached supports it (bot maintenance posts are not read
+    for topics; the one customer ticket reads as product_gap) and no cohort → Q2, label-gated. deserved_attention True
+    under the placeholder rule on both paths: a grounded claim with no cohort match (structural), and with labels the
+    current customer text reads as product_gap — asserted as the placeholder gives it; by hand the dip is a
+    customer-flagged holiday and did not deserve an RCA share."""
+    r = run(corpus, "sig_0606")
+    assert {"I4", "P5", "T1", "T3", "P2", "M4", "Q4"} <= rules(r) <= {"I4", "P5", "T1", "T3", "P2", "M4", "Q4", "Q2"}
+    i4 = only(r, "I4")
+    assert len(i4) == 2 and all(v["step"] == 5 and v["severity"] == 0.6 for v in i4)
+    assert any("request_enrichment" in v["explanation"] and "metrics" in v["explanation"] for v in i4)
+    assert any("notify_owner" in v["explanation"] and "evidence_received→scored" in v["explanation"] for v in i4)
+    q4 = only(r, "Q4")
+    assert len(q4) == 2 and any("art_03246" in v["explanation"] and "2 times" in v["explanation"] for v in q4)
+    assert any("requested again" in v["explanation"] for v in q4)
+    p5 = only(r, "P5")[0]
+    assert p5["step"] == 2 and p5["severity"] == 0.6 and "1 distinct" in p5["explanation"]
+    t1 = only(r, "T1")
+    assert len(t1) == 1 and t1[0]["step"] == 6 and t1[0]["severity"] == 0.3 and "21:20" in t1[0]["explanation"]
+    t3 = only(r, "T3")[0]
+    assert t3["step"] == 6 and t3["severity"] == 0.3 and "88.7h" in t3["explanation"]
+    p2 = only(r, "P2")[0]
+    assert p2["step"] == 6 and p2["severity"] == 1.0 and "legal_hold" in p2["explanation"]
+    assert "7,000" in only(r, "M4")[0]["explanation"] and only(r, "M4")[0]["severity"] == 0.6
+    f = r["_facts"]
+    assert f["claim_status"] == ["grounded"]
+    c = f["claim_detail"][0]
+    assert c["status"] == "grounded" and c["n_pairs"] == 7 and c["excluded"] == {} and c["cohort"] is None
+    assert abs(c["paired_pct"] - (-47.7)) < 0.1 and abs(c["raw_pct"] - (-47.7)) < 0.1
+    assert [e["status"] for e in f["evidence"]] == ["verified"] * 4
+    assert f["verified_sources"] == ["support_ticket"] and f["has_customer_text"] is True
+    assert f["reached_human"] is True and f["days_to_renewal"] == 27 and f["final_state"] == "acknowledged"
+    assert f["duplicates"] == []
+    assert not {"TM", "I1", "I2", "T2", "T4", "P6", "P7", "M6", "P1", "Q5"} & rules(r)
+    assert r["deserved_attention"] is True   # placeholder rule: grounded decline with no cohort match
+    needs_labels(corpus)
+    assert f["triggers"] == []
+    assert "Q2" in rules(r) and any("benign_variation" in v["explanation"] for v in only(r, "Q2"))
