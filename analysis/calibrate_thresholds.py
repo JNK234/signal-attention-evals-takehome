@@ -51,7 +51,9 @@ def propose(rows):
         else:
             flag = "classes overlap"
         raw = (round(max(low, 0.0), 3), round(min(high, 1.0), 3))
-        band = (min(max(raw[0], NOISE_FLOOR), DEFAULT_BAND[1]), max(raw[1], DEFAULT_BAND[0]))
+        # cautious-only: DEFAULT_BAND is the data-free prior; calibration may only widen the abstain region (low may go
+        # below the prior's low, high may go above the prior's high), never let the evaluator claim more than the prior
+        band = (min(max(raw[0], NOISE_FLOOR), DEFAULT_BAND[0]), max(raw[1], DEFAULT_BAND[1]))
         if band != raw:
             flag += "; guarded"
         out[label] = dict(info, band=band, raw=raw, flag=flag)
