@@ -544,10 +544,13 @@ def test_sig_0442_fast_tracked_scoring_paged_at_3am_ingest_gap_manufactures_the_
         # export. Quantiq is being pushed hard") is a product gap with a competitor named (spec §3.2), yet the model
         # scores topic:product_gap at 0.07 on the block (0.29 with the greeting lines stripped) — under the 0.35 floor
         # on every spec-derived sentence. Wording is not tuned to flip one example (anti-fitting rule); the miss is
-        # recorded here and in the recall gate. The deserved verdict below inherits the same miss.
+        # recorded here and in the recall gate. It no longer reaches deserved_attention, which reads only
+        # §8.1 triggers and §4.6 timeouts — a product gap is a hypothesis class (§3.2), not a trigger.
         pytest.xfail("labeller recall miss on an implicit product gap with a competitor named (art_00988)")
     assert "Q2" not in rules(r)
-    assert r["deserved_attention"] is True
+    # The bake-off email is a champion arguing Cartogram's case internally, not a written statement of
+    # intent to cancel; no §8.1 trigger and enrichment returned normally, so the spec requires no human.
+    assert r["deserved_attention"] is False
 
 
 def test_sig_0500_score_params_under_notify_owner_legal_hold_rca_share_gap_artifact_below_floor(corpus):

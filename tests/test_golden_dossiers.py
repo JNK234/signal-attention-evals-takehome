@@ -186,6 +186,9 @@ def test_sig_0015_enrichment_timeout_then_routed_late(corpus):
     needs_labels(corpus)
     assert [e["status"] for e in f["evidence"]] == ["verified", "verified"]
     assert "Q2" in rules(r) and any("onboarding_failure" in v["explanation"] for v in only(r, "Q2"))
+    # §4.6: the signal timed out waiting for enrichment, so a human is required regardless of what the
+    # evidence holds — the QBR note ("no red flags", "dark mode lol") carries no §8.1 trigger at all.
+    assert r["deserved_attention"] is True
 
 
 def test_sig_0278_legacy_double_count_artifact_and_backward_move(corpus):
@@ -256,6 +259,9 @@ def test_sig_0058_departure_notice_suppressed_after_timeout(corpus):
     assert f["triggers"] == ["buyer_or_champion_departure"]
     assert "P1" in rules(r) and only(r, "P1")[0]["severity"] == 1.0
     assert any(v["rule"] == "Q2" and "mandatory trigger" in v["explanation"] for v in r["violations"])
+    # Two independent grounds: §8.1 bullet 4 (named champion departing, renewal 60 days out) and §4.6
+    # (timed out, then suppressed — exactly what §4.6 forbids).
+    assert r["deserved_attention"] is True
 
 
 def test_sig_0111_cross_tenant_and_twelvefold_restatement(corpus):
@@ -283,6 +289,12 @@ def test_sig_0111_cross_tenant_and_twelvefold_restatement(corpus):
     assert f["triggers"] == [] and f["has_customer_text"] is True
     needs_labels(corpus)
     assert "Q2" in rules(r) and any("benign_variation" in v["explanation"] for v in only(r, "Q2"))
+    # §8.1 bullet 5 is the live question: art_03224 is a $250,000 credit memo "applied against overage
+    # dispute" on a $217,500 account, far over the 5% bar. It is bot-authored (a billing-system record,
+    # not a customer complaint) and states an amount larger than the whole contract, which M1 would call
+    # arithmetically impossible. Triggers are read from customer text, so this does not confirm one.
+    # Documented as the weakest call in the golden set.
+    assert r["deserved_attention"] is False
 
 
 def test_sig_0208_out_of_window_renotify_altered_quote(corpus):
