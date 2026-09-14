@@ -6,7 +6,7 @@ ABOUTME: provenance, and deserved_attention resting on triggers and evidence, ne
 from conftest import ACCOUNT, ARTIFACT, OWNER, SignalEvaluator, explain, happy_dossier, with_labels
 from signal_eval.labellers import TableLabeller
 from signal_eval.scoring import QUALITY_PENALTY, quality_score
-from signal_eval.spec import SEV_WEIGHT, UNCERTAIN_FACTOR, violation
+from signal_eval.spec import RULE_SEVERITY, SEV_WEIGHT, UNCERTAIN_FACTOR, violation
 from test_grounding_paired import _cohort_corpus
 
 CANCEL = {"backfill": {"cancel_intent": 0.9}}
@@ -135,9 +135,9 @@ def test_one_certain_critical_costs_its_penalty_and_does_not_zero_the_score():
     assert quality_score([violation(0, "I6", "fabricated quote")]) == 1.0 - QUALITY_PENALTY["critical"]
 
 
-def test_penalties_from_different_classes_add():
+def test_penalties_from_different_classes_compose_as_a_product():
     vs = [violation(0, "I6", "critical"), violation(1, "M6", "high"), violation(2, "T1", "medium")]
-    expect = 1.0 - (QUALITY_PENALTY["critical"] + QUALITY_PENALTY["high"] + QUALITY_PENALTY["medium"])
+    expect = (1 - QUALITY_PENALTY["critical"]) * (1 - QUALITY_PENALTY["high"]) * (1 - QUALITY_PENALTY["medium"])
     assert quality_score(vs) == round(expect, 3)
 
 
@@ -155,12 +155,14 @@ def test_the_same_rule_twice_is_charged_once_at_its_worst_instance():
 
 def test_two_distinct_rules_of_one_class_are_charged_twice():
     q = quality_score([violation(0, "T2", "spacing"), violation(1, "T3", "target")])
-    assert q == round(1.0 - 2 * QUALITY_PENALTY["high"], 3)
+    assert q == round((1 - QUALITY_PENALTY["high"]) ** 2, 3)
 
 
-def test_the_score_floors_at_zero_and_never_goes_negative():
-    vs = [violation(0, r, "x") for r in ("I2", "I6", "P1", "P2", "P3")]      # 5 criticals = 2.5 of penalty
-    assert quality_score(vs) == 0.0
+def test_many_criticals_approach_zero_without_reaching_it():
+    """The product has no floor to pile up on: five criticals stay rankable against six."""
+    five = [violation(0, r, "x") for r in ("I2", "I6", "P1", "P2", "P3")]
+    six = five + [violation(1, "P4", "x")]
+    assert 0.0 < quality_score(six) < quality_score(five) < 0.05
 
 
 def test_the_unevaluated_meta_rule_is_not_a_penalty():
@@ -168,6 +170,27 @@ def test_the_unevaluated_meta_rule_is_not_a_penalty():
     meta = {"step": -1, "rule": "UNEVALUATED", "severity": 0.0, "explanation": "labeller unavailable"}
     assert quality_score([meta]) == 1.0
     assert quality_score([meta, violation(0, "T1", "late")]) == quality_score([violation(0, "T1", "late")])
+
+
+def test_every_extra_violation_strictly_lowers_the_score():
+    """Monotonicity is what makes the score rankable; without it the ordering means nothing."""
+    vs, last = [], 1.0
+    for step, rid in enumerate(("Q1", "T1", "M6", "I6", "P2", "P3", "P4", "I2")):
+        vs.append(violation(step, rid, "x"))
+        q = quality_score(vs)
+        assert q < last, f"adding {rid} did not lower the score ({q} vs {last})"
+        last = q
+
+
+def test_the_order_of_violations_does_not_change_the_score():
+    vs = [violation(0, "I6", "a"), violation(1, "T3", "b"), violation(2, "Q2", "c")]
+    assert quality_score(vs) == quality_score(list(reversed(vs)))
+
+
+def test_no_number_of_violations_reaches_the_floor():
+    """Every rule broken at once still leaves a positive, distinguishable score."""
+    vs = [violation(0, rid, "x") for rid in RULE_SEVERITY]
+    assert 0.0 < quality_score(vs) < 0.01
 
 
 def test_Q5_keeps_its_count_scaling_inside_the_penalty():
