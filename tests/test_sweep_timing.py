@@ -94,7 +94,7 @@ def test_T2_gap_of_exactly_six_hours_is_allowed_and_one_second_less_is_not(ev):
     assert "T2" not in rules(ev.evaluate(ok))
     bad = _notify_at(happy_dossier(), "2026-03-02T14:00:00Z", "2026-03-02T19:59:59Z")
     t2 = only(ev.evaluate(bad), "T2")
-    assert len(t2) == 1 and t2[0]["step"] == 6 and "min 6h" in t2[0]["explanation"] and t2[0]["severity"] == SEV_WEIGHT["medium"]
+    assert len(t2) == 1 and t2[0]["step"] == 6 and "min 6h" in t2[0]["explanation"] and t2[0]["severity"] == SEV_WEIGHT["high"]
 
 
 def test_T2_exactly_three_notifications_is_allowed(ev):
@@ -139,7 +139,7 @@ def test_T3_target_is_a_closed_bound(ev, sev, at, expect):
     t3 = only(ev.evaluate(d), "T3")
     assert bool(t3) is expect, (sev, at)
     if expect:
-        assert t3[0]["step"] == 6 and f"{sev} target" in t3[0]["explanation"] and t3[0]["severity"] == SEV_WEIGHT["medium"]
+        assert t3[0]["step"] == 6 and f"{sev} target" in t3[0]["explanation"] and t3[0]["severity"] == SEV_WEIGHT["high"]
 
 
 def test_T3_routed_with_no_notification_at_all(ev):

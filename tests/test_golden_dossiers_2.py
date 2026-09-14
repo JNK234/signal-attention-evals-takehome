@@ -143,9 +143,9 @@ def test_sig_0202_high_confidence_on_one_source_late_notify_wrong_claim(corpus):
     opened 05-24, later. deserved_attention True on the confirmed billing trigger (label-gated)."""
     r = run(corpus, "sig_0202")
     assert {"P5", "T3", "M6"} <= rules(r) <= {"P5", "T3", "M6", "Q2"}
-    assert only(r, "P5")[0]["step"] == 2 and only(r, "P5")[0]["severity"] == 0.6
+    assert only(r, "P5")[0]["step"] == 2 and only(r, "P5")[0]["severity"] == 1.0
     t3 = only(r, "T3")[0]
-    assert t3["step"] == 6 and t3["severity"] == 0.3 and "77.1h" in t3["explanation"]
+    assert t3["step"] == 6 and t3["severity"] == 0.6 and "77.1h" in t3["explanation"]
     m6 = only(r, "M6")[0]
     assert m6["step"] == 2 and m6["severity"] == 0.6 and "paired -30.7%" in m6["explanation"]
     f = r["_facts"]
@@ -310,9 +310,9 @@ def test_sig_0394_customer_visible_play_on_legal_hold_plus_renotify_and_duplicat
     p2 = only(r, "P2")[0]
     assert p2["step"] == 6 and p2["severity"] == 1.0 and "legal_hold" in p2["explanation"] and "csm_checkin" in p2["explanation"]
     t2 = only(r, "T2")
-    assert len(t2) == 1 and t2[0]["severity"] == 0.3 and "0.9h" in t2[0]["explanation"]
+    assert len(t2) == 1 and t2[0]["severity"] == 0.6 and "0.9h" in t2[0]["explanation"]
     t3 = only(r, "T3")[0]
-    assert t3["step"] == 6 and t3["severity"] == 0.3 and "82.3h" in t3["explanation"]
+    assert t3["step"] == 6 and t3["severity"] == 0.6 and "82.3h" in t3["explanation"]
     q5 = only(r, "Q5")[0]
     assert "sig_0391" in q5["explanation"] and abs(q5["severity"] - 0.033) < 0.001
     f = r["_facts"]
@@ -322,7 +322,7 @@ def test_sig_0394_customer_visible_play_on_legal_hold_plus_renotify_and_duplicat
     assert f["final_state"] == "routed" and f["claim_status"] == []
     assert r["deserved_attention"] is False
     needs_labels(corpus)
-    assert "I5" in rules(r) and only(r, "I5")[0]["severity"] == 0.3
+    assert "I5" in rules(r) and only(r, "I5")[0]["severity"] == 1.0
     assert "no_hypothesis" in only(r, "I5")[0]["explanation"]
 
 
@@ -347,7 +347,7 @@ def test_sig_0415_fabricated_cancel_quote_high_confidence_on_nothing(corpus):
     i6 = only(r, "I6")[0]
     assert i6["step"] == 2 and i6["severity"] == 1.0 and "art_01279" in i6["explanation"]
     p5 = only(r, "P5")[0]
-    assert p5["severity"] == 0.6 and "0 distinct" in p5["explanation"]
+    assert p5["severity"] == 1.0 and "0 distinct" in p5["explanation"]
     f = r["_facts"]
     assert [e["status"] for e in f["evidence"]] == ["fabricated"]
     assert f["verified_sources"] == [] and f["has_customer_text"] is False
@@ -382,7 +382,7 @@ def test_sig_0441_ingest_gap_inflates_api_decline_routed_late_on_a_joke(corpus):
     r = run(corpus, "sig_0441")
     assert rules(r) == {"T3", "M6", "Q2"}
     t3 = only(r, "T3")[0]
-    assert t3["step"] == 8 and t3["severity"] == 0.3 and "75.7h" in t3["explanation"]
+    assert t3["step"] == 8 and t3["severity"] == 0.6 and "75.7h" in t3["explanation"]
     m6 = only(r, "M6")[0]
     assert m6["step"] == 2 and m6["severity"] == 0.6
     assert "ingest gap" in m6["explanation"] and "inflated real decline" in m6["explanation"] and "legacy" not in m6["explanation"]
@@ -426,7 +426,7 @@ def test_sig_0003_impossible_minus_112_on_one_source_high_confidence(corpus):
     r = run(corpus, "sig_0003")
     assert {"P5", "M6"} <= rules(r) <= {"P5", "M6", "Q2"}
     p5 = only(r, "P5")[0]
-    assert p5["step"] == 2 and p5["severity"] == 0.6 and "1 distinct" in p5["explanation"]
+    assert p5["step"] == 2 and p5["severity"] == 1.0 and "1 distinct" in p5["explanation"]
     m6 = only(r, "M6")
     assert len(m6) == 1 and m6[0]["step"] == 2 and m6[0]["severity"] == 0.6 and "paired -21.2%" in m6[0]["explanation"]
     f = r["_facts"]
@@ -524,7 +524,7 @@ def test_sig_0442_fast_tracked_scoring_paged_at_3am_ingest_gap_manufactures_the_
     t1 = only(r, "T1")
     assert len(t1) == 1 and t1[0]["step"] == 4 and t1[0]["severity"] == 0.3 and "03:32" in t1[0]["explanation"]
     t2 = only(r, "T2")
-    assert len(t2) == 1 and t2[0]["step"] == 4 and t2[0]["severity"] == 0.3 and "5.1h" in t2[0]["explanation"]
+    assert len(t2) == 1 and t2[0]["step"] == 4 and t2[0]["severity"] == 0.6 and "5.1h" in t2[0]["explanation"]
     m6 = only(r, "M6")[0]
     assert m6["step"] == 2 and m6["severity"] == 0.6
     assert "ingest gap" in m6["explanation"] and "inflated real decline" in m6["explanation"] and "legacy" not in m6["explanation"]
@@ -652,11 +652,11 @@ def test_sig_0606_grounded_holiday_dip_routed_late_at_night_on_a_legal_hold_acco
     assert len(q4) == 2 and any("art_03246" in v["explanation"] and "2 times" in v["explanation"] for v in q4)
     assert any("requested again" in v["explanation"] for v in q4)
     p5 = only(r, "P5")[0]
-    assert p5["step"] == 2 and p5["severity"] == 0.6 and "1 distinct" in p5["explanation"]
+    assert p5["step"] == 2 and p5["severity"] == 1.0 and "1 distinct" in p5["explanation"]
     t1 = only(r, "T1")
     assert len(t1) == 1 and t1[0]["step"] == 6 and t1[0]["severity"] == 0.3 and "21:20" in t1[0]["explanation"]
     t3 = only(r, "T3")[0]
-    assert t3["step"] == 6 and t3["severity"] == 0.3 and "88.7h" in t3["explanation"]
+    assert t3["step"] == 6 and t3["severity"] == 0.6 and "88.7h" in t3["explanation"]
     p2 = only(r, "P2")[0]
     assert p2["step"] == 6 and p2["severity"] == 1.0 and "legal_hold" in p2["explanation"]
     assert "7,000" in only(r, "M4")[0]["explanation"] and only(r, "M4")[0]["severity"] == 0.6

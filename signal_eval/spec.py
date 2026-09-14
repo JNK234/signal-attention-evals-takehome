@@ -9,23 +9,23 @@ from datetime import date
 # Rule table  (id, spec reference, severity class, check module that owns it)
 # ──────────────────────────────────────────────────────────────────────────────
 RULES = [
-    ("I1", "spec §4.6 / §7 I1  no backward transition (except low-conf → corroborating)", "high",     "lifecycle"),
+    ("I1", "spec §4.6 / §7 I1  no backward transition (except low-conf → corroborating)", "critical", "lifecycle"),
     ("I2", "spec §7 I2  exit states are final",                                            "critical", "lifecycle"),
     ("I3", "spec §7 I3  one state at a time (lifecycle continuity)",                       "critical", "lifecycle"),
     ("TM", "spec §4.7 Table 6  transition matrix edge / trigger",                          "high",     "lifecycle"),
     ("I4", "spec §5 Table 7  action must ride its allowed transition",                     "high",     "lifecycle"),
-    ("I5", "spec §7 I5  exactly one hypothesis; not no_hypothesis when evidence is clear", "medium",   "lifecycle"),
+    ("I5", "spec §7 I5  exactly one hypothesis; not no_hypothesis when evidence is clear", "critical", "lifecycle"),
     ("I6", "spec §7 I6  evidence must be real (exists, same account, verbatim)",           "critical", "evidence"),
     ("P1", "spec §8.1  mandatory-route trigger must not be suppressed",                    "critical", "mandatory"),
     ("P2", "spec §8.2  no customer-visible play on legal_hold / mna_quiet_period",         "critical", "policy"),
     ("P3", "spec §8.3  restricted artefact must not be quoted in a routed dossier",        "critical", "policy"),
     ("P4", "spec §8.4  cross-tenant isolation",                                            "critical", "evidence"),
-    ("P5", "spec §8.5  high confidence needs ≥2 distinct sources",                         "high",     "policy"),
+    ("P5", "spec §8.5  high confidence needs ≥2 distinct sources",                         "critical", "policy"),
     ("P6", "spec §8.6  notify on owner's channel and locale",                              "soft",     "timing"),
-    ("P7", "spec §8.7  no raw email / phone in routed quotes",                             "high",     "policy"),
+    ("P7", "spec §8.7  no raw email / phone in routed quotes",                             "critical", "policy"),
     ("T1", "spec §6.1  notify 08:00–19:00 in owner timezone (P0 exempt)",                  "medium",   "timing"),
-    ("T2", "spec §6.2  ≥6h between notifications, ≤3 total",                               "medium",   "timing"),
-    ("T3", "spec §6.3  time-to-attention target per severity",                             "medium",   "timing"),
+    ("T2", "spec §6.2  ≥6h between notifications, ≤3 total",                               "high",     "timing"),
+    ("T3", "spec §6.3  time-to-attention target per severity",                             "high",     "timing"),
     ("T4", "spec §6.4  staleness: expire only after 14 idle days",                         "medium",   "timing"),
     ("M1", "spec §9 M1  arr_at_risk ≤ arr_annual",                                         "high",     "materiality"),
     ("M2", "spec §9 M2  materiality_floor ≤ arr_annual",                                   "high",     "materiality"),
@@ -43,7 +43,25 @@ RULE_SEVERITY = {rid: sev for rid, _, sev, _ in RULES}
 RULE_REF = {rid: ref for rid, ref, _, _ in RULES}
 RULE_OWNER = {rid: owner for rid, _, _, owner in RULES}
 
-# spec §11 summary table — severity reported on each violation
+# ── severity class per rule: spec §11 summary table is the source ─────────────
+# The table maps a *family* to a word, and every class above is read off it:
+#   Invariant violation → Critical            I1–I6
+#   Fabricated evidence → Critical            I6
+#   Policy or containment failure → Critical  P1–P7
+#   Missed mandatory route → Critical         P1
+#   Invalid state transition → High           TM, I4
+#   Materiality or grounding error → High     M1–M6
+#   Timing violation → Medium–High            T1–T4
+#   Quality issue → Variable                  Q1–Q5
+#
+# Two places where a more specific spec sentence overrides the table, both deliberate:
+#   P6  §8.6 calls it "a low-severity failure but a persistent one" in the rule's own text,
+#       so it is soft rather than the critical the policy row would give it.
+#   T1–T4  "Medium–High" is a range, not a value. Split on whether the breach costs the
+#       queue or merely annoys: T2 (§6.2 "owners… stop reading the queue, which costs more
+#       than the signal was worth") and T3 (§6.3, the time-to-attention target the product
+#       sells) are high; T1 (off-hours page, recoverable) and T4 (housekeeping) are medium.
+# "Variable" for Q1–Q5 is read as flat soft except Q5, whose count-scaling §10 states outright.
 SEV_WEIGHT = {"critical": 1.0, "high": 0.6, "medium": 0.3, "soft": 0.1}
 # A finding the evaluator cannot be certain of (partial evidence, unverifiable input) carries this fraction of
 # its class weight. It is the only severity modifier; magnitude (hours late, pp off) stays in the explanation.

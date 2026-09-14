@@ -27,7 +27,9 @@ def ts(s):
 def main():
     D = E._load("signal_dossiers.jsonl")
     A = E._load("artifacts.jsonl")
-    ev = SignalEvaluator(label_cache_path=E.LABEL_CACHE if E.LABEL_CACHE.exists() else None)
+    # LABEL_CACHE is None by default, meaning "use labellers.default_cache_path"; only an
+    # explicitly set path is worth probing, and only if it is actually there.
+    ev = SignalEvaluator(label_cache_path=E.LABEL_CACHE if E.LABEL_CACHE and E.LABEL_CACHE.exists() else None)
     ev.load_context(E._load("accounts.jsonl"), E._load("owners.jsonl"), E._load("telemetry.jsonl"), A, D)
     arts = ev.cx.artifacts
     outcomes = {o["signal_id"]: o for o in E._load("outcomes.jsonl")}

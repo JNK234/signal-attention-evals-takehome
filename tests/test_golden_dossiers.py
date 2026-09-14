@@ -180,7 +180,7 @@ def test_sig_0015_enrichment_timeout_then_routed_late(corpus):
     r = run(corpus, "sig_0015")
     assert {"I4", "T3"} <= rules(r) <= {"I4", "T3", "Q2"}
     assert only(r, "I4")[0]["step"] == 4 and "notify_owner" in only(r, "I4")[0]["explanation"]
-    assert only(r, "T3")[0]["severity"] == 0.3
+    assert only(r, "T3")[0]["severity"] == 0.6
     f = r["_facts"]
     assert f["reached_human"] is True and f["triggers"] == [] and f["days_to_renewal"] == 34
     needs_labels(corpus)
@@ -199,7 +199,7 @@ def test_sig_0278_legacy_double_count_artifact_and_backward_move(corpus):
     r = run(corpus, "sig_0278")
     assert rules(r) == {"I1", "TM", "T3", "M4", "M6"}
     assert only(r, "I1")[0]["step"] == 3 and only(r, "TM")[0]["step"] == 4
-    assert only(r, "T3")[0]["severity"] == 0.3 and "91.3h" in only(r, "T3")[0]["explanation"]
+    assert only(r, "T3")[0]["severity"] == 0.6 and "91.3h" in only(r, "T3")[0]["explanation"]
     assert "2,500" in only(r, "M4")[0]["explanation"]
     assert "legacy" in only(r, "M6")[0]["explanation"] and "inflated real decline" in only(r, "M6")[0]["explanation"]
     f = r["_facts"]

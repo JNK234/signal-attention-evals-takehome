@@ -128,7 +128,7 @@ def test_P5_two_artefacts_of_the_same_source_type_is_one_source(ev):
         p5 = only(ev.evaluate(d), "P5")
     finally:
         del ev.cx.artifacts["art_T2"]
-    assert len(p5) == 1 and "1 distinct" in p5[0]["explanation"] and p5[0]["severity"] == SEV_WEIGHT["high"]
+    assert len(p5) == 1 and "1 distinct" in p5[0]["explanation"] and p5[0]["severity"] == SEV_WEIGHT["critical"]
 
 
 def test_P5_high_confidence_with_zero_evidence(ev):
@@ -167,7 +167,7 @@ def test_P7_phone_number_in_routed_quote(ev):
         p7 = only(ev.evaluate(d), "P7")
     finally:
         ev.cx.artifacts["art_T1"] = ARTIFACT
-    assert len(p7) == 1 and p7[0]["step"] == 2 and p7[0]["severity"] == SEV_WEIGHT["high"]
+    assert len(p7) == 1 and p7[0]["step"] == 2 and p7[0]["severity"] == SEV_WEIGHT["critical"]
 
 
 def test_P7_contact_details_in_a_suppressed_dossier_is_not_P7(ev):

@@ -60,7 +60,7 @@ def test_backward_at_low_then_at_medium_flags_only_the_second_move(ev):
     r = ev.evaluate(d)
     i1 = only(r, "I1")
     assert len(i1) == 1 and i1[0]["step"] == 5 and "medium" in i1[0]["explanation"]
-    assert i1[0]["severity"] == SEV_WEIGHT["high"]
+    assert i1[0]["severity"] == SEV_WEIGHT["critical"]
     assert any("2 hypotheses" in v["explanation"] for v in only(r, "I5"))
 
 
@@ -347,7 +347,7 @@ def test_two_hypotheses_is_I5_with_the_count(ev):
     d = happy_dossier()
     d["hypotheses"].append({"step": 4, "hypothesis": "product_gap", "confidence": "low", "evidence_refs": [], "rationale": ""})
     i5 = only(ev.evaluate(d), "I5")
-    assert len(i5) == 1 and i5[0]["step"] == 2 and "2 hypotheses" in i5[0]["explanation"] and i5[0]["severity"] == SEV_WEIGHT["medium"]
+    assert len(i5) == 1 and i5[0]["step"] == 2 and "2 hypotheses" in i5[0]["explanation"] and i5[0]["severity"] == SEV_WEIGHT["critical"]
 
 
 def test_hypothesis_with_none_class_is_I5(ev):

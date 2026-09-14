@@ -155,7 +155,7 @@ def test_no_hypothesis_while_customer_text_reads_as_a_topic_is_I5(ev):
     d = happy_dossier()
     d["hypotheses"][0]["hypothesis"] = "no_hypothesis"
     i5 = only(ev.evaluate(d), "I5")
-    assert len(i5) == 1 and i5[0]["step"] == 2 and "product_gap" in i5[0]["explanation"] and i5[0]["severity"] == SEV_WEIGHT["medium"]
+    assert len(i5) == 1 and i5[0]["step"] == 2 and "product_gap" in i5[0]["explanation"] and i5[0]["severity"] == SEV_WEIGHT["critical"]
 
 
 def test_hypothesis_contradicted_by_the_evidence_topic_is_Q2(ev):

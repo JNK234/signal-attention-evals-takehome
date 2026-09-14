@@ -359,6 +359,8 @@ class Context:
             "floor": src.get("materiality_floor", md.get("materiality_floor")),
             # an account record with an empty flag list wins over the snapshot: [] is an answer, None is not
             "flags": set(acc["flags"]) if acc is not None and acc.get("flags") is not None else set(md.get("account_flags") or []),
+            # accounts.jsonl calls it `tier`, the dossier snapshot calls it `account_tier`
+            "tier": src.get("tier", md.get("account_tier")),
             "region": src.get("region"),
             "collector": src.get("collector"),
             "seats": src.get("seats_contracted", md.get("seats_contracted")),
