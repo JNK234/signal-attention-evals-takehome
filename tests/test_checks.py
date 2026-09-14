@@ -149,6 +149,39 @@ def test_fabricated_quote_is_I6(ev):
     assert only(r, "I6")[0]["step"] == 2
 
 
+@pytest.mark.parametrize("artifact_text,quote,what", [
+    ("We are cancelling... probably.", "We are cancelling… probably.", "ellipsis"),
+    ("Usage is down -5% this month.", "Usage is down −5% this month.", "minus sign"),
+    ("It's not working for us.", "It’s not working for us.", "curly apostrophe"),
+    ('They called it "fine".', "They called it “fine”.", "curly double quotes"),
+])
+def test_a_quote_differing_only_in_typography_is_not_called_fabricated(artifact_text, quote, what):
+    """Spec §7 calls a fabricated quote "the most serious failure this system can produce", and §7 I6 asks
+    for a *verbatim* quote. A swapped ellipsis is therefore still a finding — but it is the agent's editor
+    reflowing punctuation, not the agent inventing evidence, so it must land on the near-verbatim branch at
+    half severity and never on the certain-critical one."""
+    art = dict(ARTIFACT, text=artifact_text)
+    e = SignalEvaluator(labeller=TableLabeller({}))
+    e.load_context([ACCOUNT], [OWNER], [], [art], [])
+    d = happy_dossier()
+    d["evidence"][0]["quote"] = quote
+    r = e.evaluate(d)
+    i6 = only(r, "I6")
+    assert len(i6) == 1, f"{what}: expected one I6, got {i6}"
+    assert i6[0]["severity"] == SEV_WEIGHT["critical"] * UNCERTAIN_FACTOR, f"{what}: {i6[0]}"
+    assert "normalisation" in i6[0]["explanation"] and "not found" not in i6[0]["explanation"], f"{what}: {i6[0]}"
+
+
+def test_a_genuinely_different_quote_is_still_fabricated():
+    """The guard on the fix: normalising typography must not make every quote match."""
+    e = SignalEvaluator(labeller=TableLabeller({}))
+    e.load_context([ACCOUNT], [OWNER], [], [ARTIFACT], [])
+    d = happy_dossier()
+    d["evidence"][0]["quote"] = "We are cancelling our contract immediately."
+    r = e.evaluate(d)
+    assert "I6" in rules(r) and only(r, "I6")[0]["severity"] == 1.0
+
+
 def test_other_accounts_artifact_is_P4(ev):
     d = happy_dossier()
     d["evidence"][0]["artifact_id"] = "art_OTHER"

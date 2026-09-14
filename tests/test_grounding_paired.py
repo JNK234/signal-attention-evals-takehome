@@ -229,3 +229,29 @@ def test_cohort_peer_below_pair_minimum_is_not_counted():
     rows = [x for x in rows if x["account_id"] != "acct_P0"] + thin
     r, rec, m6 = _run(rows, "dau_seats -32% week over week", accounts=accounts)
     assert rec["status"] == "grounded" and rec["cohort"] is None
+
+
+# ── the sign of a claim must survive how the author typed the minus ───────────
+
+@pytest.mark.parametrize("dash,name", [
+    ("−", "minus sign U+2212"),
+    ("–", "en dash U+2013"),
+    ("‐", "hyphen U+2010"),
+])
+def test_a_decline_written_with_a_typographic_minus_is_still_a_decline(dash, name):
+    """A word processor turns "-40%" into "−40%". The telemetry did not change, so the verdict must not:
+    read as +40% the claim is 80pp from the truth and the agent is accused of a wrong number it never made."""
+    rows = telemetry([100] * 7, [60] * 7)
+    ascii_r, ascii_rec, ascii_m6 = _run(rows, "dau_seats -40% week over week")
+    fancy_r, fancy_rec, fancy_m6 = _run(rows, f"dau_seats {dash}40% week over week")
+    assert ascii_rec["status"] == "grounded" and not ascii_m6            # the control
+    assert fancy_rec["status"] == "grounded", f"{name}: {fancy_rec.get('why') or fancy_rec}"
+    assert not fancy_m6, f"{name} was reported as a wrong claim: {fancy_m6}"
+    assert fancy_rec["claimed_pct"] == ascii_rec["claimed_pct"]
+
+
+def test_a_rise_claimed_against_a_fall_is_still_caught_after_the_dash_fix():
+    """The guard on the fix: making dashes negative must not make every claim pass. A genuine +40%
+    claim against a 40% fall is 80pp wrong and must still fire M6."""
+    r, rec, m6 = _run(telemetry([100] * 7, [60] * 7), "dau_seats +40% week over week")
+    assert rec["status"] == "wrong" and len(m6) == 1

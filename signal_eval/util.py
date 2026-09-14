@@ -4,9 +4,14 @@ ABOUTME: Regexes here are syntactic (percent, dollars, email, phone) — never p
 """
 
 import re
+import unicodedata
 from datetime import date, datetime, timezone
 
-PCT_RE = re.compile(r"([+-]?\d+(?:\.\d+)?)\s*%")
+# Every unicode dash a writer, an autocorrect or a locale may put where a programmer types "-".
+# U+2212 is the true minus sign; the rest are what word processors and copy-paste actually emit.
+# A claim's sign is the difference between a collapse and a recovery, so none of these may be dropped.
+DASHES = "-‐‑‒–—―−﹘﹣－"
+PCT_RE = re.compile(rf"([+{DASHES}]?\d+(?:[.,]\d+)?)\s*%")
 DOLLAR_RE = re.compile(r"\$\s?([\d,]+(?:\.\d+)?)")
 EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 # a phone number has ≥9 digits in total; "120 - 400" style numeric ranges do not
@@ -15,10 +20,11 @@ WS_RE = re.compile(r"\s+")
 
 # money: a currency symbol or ISO code is required, before or after the number; k/M multipliers count only
 # next to a currency ("90M rows", "18k row cap", "22m" are volumes and durations, not money)
-CURRENCY_SYMBOLS = {"$": "USD", "€": "EUR", "£": "GBP", "¥": "JPY"}
-CURRENCY_CODES = ("USD", "EUR", "GBP", "JPY", "INR")
+CURRENCY_SYMBOLS = {"$": "USD", "€": "EUR", "£": "GBP", "¥": "JPY", "₹": "INR", "₩": "KRW"}
+CURRENCY_CODES = ("USD", "EUR", "GBP", "JPY", "INR", "KRW", "CHF", "CAD", "AUD", "SEK")
 _NUM = r"\d{1,3}(?:[,.]\d{2,3})+(?:[,.]\d{1,2})?|\d+(?:[,.]\d+)?"
-_CUR = r"[$€£¥]|" + "|".join(CURRENCY_CODES)
+# derived from CURRENCY_SYMBOLS, never re-listed: a symbol added above must not need a second edit here
+_CUR = "[" + re.escape("".join(CURRENCY_SYMBOLS)) + "]|" + "|".join(CURRENCY_CODES)
 MONEY_RE = re.compile(
     rf"(?:(?P<cur>{_CUR})\s?(?P<num>{_NUM})\s?(?P<mult>[kKmM])?(?![\w.,]\w))"
     rf"|(?:(?<![\w.,])(?P<num2>{_NUM})\s?(?P<mult2>[kKmM])?\s?(?P<cur2>{_CUR})(?![A-Za-z]))")
@@ -69,9 +75,17 @@ def num(x):
 
 
 def pct(claim):
-    """Signed percentage out of a claim string like 'api_calls -61% week over week'."""
+    """Signed percentage out of a claim string like 'api_calls -61% week over week'.
+
+    Any unicode dash counts as a minus: the agent's text is prose, and a word processor turning "-40%"
+    into "−40%" must not read as +40%. The separator inside the number goes through _amount, so a locale
+    writing "61,5%" means 61.5 while "1,234%" still means 1234."""
     m = PCT_RE.search(claim or "")
-    return float(m.group(1)) if m else None
+    if not m:
+        return None
+    raw = m.group(1)
+    sign = -1.0 if raw[0] in DASHES else 1.0
+    return sign * _amount(raw.lstrip("+" + DASHES))
 
 
 def dollars(text):
@@ -147,10 +161,24 @@ def split_quoted(text):
     return (head.rstrip() if tail else head), tail, marker
 
 
+# Quote characters by unicode category: Pi (initial), Pf (final) and the modifier apostrophes that
+# editors substitute for ' and ". Built once from the categories rather than listed by hand, so a
+# variant nobody thought of still folds.
+_QUOTE_MAP = {ord(c): "'" for c in "‘’‚‛‹›ʻʼʽˈ"}
+_QUOTE_MAP.update({ord(c): '"' for c in "“”„‟«»"})
+_QUOTE_MAP.update({ord(c): "-" for c in DASHES})
+
+
 def norm(s):
-    """Whitespace / smart-punctuation normalisation for the I6 near-match."""
-    return WS_RE.sub(" ", (s or "").replace("’", "'").replace("“", '"')
-                     .replace("”", '"').replace("–", "-").replace("—", "-")).strip().lower()
+    """Typographic normalisation for the I6 near-match: NFKC folds compatibility forms (… → ..., fullwidth
+    → ASCII, ligatures), then every dash and quote variant maps to its ASCII form, then whitespace and case.
+
+    This decides whether a quote was fabricated — spec §7's most serious finding — so a sentence that
+    differs from its artefact only by an ellipsis character must not read as invented evidence. Accents are
+    deliberately left alone: 'café' and 'cafe' are different words, and folding them would weaken the check
+    rather than strengthen it."""
+    folded = unicodedata.normalize("NFKC", s or "").translate(_QUOTE_MAP)
+    return WS_RE.sub(" ", folded).strip().lower()
 
 
 def mean(xs):
