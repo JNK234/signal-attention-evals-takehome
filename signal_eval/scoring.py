@@ -4,9 +4,7 @@ ABOUTME: deserved_attention. Every constant traces to a spec sentence, a measure
 ABOUTME: standard; each is sourced at its definition. Layer 1 (checks) does not depend on this.
 """
 
-from .labels import TOPIC_LABELS
-from .spec import BENIGN_CLASS, META_RULES, RULE_SEVERITY, SEV_WEIGHT
-from .util import author_class
+from .spec import META_RULES, RULE_SEVERITY, SEV_WEIGHT
 
 # What one rule of each class costs quality_score. One penalty per rule id (its worst instance).
 #
@@ -63,45 +61,49 @@ def quality_score(violations):
     return round(q, 3) if q >= 0.001 else float(f"{q:.3g}")
 
 
-def current_customer_topic(ctx):
-    """The first non-benign topic a verified, current (check_evidence drops stale), customer-authored artefact
-    reads as at depth 0, or None. The reading's verdicts are the only witness — not the agent's hypothesis."""
-    for a in ctx.get("verified") or []:
-        if author_class(a.get("author_type")) != "customer":
-            continue
-        verdict = ((a.get("_label") or {}).get("reading") or {}).get("verdict") or {}
-        for label in TOPIC_LABELS:
-            topic = label[len("topic:"):]
-            if topic != BENIGN_CLASS and verdict.get(label) is True:
-                return topic
-    return None
+def _confirmed_triggers(d, ctx, loaded):
+    return sorted((ctx.get("trigger_source") or {}).get("confirmed") or ())
+
+
+def _timed_out(d, ctx, loaded):
+    return bool(ctx.get("enrichment_timed_out"))
+
+
+def _cold_path_trigger(d, ctx, loaded):
+    return None if loaded else sorted((ctx.get("trigger_source") or {}).get("uncertain") or ())
+
+
+# Every condition under which a human must see the signal. A row without a spec citation does not belong
+# here: the spec never says positively what deserves attention except in these two places, and inventing a
+# third — "usage fell", "a customer is unhappy" — is a judgment the spec declines to make, so we decline too.
+# A table rather than an if/elif chain because these are independent conditions, not a precedence order.
+DESERVES = [
+    ("§8.1", "mandatory-route trigger", _confirmed_triggers),
+    ("§4.6", "enrichment timed out; a signal that timed out waiting for data must still reach a human", _timed_out),
+    # The one row that is judgment, not spec text, and is allow-listed as such in the tests. On the cold path
+    # load_context was never called, so authorship cannot be confirmed and a quote reading as a trigger can
+    # only be an uncertain one. The alternative — False — would let an uncalled load_context silently make
+    # every signal undeserving, which is a worse failure than over-reporting on the path we warn about.
+    ("A8", "cold path, author unknown: quote reads as a trigger", _cold_path_trigger),
+]
 
 
 def deserved_attention(d, ctx, loaded):
-    """Did the *signal* deserve a human, independent of how well the dossier was built? Ordered rules; first
-    match wins; returns (bool, reason). Reads only what the evidence and telemetry show — never the agent's
-    hypothesis or arr_at_risk, which would grade the agent with its own answer."""
-    src = ctx.get("trigger_source") or {}
-    confirmed, uncertain = set(src.get("confirmed") or ()), set(src.get("uncertain") or ())
-    if confirmed:
-        return True, "mandatory-route trigger"
-    if not loaded:
-        # A8: the dossier's own quotes are all there is; a depth-0 quote that reads as a trigger counts,
-        # with the author unknown it can only be an uncertain one
-        if uncertain:
-            return True, f"cold path, author unknown: quote reads as {sorted(uncertain)}"
-        return False, "no context"
-    topic = current_customer_topic(ctx)
-    if topic:
-        return True, f"current customer text: {topic}"
-    cohort = ctx.get("cohort_match")
-    if "grounded" in ctx.get("claim_status", []):
-        if not cohort:
-            return True, "grounded account-specific decline"
-        return False, f"grounded decline shared by the cohort ({cohort['key']}={cohort['value']}), no trigger, no current customer text"
-    if uncertain:
-        return False, "trigger unverifiable"
-    return False, "no trigger, no current customer text, no grounded decline"
+    """Did the *signal* deserve a human, independent of how well the dossier was built? Returns (bool, reason).
+
+    Reads only the spec's own positive obligations, and only from evidence — never the agent's hypothesis,
+    severity or arr_at_risk, which the spec itself calls "the agent's estimate" (§9) and which M1/M5 catch it
+    getting wrong. Grading the agent with its own answer would let it excuse itself by understating a number.
+
+    Materiality deliberately does not gate this. M3/M4 constrain *routing* ("must not route it as-is") and
+    M4's own remedy is to re-scope rather than drop, so a below-floor signal may still have deserved a look.
+    """
+    for rid, ref, matches in DESERVES:
+        hit = matches(d, ctx, loaded)
+        if hit:
+            detail = f": {hit}" if isinstance(hit, list) else ""
+            return True, f"{rid} {ref}{detail}"
+    return False, "no spec condition requires a human"
 
 
 # What a missed risk costs, by account tier. docs/domain.md prices the two error directions

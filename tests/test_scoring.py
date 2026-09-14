@@ -3,6 +3,7 @@ ABOUTME: Known-answer tests for the rubric — quality_score's additive penaltie
 ABOUTME: provenance, and deserved_attention resting on triggers and evidence, never the agent's own answer.
 """
 
+import pytest
 from conftest import ACCOUNT, ARTIFACT, OWNER, SignalEvaluator, explain, happy_dossier, with_labels
 from signal_eval.labellers import TableLabeller
 from signal_eval.scoring import QUALITY_PENALTY, quality_score
@@ -27,74 +28,32 @@ def agent_says_benign_and_tiny(d):
     return d
 
 
-def test_deserved_ignores_hypothesis_and_arr_at_risk_with_a_trigger(ev):
+def test_deserved_ignores_the_agents_own_hypothesis_and_arr_at_risk(ev):
+    """§9 calls arr_at_risk "the agent's estimate"; the hypothesis is the agent's conclusion. Neither may
+    change whether the SIGNAL deserved a human, or the agent would be grading itself."""
     with_labels(ev, CANCEL)
     a = deserved(ev, happy_dossier())
     b = deserved(ev, agent_says_benign_and_tiny(happy_dossier()))
-    assert a[:2] == b[:2] == (True, "mandatory-route trigger")
+    assert a[0] is b[0] is True and a[1] == b[1] and "8.1" in a[1]
 
 
-def test_deserved_ignores_hypothesis_and_arr_at_risk_with_customer_text(ev):
-    with_labels(ev, BUDGET)
-    a = deserved(ev, happy_dossier())
-    b = deserved(ev, agent_says_benign_and_tiny(happy_dossier()))
-    assert a[:2] == b[:2] == (True, "current customer text: budget_pressure")
-
-
-def test_below_floor_with_current_customer_text_is_deserved(ev):
-    with_labels(ev, BUDGET)
+def test_below_floor_does_not_veto_a_mandatory_route(ev):
+    """The principle the old customer-text test carried, re-targeted to the rule the spec actually states:
+    §8.1 is unconditional, and M4 governs routing ("must not route it as-is"), not deserving."""
+    with_labels(ev, CANCEL)
     d = happy_dossier()
     d["scoring"]["arr_at_risk"] = 5_000                      # floor is 18,000: the agent under-scoped it
     d["actions"][2]["params"]["arr_at_risk"] = 5_000
-    assert deserved(ev, d)[:2] == (True, "current customer text: budget_pressure")
-
-
-def test_benign_topic_alone_is_not_current_customer_text(ev):
-    with_labels(ev, {"backfill": {"topic:benign_variation": 0.9}})
-    ok, why, _ = deserved(ev, happy_dossier())
-    assert ok is False and why == "no trigger, no current customer text, no grounded decline"
+    ok, why, _ = deserved(ev, d)
+    assert ok is True and "8.1" in why
 
 
 def test_uncertain_trigger_is_recorded_but_not_deserved(ev):
+    """§8.1 asks what is "present in the evidence". A trigger we cannot confirm is not that."""
     with_labels(ev, MAYBE_CANCEL)
     ok, why, r = deserved(ev, happy_dossier())
-    assert ok is False and why == "trigger unverifiable"
+    assert ok is False, why
     assert r["_facts"]["trigger_source"]["uncertain"] == ["cancel_intent"] and r["_facts"]["triggers"] == ["cancel_intent"]
-
-
-def _cohort_eval(table):
-    accounts, rows = _cohort_corpus(["emea"] * 6)              # six industry peers at −30%, target −32%
-    e = SignalEvaluator(labeller=TableLabeller(table))
-    e.load_context(accounts, [OWNER], rows, [ARTIFACT], [])
-    d = happy_dossier()
-    d["hypotheses"][0]["hypothesis"] = "benign_variation"
-    d["metrics_claimed"] = [{"step": 2, "metric": "dau_seats", "window_days": 7, "as_of": "2026-03-01",
-                             "value_before": None, "value_after": None, "claim": "dau_seats -32% week over week"}]
-    return e, d
-
-
-def test_cohort_match_explains_a_grounded_decline_as_not_deserved():
-    e, d = _cohort_eval({})
-    ok, why, r = deserved(e, d)
-    assert r["_facts"]["claim_status"] == ["grounded"] and r["_facts"]["cohort_match"]["key"] == "industry"
-    assert ok is False and "cohort" in why
-
-
-def test_grounded_decline_without_cohort_is_deserved():
-    # peers in another industry and spread over regions (< 5 each): neither cohort key matches
-    accounts, rows = _cohort_corpus(["latam", "apac", "na", "latam", "apac", "na"], peer_industry="other")
-    e = SignalEvaluator(labeller=TableLabeller({}))
-    e.load_context(accounts, [OWNER], rows, [ARTIFACT], [])
-    d = happy_dossier()
-    d["metrics_claimed"] = [{"step": 2, "metric": "dau_seats", "window_days": 7, "as_of": "2026-03-01",
-                             "value_before": None, "value_after": None, "claim": "dau_seats -32% week over week"}]
-    ok, why, r = deserved(e, d)
-    assert r["_facts"]["cohort_match"] is None and (ok, why) == (True, "grounded account-specific decline")
-
-
-def test_cohort_match_does_not_veto_current_customer_text():
-    e, d = _cohort_eval(BUDGET)
-    assert deserved(e, d)[:2] == (True, "current customer text: budget_pressure")
 
 
 def test_cold_path_cancel_quote_is_deserved_with_cold_path_reason():
@@ -102,13 +61,26 @@ def test_cold_path_cancel_quote_is_deserved_with_cold_path_reason():
     d = happy_dossier()
     d["evidence"][0]["quote"] = "We will not be renewing."
     ok, why, r = deserved(e, d)
-    assert ok is True and why.startswith("cold path, author unknown")
+    assert ok is True and "cold path" in why
     assert r["_facts"]["trigger_source"]["uncertain"] == ["cancel_intent"] and r["_facts"]["trigger_source"]["confirmed"] == []
 
 
 def test_cold_path_without_quote_trigger_is_not_deserved():
     e = SignalEvaluator(labeller=TableLabeller({}))
-    assert deserved(e, happy_dossier())[:2] == (False, "no context")
+    assert deserved(e, happy_dossier())[0] is False
+
+
+def _cohort_eval(table):
+    """A target account declining −32% alongside six industry peers at −30%. Kept here because
+    test_checks.py's Q2 cohort case imports it; deserved_attention no longer reads cohorts at all."""
+    accounts, rows = _cohort_corpus(["emea"] * 6)
+    e = SignalEvaluator(labeller=TableLabeller(table))
+    e.load_context(accounts, [OWNER], rows, [ARTIFACT], [])
+    d = happy_dossier()
+    d["hypotheses"][0]["hypothesis"] = "benign_variation"
+    d["metrics_claimed"] = [{"step": 2, "metric": "dau_seats", "window_days": 7, "as_of": "2026-03-01",
+                             "value_before": None, "value_after": None, "claim": "dau_seats -32% week over week"}]
+    return e, d
 
 
 def test_risk_P1_branch_needs_a_confirmed_trigger(ev):
@@ -238,3 +210,124 @@ def test_risk_reads_reached_human_off_the_dossier_not_off_outcomes(ev):
             e["from_state"], e["to_state"] = "scored", "suppressed"
     after = explain(ev, d)["risk_score"]
     assert before != after      # the dossier's own record moved the score; nothing external did
+
+
+# ── deserved_attention: only what the spec authorises ─────────────────────────
+# The spec never says positively what deserves a human except in two places. §8.1 lists five
+# mandatory-route triggers the agent "must put a human on ... and must not suppress". §4.6 says a
+# signal that timed out waiting for data "must still reach a human". Everything else is a judgment
+# the spec declines to make, so the evaluator declines to make it too.
+
+TRIGGER_TEXT = {
+    "cancel_intent":     ("We will not be renewing our contract.", "not be renewing"),
+    "legal_reference":   ("Our counsel has reviewed this and we reserve our rights.", "counsel"),
+    "security_incident": ("Customer data was exposed to an unauthorised third party.", "exposed"),
+}
+
+
+@pytest.mark.parametrize("label", sorted(TRIGGER_TEXT))
+def test_each_mandatory_route_trigger_deserves_a_human(label, ev):
+    """spec §8.1: the agent "must put a human on the signal, and must not suppress it"."""
+    text, key = TRIGGER_TEXT[label]
+    art = dict(ARTIFACT, text=text)
+    e = SignalEvaluator(labeller=TableLabeller({key: {label: 0.9}}))
+    e.load_context([ACCOUNT], [OWNER], [], [art], [])
+    d = happy_dossier()
+    d["evidence"][0]["quote"] = text
+    ok, why, _ = deserved(e, d)
+    assert ok is True and "8.1" in why, why
+
+
+def test_a_mandatory_trigger_deserves_a_human_even_below_the_materiality_floor(ev):
+    """§8.1 is unconditional. arr_at_risk is the agent's own estimate (spec §9), so letting it veto a
+    mandatory route would let the agent excuse itself by understating its own number."""
+    with_labels(ev, CANCEL)
+    d = happy_dossier()
+    d["scoring"]["arr_at_risk"] = 5_000                      # floor is 18,000
+    d["actions"][2]["params"]["arr_at_risk"] = 5_000
+    ok, why, _ = deserved(ev, d)
+    assert ok is True and "8.1" in why
+
+
+def test_a_timed_out_signal_deserves_a_human(ev):
+    """spec §4.6: "A signal that timed out waiting for data must still reach a human" — the agent may not
+    suppress on the grounds that it never got the evidence it asked for."""
+    from test_lifecycle import _timed_out
+    d = happy_dossier()
+    _timed_out(d)
+    ok, why, _ = deserved(ev, d)
+    assert ok is True and "4.6" in why, why
+
+
+def test_a_timed_out_signal_deserves_a_human_even_below_the_floor(ev):
+    from test_lifecycle import _timed_out
+    d = happy_dossier()
+    _timed_out(d)
+    d["scoring"]["arr_at_risk"] = 5_000
+    ok, why, _ = deserved(ev, d)
+    assert ok is True and "4.6" in why
+
+
+def test_a_grounded_decline_alone_does_not_deserve_a_human():
+    """No spec sentence says a usage decline requires a human. docs/domain.md: "a usage decline is not
+    automatically a risk". Without a §8.1 trigger this is a judgment the spec declines to make."""
+    accounts, rows = _cohort_corpus(["latam", "apac", "na", "latam", "apac", "na"], peer_industry="other")
+    e = SignalEvaluator(labeller=TableLabeller({}))
+    e.load_context(accounts, [OWNER], rows, [ARTIFACT], [])
+    d = happy_dossier()
+    d["metrics_claimed"] = [{"step": 2, "metric": "dau_seats", "window_days": 7, "as_of": "2026-03-01",
+                             "value_before": None, "value_after": None, "claim": "dau_seats -32% week over week"}]
+    ok, why, r = deserved(e, d)
+    assert r["_facts"]["claim_status"] == ["grounded"]       # the decline is real and account-specific
+    assert ok is False, why                                   # and still not something the spec routes
+
+
+def test_a_customer_asking_for_a_feature_does_not_deserve_a_human(ev):
+    """A product_gap topic is a hypothesis class (spec §3.2), not a mandatory-route trigger (§8.1).
+    Treating any non-benign customer topic as deserving fires on ordinary feature requests."""
+    with_labels(ev, {"backfill": {"topic:product_gap": 0.9}})
+    ok, why, _ = deserved(ev, happy_dossier())
+    assert ok is False, why
+
+
+def test_a_trigger_only_in_quoted_history_does_not_deserve_a_human(ev):
+    """§8.1 asks what is "present in the evidence", not what the customer said months ago and quoted back."""
+    art = dict(ARTIFACT, text="Thanks, all good now.\n\n> On 1 Feb 2026, Ada wrote:\n> We will not be renewing.")
+    e = SignalEvaluator(labeller=TableLabeller({"not be renewing": {"cancel_intent": 0.9}}))
+    e.load_context([ACCOUNT], [OWNER], [], [art], [])
+    d = happy_dossier()
+    d["evidence"][0]["quote"] = "Thanks, all good now."
+    ok, why, r = deserved(e, d)
+    assert r["_facts"]["trigger_source"]["confirmed"] == []
+    assert ok is False, why
+
+
+def test_a_cancellation_reported_by_an_internal_author_does_not_deserve_a_human():
+    """§8.1 bullet 1 requires "a customer-side author". An AE relaying a rumour is not that."""
+    art = dict(ARTIFACT, author_type="internal", text="I hear they will not be renewing.")
+    e = SignalEvaluator(labeller=TableLabeller({"not be renewing": {"cancel_intent": 0.9}}))
+    e.load_context([ACCOUNT], [OWNER], [], [art], [])
+    d = happy_dossier()
+    d["evidence"][0]["quote"] = "I hear they will not be renewing."
+    ok, why, r = deserved(e, d)
+    assert r["_facts"]["trigger_source"]["confirmed"] == []
+    assert ok is False, why
+
+
+def test_every_deserves_row_cites_a_real_spec_section():
+    """The rule that keeps us honest: a condition without a spec citation does not belong in the table.
+    One row (the cold path) is judgment and is allow-listed by id."""
+    import pathlib
+    import re
+
+    from signal_eval.scoring import DESERVES
+    spec = (pathlib.Path(__file__).resolve().parents[1] / "spec.tex").read_text()
+    JUDGMENT_ROWS = {"A8"}
+    assert DESERVES, "the table must not be empty"
+    for rid, ref, _ in DESERVES:
+        if rid in JUDGMENT_ROWS:
+            continue
+        n = re.fullmatch(r"§(\d+(?:\.\d+)?)", rid)
+        assert n, f"{rid!r} is neither a spec section nor an allow-listed judgment row"
+        assert re.search(r"\\(sub)*section\{", spec), "spec.tex has no sections; the test is broken"
+        assert ref, f"{rid} has no description"

@@ -7,7 +7,7 @@ from collections import Counter
 from datetime import timedelta
 
 from ..labels import TOPIC_LABELS, decide
-from ..spec import ADOPTION_FULL_FRACTION, violation
+from ..spec import ADOPTION_FULL_FRACTION, BENIGN_CLASS, violation
 from ..util import day, first_hypothesis, mean, ts
 
 # spec §10 Q2: "the hypothesis should match what the evidence actually shows". Every named cause needs
@@ -18,7 +18,7 @@ TELEMETRY_SUPPORT = {
     "onboarding_failure": {"dau_seats"},
 }
 NEEDS_SUPPORT = {"champion_departure", "budget_pressure", "product_gap", "reliability_erosion", "onboarding_failure",
-                 "benign_variation"}
+                 BENIGN_CLASS}
 TOPIC_NAMES = {k[len("topic:"):] for k in TOPIC_LABELS}
 
 
@@ -62,8 +62,8 @@ def check_quality(d, ctx, cx):
         if p95 and all(day(m["as_of"]) - timedelta(days=2 * int(m.get("window_days") or 7)) < cx.p95_step <= day(m["as_of"]) for m in p95):
             out.append(violation(hstep, "Q2", f"reliability_erosion rests only on a p95 claim spanning the {cx.p95_step} instrumentation change"))
     confirmed = (ctx.get("trigger_source") or {}).get("confirmed") or []
-    if hyp == "benign_variation" and confirmed:
-        out.append(violation(hstep, "Q2", f"benign_variation while mandatory trigger present: {sorted(confirmed)}"))
+    if hyp == BENIGN_CLASS and confirmed:
+        out.append(violation(hstep, "Q2", f"{BENIGN_CLASS} while mandatory trigger present: {sorted(confirmed)}"))
 
     # Q2 / I5 — model: does the evidence talk about what the agent claimed? Depth-0 verdicts and scores only.
     reads = _readings(ctx.get("verified"))
@@ -71,7 +71,7 @@ def check_quality(d, ctx, cx):
         support = max(r.get("score", {}).get(f"topic:{hyp}", 0.0) for r in reads)
         grounded_metrics = {c["metric"] for c in ctx.get("claim_detail", []) if c.get("status") == "grounded"}
         # benign_variation is supported by a cohort-wide move (the M6 cohort fact), the named causes by telemetry
-        telemetry_support = (bool(ctx.get("cohort_match")) if hyp == "benign_variation"
+        telemetry_support = (bool(ctx.get("cohort_match")) if hyp == BENIGN_CLASS
                              else bool(grounded_metrics & TELEMETRY_SUPPORT.get(hyp, set())))
         ctx["hypothesis_text_support"] = support
         # decide() under the labeller's band: an abstain (None) is not "unsupported"
@@ -86,13 +86,13 @@ def check_quality(d, ctx, cx):
             out.append(violation(hstep, "I5", f"no_hypothesis while evidence reads as {top} ({n} artefact(s))"))
         elif hyp != top and n >= max(1, sum(topics.values()) // 2 + 1):
             out.append(violation(hstep, "Q2", f"hypothesis {hyp} but evidence reads as {top} ({n}/{sum(topics.values())} artefacts)"))
-    if hyp not in ("no_hypothesis", "benign_variation", None) and not ctx.get("verified") and ctx.get("stale"):
+    if hyp not in ("no_hypothesis", BENIGN_CLASS, None) and not ctx.get("verified") and ctx.get("stale"):
         out.append(violation(hstep, "Q2", f"{hyp} rests only on quoted-history / sarcastic evidence"))
-    if hyp not in ("benign_variation", None) and ctx.get("cohort_match") and not ctx.get("has_customer_text"):
+    if hyp not in (BENIGN_CLASS, None) and ctx.get("cohort_match") and not ctx.get("has_customer_text"):
         cm = ctx["cohort_match"]
         out.append(violation(hstep, "Q2", f"{hyp} on a cohort-wide move: {cm['metric']} median {cm['median_pct']:+.0f}% across "
                              f"{cm['n']} other {cm['key']}={cm['value']} accounts over the same window (calendar / cohort event)"))
-    if hyp not in ("benign_variation", None) and ctx.get("claim_status") and all(s == "artifact" for s in ctx["claim_status"]) and not ctx.get("has_customer_text"):
+    if hyp not in (BENIGN_CLASS, None) and ctx.get("claim_status") and all(s == "artifact" for s in ctx["claim_status"]) and not ctx.get("has_customer_text"):
         out.append(violation(hstep, "Q2", f"{hyp} rests only on pipeline-artefact claims"))
 
     # Q3 — calibration

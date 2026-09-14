@@ -81,11 +81,17 @@ def test_the_hypothesis_classes_have_a_single_definition():
 
 
 def test_benign_variation_is_named_from_the_vocabulary_not_a_literal():
-    """deserved_attention excludes exactly one class. If that name is a bare string in scoring.py it can
-    drift from the labeller's key, and benign variation silently starts deserving attention."""
-    from signal_eval import scoring
+    """Q2 treats exactly one hypothesis class specially: benign_variation needs a cohort move or seasonal
+    text to be supported. If that name is a bare string in the check it can drift from the labeller's key,
+    and the special case silently stops firing."""
+    import inspect
+
+    from signal_eval.checks import quality
     from signal_eval.spec import BENIGN_CLASS
-    assert BENIGN_CLASS in scoring.__dict__.values() or getattr(scoring, "BENIGN_CLASS", None) == BENIGN_CLASS
+    assert quality.BENIGN_CLASS == BENIGN_CLASS, "quality.py must import the constant, not redefine it"
+    src = inspect.getsource(quality)
+    assert f'"{BENIGN_CLASS}"' not in src and f"'{BENIGN_CLASS}'" not in src, \
+        "the class name is hardcoded as a literal somewhere in quality.py"
 
 
 # ── the closed-world behaviour that already works, pinned so it cannot regress ──

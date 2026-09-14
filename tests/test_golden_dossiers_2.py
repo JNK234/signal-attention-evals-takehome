@@ -178,7 +178,7 @@ def test_sig_0247_allowed_low_confidence_backtrack_then_floor_suppression(corpus
     'champion happy'; unattached art_01490 'add Klara Petrov to the admin group … New joiner' is an arrival, not a
     departure) → no P1. Q5: the open sig_0054 (same detector) opened 03-16, 52 days earlier — outside 7 days.
     benign_variation has no seasonal / holiday / planned-change text and no cohort → §10 Q2, label-gated.
-    deserved_attention False."""
+    deserved_attention True — §4.6 requires a human after an enrichment timeout."""
     r = run(corpus, "sig_0247")
     assert rules(r) <= {"Q2"}
     f = r["_facts"]
@@ -206,7 +206,7 @@ def test_sig_0350_suppressed_after_enrichment_timeout(corpus):
     art_03643 'champion moved to a new team internally but still owns the platform' is not a departure and art_03647
     (customer, 'Team is out … for the holiday') is benign → no P1. days_to_renewal 35. Q5: sig_0088 (03-31) and
     sig_0525 (06-19) are outside 7 days. benign_variation with only a platform-review note → Q2 label-gated.
-    deserved_attention False."""
+    deserved_attention True — §4.6 requires a human after an enrichment timeout."""
     r = run(corpus, "sig_0350")
     assert {"TM"} <= rules(r) <= {"TM", "Q2"}
     tm = only(r, "TM")
@@ -216,7 +216,9 @@ def test_sig_0350_suppressed_after_enrichment_timeout(corpus):
     assert [e["status"] for e in f["evidence"]] == ["verified"]
     assert f["has_customer_text"] is False and f["triggers"] == [] and f["reached_human"] is False
     assert f["days_to_renewal"] == 35 and f["claim_status"] == []
-    assert r["deserved_attention"] is False
+    # §4.6: "A signal that timed out waiting for data must still reach a human". It timed out at step 4
+    # and was suppressed with no notification, which is exactly what §4.6 forbids.
+    assert r["deserved_attention"] is True
     needs_labels(corpus)
     assert "Q2" in rules(r) and any("benign_variation" in v["explanation"] for v in only(r, "Q2"))
 
@@ -249,11 +251,9 @@ def test_sig_0383_impossible_minus_106_claim(corpus):
     assert f["verified_sources"] == ["chat_message", "support_ticket"] and f["has_customer_text"] is True
     assert f["triggers"] == [] and f["reached_human"] is False and f["days_to_renewal"] == 122
     assert "P5" not in rules(r) and "P1" not in rules(r)
-    if r["deserved_attention"]:
-        # placeholder rule (scoring.deserved_attention): any verified customer text reading as a non-benign topic is
-        # "current customer text", so a 25-day-old "Feature request: dark mode … Not urgent" counts. The hand
-        # derivation says it should not. Kept as an expected failure: the rubric step redefines deserved_attention.
-        pytest.xfail("placeholder deserved rule treats a non-urgent feature request as current customer text")
+    # A 25-day-old "Feature request: dark mode … Not urgent" is a product_gap hypothesis class (§3.2), not a
+    # mandatory-route trigger (§8.1). The hand derivation said False; the placeholder rule said True and this
+    # was an expected failure until deserved_attention was cut back to what the spec authorises.
     assert r["deserved_attention"] is False
     needs_labels(corpus)
     assert "Q2" in rules(r) and any("benign_variation" in v["explanation"] for v in only(r, "Q2"))
@@ -272,7 +272,7 @@ def test_sig_0391_legal_hold_watch_only_is_clean(corpus):
     reached_human False. No §8.1 trigger in the evidence or the unattached text (timezone question, seat true-ups,
     a second downsize note) → no P1. Q5: sig_0394 (same detector) opened after this one, so any duplicate finding
     lands there, not here. The hypothesis benign_variation is exactly what art_00042 says (a contracted downsize is a
-    planned change, §3.2) → no Q2 even with labels. Expected: no spec findings at all. deserved_attention False."""
+    planned change, §3.2) → no Q2 even with labels. Expected: no spec findings at all. deserved_attention True — §4.6 requires a human after an enrichment timeout."""
     r = run(corpus, "sig_0391")
     assert rules(r) == set()
     f = r["_facts"]
@@ -341,7 +341,7 @@ def test_sig_0415_fabricated_cancel_quote_high_confidence_on_nothing(corpus):
     quote is not evidence, so it carries no §8.1 trigger; the real artefact is positive and the other-account notice is
     not this account's; unattached art_01276 'champion moved to a new team internally … no risk change' is not a
     departure → no P1 (days_to_renewal 17). Q5: no other signal on the account. Q2 is admitted but not required —
-    §10 Q2 is about evidence the hypothesis fails to match, and this dossier has none. deserved_attention False."""
+    §10 Q2 is about evidence the hypothesis fails to match, and this dossier has none. deserved_attention True — §4.6 requires a human after an enrichment timeout."""
     r = run(corpus, "sig_0415")
     assert {"I6", "P5"} <= rules(r) <= {"I6", "P5", "Q2"}
     i6 = only(r, "I6")[0]
@@ -512,7 +512,7 @@ def test_sig_0442_fast_tracked_scoring_paged_at_3am_ingest_gap_manufactures_the_
     2026-06-18, 'treat this as our cancellation request', is unattached and lands after open; it would only matter for
     a signal no human saw). days_to_renewal −69. Q5: sig_0207 (seat_decay) closed 05-04, 42 days earlier. Q2:
     product_gap is what art_00988 reads as ('lost on scheduled PDF export. Quantiq is being pushed hard') → supported,
-    no Q2 even with labels. deserved_attention: no trigger; without labels the claim is an artefact and no topic is
+    no Q2 even with labels. deserved_attention False (§8.1 trigger absent); without labels the claim is an artefact and no topic is
     read → False; with labels the current customer text reads as product_gap → True under the placeholder rule, and by
     hand too (a champion naming a competitor eight days before open, with a formal cancellation four days later)."""
     r = run(corpus, "sig_0442")
@@ -577,7 +577,7 @@ def test_sig_0500_score_params_under_notify_owner_legal_hold_rca_share_gap_artif
     thing'; the economic buyer Michael Petrov is named as an attendee, not as leaving); routed and notified →
     reached_human True → no P1. days_to_renewal 48. Q5: sig_0606 (same detector) opens 07-05, later; sig_0501 is a
     usage_cliff. §10 Q2: benign_variation rests on product-gap tickets and a budget note with no holiday / seasonal /
-    planned-change reading and no cohort → Q2, label-gated. deserved_attention: no trigger; without labels the claim
+    planned-change reading and no cohort → Q2, label-gated. deserved_attention False (§8.1 trigger absent); without labels the claim
     is an artefact → False; with labels the placeholder rule counts the customer dark-mode tickets as a current
     non-benign topic (product_gap) → True — asserted as the placeholder gives it; by hand the tickets say 'not
     urgent' and the drop is a pipeline gap, so the signal did not deserve the RCA share it got."""
@@ -606,7 +606,9 @@ def test_sig_0500_score_params_under_notify_owner_legal_hold_rca_share_gap_artif
     needs_labels(corpus)
     assert f["triggers"] == []
     assert "Q2" in rules(r) and any("benign_variation" in v["explanation"] for v in only(r, "Q2"))
-    assert r["deserved_attention"] is True   # placeholder rule: current customer text reading as product_gap
+    # A product_gap ticket is a hypothesis class (§3.2), not a mandatory-route trigger (§8.1), and no
+    # enrichment timeout: the spec states no obligation to put a human on this.
+    assert r["deserved_attention"] is False
 
 
 def test_sig_0606_grounded_holiday_dip_routed_late_at_night_on_a_legal_hold_account(corpus):
@@ -638,7 +640,7 @@ def test_sig_0606_grounded_holiday_dip_routed_late_at_night_on_a_legal_hold_acco
     overage dispute) is 2.7% of ARR, under the 5% line; routed, notified and acknowledged → reached_human True → no P1.
     days_to_renewal 27. Q5: sig_0500 (same detector) opened 06-14, 21 days earlier — outside the 7-day window → no Q5.
     §10 Q2: benign_variation is the right answer but nothing attached supports it (bot maintenance posts are not read
-    for topics; the one customer ticket reads as product_gap) and no cohort → Q2, label-gated. deserved_attention True
+    for topics; the one customer ticket reads as product_gap) and no cohort → Q2, label-gated. deserved_attention False
     under the placeholder rule on both paths: a grounded claim with no cohort match (structural), and with labels the
     current customer text reads as product_gap — asserted as the placeholder gives it; by hand the dip is a
     customer-flagged holiday and did not deserve an RCA share."""
@@ -670,7 +672,9 @@ def test_sig_0606_grounded_holiday_dip_routed_late_at_night_on_a_legal_hold_acco
     assert f["reached_human"] is True and f["days_to_renewal"] == 27 and f["final_state"] == "acknowledged"
     assert f["duplicates"] == []
     assert not {"TM", "I1", "I2", "T2", "T4", "P6", "P7", "M6", "P1", "Q5"} & rules(r)
-    assert r["deserved_attention"] is True   # placeholder rule: grounded decline with no cohort match
+    # The seat decline is real and account-specific, but docs/domain.md says "a usage decline is not
+    # automatically a risk" and no §8.1 trigger is present — the spec does not route this.
+    assert r["deserved_attention"] is False
     needs_labels(corpus)
     assert f["triggers"] == []
     assert "Q2" in rules(r) and any("benign_variation" in v["explanation"] for v in only(r, "Q2"))
