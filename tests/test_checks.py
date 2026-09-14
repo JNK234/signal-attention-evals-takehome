@@ -302,8 +302,8 @@ def test_suppressed_after_enrichment_timeout_is_TM(ev):
         {"step": 4, "from_state": "evidence_pending", "to_state": "scored", "at": "2026-03-04T11:00:00Z", "trigger": "enrichment_timeout", "reason": ""},
         {"step": 5, "from_state": "scored", "to_state": "suppressed", "at": "2026-03-04T12:00:00Z", "trigger": "agent_action", "reason": "no data"},
     ]
-    d["actions"] = d["actions"][:2] + [{"step": 4, "action": "enrichment_timeout", "at": "2026-03-04T11:00:00Z", "params": {}},
-                                        {"step": 5, "action": "suppress", "at": "2026-03-04T12:00:00Z", "params": {}}]
+    d["actions"] = d["actions"][:2] + [{"step": 4, "action": "enrichment_timeout", "at": "2026-03-04T11:00:00Z", "params": {"waited_minutes": 2880}},
+                                        {"step": 5, "action": "suppress", "at": "2026-03-04T12:00:00Z", "params": {"reason": "no corroborating evidence"}}]
     d["notifications"] = []
     d["decision"].update(disposition="suppressed", recommended_play="watch_only")
     r = ev.evaluate(d)

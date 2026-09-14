@@ -69,15 +69,24 @@ def check_grounding(d, ctx, cx):
     af = ctx["acct"]
     for m in d.get("metrics_claimed") or []:
         metric = m.get("metric")
-        if metric not in TELEMETRY_METRICS:
+        if metric == "arr_at_risk":                       # a restatement of the agent's own figure: M5's business
             continue
         claimed = pct(m.get("claim"))
-        w, end = int(num(m.get("window_days")) or 7), day(m.get("as_of"))
+        w, end = num(m.get("window_days")), day(m.get("as_of"))
+        w = int(w) if w and w > 0 else None
         rec = {"step": m.get("step"), "metric": metric, "claimed_pct": claimed, "as_of": m.get("as_of"), "window_days": w}
         detail.append(rec)
-        if claimed is None or end is None:
-            rec.update(status="unverifiable", why="claim has no percentage or date")
+        # spec §9 M6: "every entry in metrics_claimed must be reproducible from telemetry.jsonl". A claim that cannot
+        # even be attempted — unknown metric, no percentage, no date, no window — is unverifiable, and that is a
+        # finding (uncertain), never silence (decision 7: silence cannot be read as a pass).
+        why = ("not a telemetry metric" if metric not in TELEMETRY_METRICS else
+               "no percentage in the claim" if claimed is None else
+               "no as_of date" if end is None else
+               "no window_days stated" if w is None else None)
+        if why:
+            rec.update(status="unverifiable", why=why)
             statuses.append("unverifiable")
+            out.append(violation(m.get("step"), "M6", f"{metric} claim {m.get('claim')!r} cannot be verified under M6: {why}", certain=False))
             continue
 
         raw_b, raw_a = _raw_sum(rows, metric, end - timedelta(days=w), w, af, cx), _raw_sum(rows, metric, end, w, af, cx)

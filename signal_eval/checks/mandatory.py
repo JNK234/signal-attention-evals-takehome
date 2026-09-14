@@ -6,7 +6,7 @@ ABOUTME: confirmed / uncertain / historical / unattributed triggers; P1 fires on
 from datetime import timedelta
 
 from ..labels import TRIGGER_LABELS
-from ..spec import BILLING_DISPUTE_PCT, DEPARTURE_WINDOW_DAYS, violation
+from ..spec import BILLING_DISPUTE_PCT, DEPARTURE_WINDOW_DAYS, EXIT_STATES, TTA_HOURS, violation
 from ..text import blocks
 from ..util import days_to_renewal, money, norm, reached_human, ts
 
@@ -215,6 +215,21 @@ def check_mandatory_route(d, ctx, cx):
     suppressed = disp == "suppressed" or any(e.get("to_state") == "suppressed" for e in lifecycle)
     # spec §8.1: the agent "must put a human on the signal, and must not suppress it" — two duties, either
     # breach is P1. spec §4.3: suppression is forbidden when a trigger is present, so notifying first is no cure.
+    # spec §8.1 gives the duty, §6.3 gives the clock: a signal still in a progression state, not closed, inside its
+    # time-to-attention target has failed neither yet — recorded as a pending trigger, not a missed route. Past the
+    # target it is a late route (uncertain: the record may simply end before the notification).
+    in_flight = not suppressed and not human and not d.get("closed_at") and ctx.get("final_state") not in EXIT_STATES
+    if trig and in_flight:
+        opened, seen = ts(d.get("opened_at")), [ts(e.get("at")) for e in lifecycle if ts(e.get("at"))]
+        hours = (max(seen) - opened).total_seconds() / 3600 if opened and seen else None
+        target = TTA_HOURS.get((d.get("scoring") or {}).get("severity"), TTA_HOURS["P1"])
+        if hours is not None and hours <= target:
+            ctx["pending_trigger"] = {"triggers": sorted(trig), "hours_open": round(hours, 1), "target_hours": target}
+            return out
+        out.append(violation(lifecycle[-1].get("step") if lifecycle else 0, "P1",
+                             f"still open {hours if hours is None else round(hours, 1)}h after opening with no human notified, past the "
+                             f"{target}h target, despite mandatory-route trigger(s): confirmed {sorted(merged['confirmed'])}", certain=False))
+        return out
     if trig and (suppressed or not human):
         step = next((e.get("step") for e in lifecycle if e.get("to_state") in ("suppressed", "expired")), 0)
         what = ("suppressed after a human was notified" if suppressed and human

@@ -115,7 +115,7 @@ def _timed_out(d):
         {"step": 4, "from_state": "evidence_pending", "to_state": "scored", "at": "2026-03-04T11:00:00Z", "trigger": "enrichment_timeout", "reason": ""},
     ]
     d["actions"] = d["actions"][:2] + [
-        {"step": 4, "action": "enrichment_timeout", "at": "2026-03-04T11:00:00Z", "params": {}},
+        {"step": 4, "action": "enrichment_timeout", "at": "2026-03-04T11:00:00Z", "params": {"waited_minutes": 2880}},
         {"step": 4, "action": "score_signal", "at": "2026-03-04T11:00:00Z", "params": {"severity": "P2", "arr_at_risk": 30_000, "confidence": "medium"}},
     ]
     d["notifications"] = []
