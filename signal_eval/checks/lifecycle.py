@@ -30,6 +30,7 @@ def check_transitions(d, ctx, cx):
     hyps = sorted(d.get("hypotheses") or [], key=lambda h: h.get("step") or 0)
     cur, closed, exit_at, prev_at = None, False, None, None
     visits, backward, timed_out = Counter(), 0, False
+    back_at = []          # when each backward move happened — Q1's "without adding evidence" needs the times
     detector = d.get("detector")
     for e in d.get("lifecycle") or []:
         s, f, t, trig = e.get("step"), e.get("from_state"), e.get("to_state"), e.get("trigger") or ""
@@ -67,6 +68,8 @@ def check_transitions(d, ctx, cx):
                 out.append(violation(s, "§4.8", f"{f}→{t} on trigger {trig!r}, spec §4.1 requires {need}", certain=False))
         elif edge in BACKWARD_LOW_ONLY:
             backward += 1
+            if at:
+                back_at.append(at)
             if conf != "low":
                 out.append(violation(s, "I1", f"backward {f}→{t} while hypothesis held at {conf} confidence"))
         elif edge == TIMEOUT_EDGE:
@@ -95,13 +98,16 @@ def check_transitions(d, ctx, cx):
                 out.append(violation(s, "§4.8", "expired after enrichment_timeout without reaching a human; §4.5 requires the signal to be routed"))
         elif f in RANK and t in RANK and RANK[t] < RANK[f]:
             backward += 1
+            if at:
+                back_at.append(at)
             out.append(violation(s, "I1", f"backward transition {f}→{t}"))
         else:
             out.append(violation(s, "§4.8", f"{f}→{t} is not in the transition matrix"))
         if t in EXIT_STATES:
             closed, exit_at = True, ts(e.get("at"))
         cur = t
-    ctx.update(exit_at=exit_at, final_state=cur, visits=visits, backward=backward, enrichment_timed_out=timed_out)
+    ctx.update(exit_at=exit_at, final_state=cur, visits=visits, backward=backward, backward_at=back_at,
+               enrichment_timed_out=timed_out)
     return out
 
 

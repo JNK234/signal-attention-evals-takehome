@@ -42,10 +42,19 @@ def check_quality(d, ctx, cx):
     hyp, hstep = h.get("hypothesis"), h.get("step") or 0
     sev = (d.get("scoring") or {}).get("severity")
 
-    # Q1 — oscillation
+    # Q1 — oscillation. spec §10 Q1: "Signals that oscillate between states **without adding evidence** have
+    # a quality problem." The qualifier is the rule: going back to corroborating, attaching new evidence and
+    # coming forward again is what corroboration is. Evidence counts as added when an artefact was attached
+    # at or after the first backward move, so a loop that produced something is not inefficient.
     visits = ctx.get("visits", Counter())
     if any(v >= 3 for v in visits.values()) or ctx.get("backward", 0) >= 2:
-        out.append(violation(hstep, "Q1", f"oscillation: {ctx.get('backward')} backward moves, max visits {max(visits.values()) if visits else 0}"))
+        back_at = ctx.get("backward_at") or []
+        first_back = min(back_at) if back_at else None
+        added = [a for ev in d.get("evidence") or [] if (a := ts(ev.get("attached_at"))) and
+                 (first_back is None or a >= first_back)]
+        if not added:
+            out.append(violation(hstep, "Q1", f"oscillation with no evidence added: {ctx.get('backward')} backward moves, "
+                                              f"max visits {max(visits.values()) if visits else 0}"))
 
     # Q2 — telemetry contradictions
     opened = day(d.get("opened_at"))

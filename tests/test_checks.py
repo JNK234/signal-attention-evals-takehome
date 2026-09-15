@@ -660,6 +660,28 @@ def test_three_visits_to_corroborating_is_Q1(ev):
     assert not {"I1", "§4.8", "I3"} & rules(r)
 
 
+def test_oscillation_that_adds_evidence_between_loops_is_not_Q1(ev):
+    """spec §10 Q1: "Signals that oscillate between states **without adding evidence** have a quality
+    problem." The qualifier is the whole rule — going back to corroborating, attaching new evidence, and
+    moving forward again is what corroboration *is*. The check counted visits and backward moves and never
+    read the qualifier, so legitimate re-corroboration scored the same as spinning in place."""
+    d = _with_backward_moves(happy_dossier(), 2)
+    # one new artefact attached inside each loop (loops run 10:10-10:13)
+    ev.cx.artifacts["art_T2"] = dict(ARTIFACT, artifact_id="art_T2", text="Second look: seats down again.")
+    ev.cx.artifacts["art_T3"] = dict(ARTIFACT, artifact_id="art_T3", text="Third look: still declining.")
+    try:
+        d["evidence"] += [
+            {"step": 3, "artifact_id": "art_T2", "source": "support_ticket", "restricted": False,
+             "attached_at": "2026-03-02T10:10:30Z", "quote": "Second look: seats down again."},
+            {"step": 5, "artifact_id": "art_T3", "source": "crm_note", "restricted": False,
+             "attached_at": "2026-03-02T10:12:30Z", "quote": "Third look: still declining."},
+        ]
+        r = ev.evaluate(d)
+    finally:
+        del ev.cx.artifacts["art_T2"], ev.cx.artifacts["art_T3"]
+    assert "Q1" not in rules(r), "oscillation that added evidence between loops was reported as inefficient"
+
+
 def test_single_low_confidence_backward_move_is_not_Q1(ev):
     r = ev.evaluate(_with_backward_moves(happy_dossier(), 1))
     assert not {"Q1", "I1", "§4.8", "I3"} & rules(r)
