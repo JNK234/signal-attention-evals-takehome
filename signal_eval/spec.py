@@ -180,6 +180,5 @@ COHORT_MIN_DROP_PCT = 20.0     # cohort median must itself move at least this mu
 COHORT_MATCH_PP = 12.0         # ...and land within this many points of the account's move
 COHORT_MIN_ACCOUNTS = 5        # a median built from fewer peer accounts than this is not a cohort
 COHORT_KEYS = ("industry", "region")   # account fields a cohort is keyed on, in order of precedence
-RECENT_EVIDENCE_DAYS = 14      # customer evidence this close to opened_at counts as current
 ADOPTION_FULL_FRACTION = 0.8   # dau_seats / seats_contracted above this = adoption happened
 SEATS_OVERSHOOT_TOL = 1.05     # dau_seats above seats_contracted × this is recorded as a fact, never excluded

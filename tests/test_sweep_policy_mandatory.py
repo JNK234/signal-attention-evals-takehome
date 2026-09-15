@@ -255,7 +255,9 @@ def test_P1_first_person_departure_by_a_non_champion_author_is_unattributed(ev):
     to nobody → unattributed, no trigger, no P1."""
     art = dict(CUSTOMER, author="Grace", text="I am moving on at the end of the quarter.")
     r = case(ev, [art], DEPART, dtr=60)
-    assert r["_facts"]["triggers"] == [] and src(r)["unattributed"] == ["departure"] and "§8.1" not in rules(r)
+    assert r["_facts"]["triggers"] == [] and src(r)["unattributed"] == ["departure"]
+    # no trigger, but no longer silent: an unresolved departure is an uncertain §8.1 finding
+    assert [v for v in r["violations"] if v["rule"] == "§8.1" and "unresolved" in v["explanation"]]
 
 
 def test_P1_departure_named_only_in_quoted_history_is_historical(ev):

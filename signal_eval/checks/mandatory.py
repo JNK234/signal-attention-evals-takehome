@@ -3,6 +3,7 @@ ABOUTME: Mandatory-route triggers — spec §8.1. triggers_from_reading() reads 
 ABOUTME: confirmed / uncertain / historical / unattributed triggers; §8.1 fires on confirmed ∪ uncertain when suppressed or no human.
 """
 
+import re
 from datetime import timedelta
 
 from ..labels import TRIGGER_LABELS
@@ -12,7 +13,6 @@ from ..util import author_class, days_to_renewal, money, norm, reached_human, ts
 
 ACCOUNT_LOOKBACK_DAYS = 30    # a trigger this far before opened_at should have been found by the lookup
 ACCOUNT_LOOKAHEAD_DAYS = 14   # ...or arrived while the signal was still open
-ROLE_MIN_TOKENS = 2           # "Director" matches any director; "Head of Analytics" names the champion's role
 BILLING_TYPES = {"billing_event"}
 UNVERIFIED_BILLING = "billing_dispute(amount unverified)"
 
@@ -46,16 +46,28 @@ def departure_subject(artifact, account, texts):
     author = norm(artifact.get("author"))
     for k, n in names:
         if author and author == norm(n):
-            return f"{k} (author)"
+            return f"{k} (author)", True
     body = [norm(t) for t in texts]
     for k, n in names:
         if any(norm(n) in t for t in body):
-            return f"{k} (named)"
+            return f"{k} (named)", True
     for k in ("champion_title", "economic_buyer_title"):
         role = norm(account.get(k))
-        if len(role.split()) >= ROLE_MIN_TOKENS and any(role in t for t in body):
-            return f"{k[:-len('_title')]} (role: {account.get(k)})"
+        # Matched on word boundaries, not gated on token count. A minimum length excluded every account whose
+        # title is one word — "CTO" on 19 of 180 here — while the risk it aimed at is genericity, not length:
+        # "Director" could be any of several people, "CTO" is one. So specificity is read off whether the
+        # title is *only* a generic head noun, and a generic one attributes with certain=False rather than
+        # being dropped. Still identity matching against the account's own record.
+        if role and re.search(rf"\b{re.escape(role)}\b", " ".join(body)):
+            generic = role in GENERIC_TITLES
+            return f"{k[:-len('_title')]} (role: {account.get(k)})", not generic
     return None
+
+
+# Titles that name a rank rather than a person: an org has many. Used only to decide whether a role match is
+# confirmed or uncertain — never to suppress the match, since §8.1's cost is a missed route.
+GENERIC_TITLES = frozenset({"director", "manager", "lead", "head", "vp", "vice president", "president",
+                            "owner", "admin", "administrator", "engineer", "analyst", "consultant"})
 
 
 def _billing(out, texts, verdict, arr, detector):
@@ -145,13 +157,16 @@ def triggers_from_reading(reading, artifact, account, dtr, detector=None, arr=No
         facts.setdefault("unread", []).append("departure")
     elif v is not False:
         name = "buyer_or_champion_departure"
-        subject = departure_subject(artifact, account, texts)
+        found = departure_subject(artifact, account, texts)
+        subject, specific = found if found else (None, False)
         if subject is None:
             if v is True:
                 out["unattributed"].add("departure")
                 facts["departure"] = "unattributed"
         elif not check_window or (dtr is not None and 0 <= dtr <= DEPARTURE_WINDOW_DAYS):
-            (out["confirmed"] if v is True and not unknown else out["uncertain"]).add(name)
+            # A generic role title names a rank, not a person, so it can only ever be uncertain (see
+            # GENERIC_TITLES) — the same treatment an abstaining model or an unknown author already gets.
+            (out["confirmed"] if v is True and not unknown and specific else out["uncertain"]).add(name)
             facts[name] = subject
         elif dtr is None:
             out["uncertain"].add(name)
@@ -241,4 +256,13 @@ def check_mandatory_route(d, ctx, cx):
         kinds = sorted({t for _, _, ts_ in missed for t in ts_})
         out.append(violation(step, "§8.1", f"{disp or 'closed'} without any human notified while the account carried an unattached written trigger {kinds} "
                              f"({', '.join(aid for _, aid, _ in missed[:3])}) — cross-source lookup missed it", certain=False))
+    elif merged["unattributed"] and not human:
+        # The evaluator read a departure it could not tie to the champion or the economic buyer. §8.1 bullet 4
+        # covers only those two, so this is not a confirmed trigger — but staying silent would report the
+        # dossier as clean on evidence we actually read and failed to resolve, which is the same failure the
+        # UNEVALUATED entry exists to prevent. Reported as uncertain, never as a confident critical.
+        step = next((e.get("step") for e in lifecycle if e.get("to_state") in ("suppressed", "expired")), 0)
+        out.append(violation(step, "§8.1", f"{disp or 'closed'} without any human notified; a departure was read in the evidence but "
+                             f"could not be resolved to the champion or economic buyer (unresolved: {sorted(merged['unattributed'])})",
+                             certain=False))
     return out

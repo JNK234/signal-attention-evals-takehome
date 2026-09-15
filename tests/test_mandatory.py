@@ -223,21 +223,55 @@ def test_departure_by_role_phrase_from_account_titles_is_trigger(ev):
     assert "role" in src(r)["per_artifact"]["art_T2"]["facts"]["buyer_or_champion_departure"]
 
 
-def test_one_word_title_is_not_a_role_phrase(ev):
+def test_a_generic_one_word_title_attributes_but_only_as_uncertain(ev):
+    """Replaces a test that asserted a one-token title never attributes. Token count was the wrong
+    discriminator: it also excluded every account whose economic_buyer_title is "CTO" (19 of 180 here). The
+    title is matched on word boundaries from the account's own record, and a single-token title yields an
+    *uncertain* trigger rather than a confirmed one, so §8.1 still reports the missed route while
+    deserved_attention — which reads confirmed only — stays conservative."""
     art = dict(SECOND_CUSTOMER, text="Our director is leaving at the end of the month.")
     ev.cx.accounts["acct_T"]["champion_title"] = "Director"
     try:
         r = case(ev, [art], DEPART, dtr=60)
     finally:
         ev.cx.accounts["acct_T"].pop("champion_title")
-    assert r["_facts"]["triggers"] == [] and src(r)["unattributed"] == ["departure"]
+    assert src(r)["uncertain"] == ["buyer_or_champion_departure"]
+    assert src(r)["confirmed"] == []
+    assert r["deserved_attention"] is False, "an ambiguous role must not confirm a spec-mandated route"
+
+
+def test_a_specific_one_word_title_confirms(ev):
+    """"CTO" names one person in an org; "Director" does not. Both are one token, so specificity is read off
+    whether the title carries a generic head noun, not off its length."""
+    art = dict(SECOND_CUSTOMER, text="Our CTO is leaving at the end of the month.")
+    ev.cx.accounts["acct_T"]["economic_buyer_title"] = "CTO"
+    try:
+        r = case(ev, [art], DEPART, dtr=60)
+    finally:
+        ev.cx.accounts["acct_T"].pop("economic_buyer_title")
+    assert src(r)["confirmed"] == ["buyer_or_champion_departure"]
+
+
+def test_an_unresolved_departure_is_reported_not_dropped(ev):
+    """The real defect the audit found: the evaluator read text it judged to be a departure, could not resolve
+    WHO, and then said nothing about it anywhere in its output — 44 of 49 such dossiers in this corpus carry
+    no finding that mentions it. Silence must never read as a pass (same principle as UNEVALUATED). An
+    unresolved departure on a signal no human saw is an uncertain §8.1 finding."""
+    art = dict(SECOND_CUSTOMER, text="Our office manager is leaving at the end of the month.")
+    r = case(ev, [art], DEPART, dtr=60)
+    assert src(r)["unattributed"] == ["departure"]
+    assert src(r)["confirmed"] == [] and src(r)["uncertain"] == []
+    hits = [v for v in r["violations"] if v["rule"] == "§8.1" and "unresolved" in v["explanation"]]
+    assert hits, "an unresolved departure produced no finding at all"
+    assert hits[0]["severity"] == 0.5, "unresolved means uncertain, never a confident critical"
 
 
 def test_departure_of_unnamed_person_is_unattributed(ev):
     art = dict(SECOND_CUSTOMER, text="Our intern resigned last week; no impact on the rollout.")
     r = case(ev, [art], DEPART, dtr=60)
-    assert r["_facts"]["triggers"] == [] and "§8.1" not in rules(r)
-    assert src(r)["unattributed"] == ["departure"]
+    assert r["_facts"]["triggers"] == [] and src(r)["unattributed"] == ["departure"]
+    # not a trigger (§8.1 bullet 4 names only the champion and economic buyer), but no longer silent
+    assert [v for v in r["violations"] if v["rule"] == "§8.1" and "unresolved" in v["explanation"]]
     assert src(r)["per_artifact"]["art_T2"]["facts"]["departure"] == "unattributed"
 
 
@@ -390,3 +424,33 @@ def test_index_uses_confirmed_triggers_only(ev):
     ev.cx.label_artifact(maybe)
     indexed = {aid: t for _, aid, t in ev.cx.account_triggers["acct_T"]}
     assert indexed == {"art_S": {"cancel_intent"}}
+
+
+# ── §8.1 bullet 4: role attribution must not depend on how many words a title has ─────────────────
+
+def test_a_single_word_title_from_the_account_record_still_attributes_a_departure():
+    """spec §8.1 bullet 4 covers "the economic buyer or champion". departure_subject matched a role only when
+    the account's title carried >= 2 tokens, which silently excluded every account whose economic_buyer_title
+    is "CTO" — 19 of 180 in this corpus. The docstring's own rule defeats the guard: this is identity matching
+    against the account record, and "CTO" is that account's own word for the role, not a generic phrase."""
+    from signal_eval.checks.mandatory import departure_subject
+    acct = {"champion": "Ada Lovelace", "economic_buyer": "Alan Turing",
+            "champion_title": "Head of Analytics", "economic_buyer_title": "CTO"}
+    art = {"author": "Someone Else"}
+    assert departure_subject(art, acct, ["our CTO is leaving at the end of the month"]) == \
+        ("economic_buyer (role: CTO)", True)
+
+
+def test_a_multi_word_title_still_attributes(_=None):
+    """Regression guard for the case that already worked."""
+    from signal_eval.checks.mandatory import departure_subject
+    acct = {"champion": "Ada Lovelace", "champion_title": "Head of Analytics"}
+    assert departure_subject({"author": "x"}, acct, ["our head of analytics resigned"]) == \
+        ("champion (role: Head of Analytics)", True)
+
+
+def test_an_unrelated_title_does_not_attribute():
+    """Adjacent negative: a role the account record does not name must not attribute."""
+    from signal_eval.checks.mandatory import departure_subject
+    acct = {"champion": "Ada Lovelace", "champion_title": "Head of Analytics", "economic_buyer_title": "CTO"}
+    assert departure_subject({"author": "x"}, acct, ["our office manager is leaving"]) is None
