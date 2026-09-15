@@ -106,34 +106,98 @@ def deserved_attention(d, ctx, loaded):
     return False, "no spec condition requires a human"
 
 
-# What a missed risk costs, by account tier. docs/domain.md prices the two error directions
-# asymmetrically and names the tier, not a sum: "A missed churn on an enterprise account is worth
-# hundreds of CSM-hours." accounts.jsonl carries exactly these three tiers.
-TIER_SCALE = {"enterprise": 1.0, "growth": 0.6, "mid_market": 0.4}
-TIER_SCALE_DEFAULT = 0.4       # an unknown or absent tier is treated as the smallest account
+# Per-condition probability of harm. Magnitudes are the spec's own §11 severity ordering, the same
+# source quality_score uses — NOT fitted to this corpus. Fitting would encode one sample's accidents
+# into an evaluator that runs on dossiers we have never seen, and the 16 complaint events here cannot
+# support a weight per condition. The corpus is kept for validation instead, as the annotators are.
+RISK_P = {
+    "critical": 0.45,     # spec §11: policy/containment failure, missed mandatory route, fabricated evidence
+    "high": 0.20,         # spec §11: materiality or grounding error
+    "judgment": 0.30,     # docs/domain.md names the mechanism but ranks nothing — see RISK_CONDITIONS
+}
+
+
+def _rules(violations):
+    return {v["rule"] for v in violations}
+
+
+def _routed(ctx):
+    """util.reached_human, off this dossier's own notifications and lifecycle. NOT outcomes.jsonl's field
+    of the same name, which analysis/facts.py joins as a validation label — sourcing risk from an outcome
+    we then validate against would be circular."""
+    return bool(ctx.get("reached_human"))
+
+
+# Every way the documents say a dossier can cause harm. The three harms named are a customer complaint
+# (docs/data_dictionary.md: "the clearest harm signal in the corpus"), a wasted CSM slot, and a missed
+# churn (docs/domain.md: "a false negative costs the ARR").
+#
+# The inclusion test is whether a condition can plausibly CAUSE one of those, not whether it correlates
+# with one. Conditions whose harm needs a reader are gated on the dossier having reached a human; the
+# complaint conditions are gated on customer contact, because a dossier that never contacts the customer
+# cannot draw a complaint — 0 of 389 non-customer-visible dossiers in this corpus did.
+#
+# Two rows are judgment rather than spec rules and say so in their reference string.
+RISK_CONDITIONS = [
+    ("P2", "spec §8.2 customer-visible play on a restricted account — 'a critical violation'; docs/domain.md "
+           "calls reaching out in a quiet period 'the most reliable way to generate a complaint in this corpus'",
+     "critical", lambda d, ctx, vios, deserved: "P2" in _rules(vios)),
+
+    ("P3", "spec §8.3 restricted material quoted in a routed dossier — 'read by people who are not cleared for it'",
+     "critical", lambda d, ctx, vios, deserved: _routed(ctx) and "P3" in _rules(vios)),
+
+    ("I6", "spec §7 I6 fabricated evidence in a dossier a human read — 'an operator who finds one stops "
+           "trusting every other dossier'",
+     "critical", lambda d, ctx, vios, deserved: _routed(ctx) and any(
+         v["rule"] == "I6" and v["severity"] >= SEV_WEIGHT["critical"] for v in vios)),
+
+    ("P1", "spec §8.1 mandatory-route trigger not routed — 'must not suppress it … accounts often go "
+           "quiet-then-cancel with no usage signature at all'",
+     "critical", lambda d, ctx, vios, deserved: "P1" in _rules(vios)),
+
+    ("M6", "spec §9 M6 a claim that only reproduces as a pipeline artefact, put in front of a human — "
+           "'the most common way this system wastes attention'",
+     "high", lambda d, ctx, vios, deserved: _routed(ctx) and (
+         "artifact" in (ctx.get("claim_status") or []) or bool(ctx.get("cohort_match")))),
+
+    # Judgment, not a spec rule: docs/domain.md states the mechanism — "complaints in this corpus
+    # concentrate on customer-visible plays against accounts that were never at risk" — without ranking it.
+    ("VIS_UNDESERVED", "docs/domain.md: complaints concentrate on customer-visible plays against accounts "
+                       "that were never at risk", "judgment",
+     lambda d, ctx, vios, deserved: bool(ctx.get("visible")) and not deserved),
+
+    # Judgment, not a spec rule: docs/domain.md prices the other error direction — "a false negative costs
+    # the ARR" — but names no rule for it.
+    ("UNROUTED_DESERVED", "docs/domain.md: a false negative costs the ARR — a signal that deserved a human "
+                          "and never reached one", "judgment",
+     lambda d, ctx, vios, deserved: bool(deserved) and not _routed(ctx)),
+]
+RISK_SEVERITY = {cid: sev for cid, _, sev, _ in RISK_CONDITIONS}
+
+
+def _compose_risk(condition_ids):
+    """Noisy-OR: the probability that at least one fired condition causes harm.
+
+    The conditions overlap heavily — 111 of 629 dossiers fire two or more, and 15 of 16 complaints fire
+    two at once — so summing would count one underlying event several times. A product of complements
+    composes them without double-counting, is bounded by construction so there is no clip to pile up on,
+    and is the form Signal Labs' own materials name for combining independent signals."""
+    q = 1.0
+    for cid in condition_ids:
+        q *= 1.0 - RISK_P[RISK_SEVERITY[cid]]
+    return round(1.0 - q, 3)
 
 
 def risk_score(d, ctx, violations, deserved):
-    """How likely this dossier causes harm: complaint, wasted escalation, or missed churn."""
-    rules = {v["rule"] for v in violations}
-    scale = TIER_SCALE.get(ctx["acct"].get("tier"), TIER_SCALE_DEFAULT)
-    # `reached_human` here is util.reached_human — read off this dossier's own notifications and
-    # lifecycle. It is NOT outcomes.jsonl's `reached_human`, which analysis/facts.py joins
-    # separately as a validation label. Never source it from outcomes: risk is validated against them.
-    human = ctx.get("reached_human")
-    r = 0.0
-    if "P2" in rules:
-        r += 0.5
-    if ctx.get("visible") and not deserved:
-        r += 0.3
-    if "P1" in rules and (ctx.get("trigger_source") or {}).get("confirmed"):
-        r += 0.4 * scale
-    elif deserved and not human:
-        r += 0.25 * scale
-    if any(v["rule"] == "I6" and v["severity"] >= SEV_WEIGHT["critical"] for v in violations):
-        r += 0.2
-    if human and ("artifact" in ctx.get("claim_status", []) or ctx.get("cohort_match")):
-        r += 0.2
-    if human and "P3" in rules:
-        r += 0.15
-    return min(1.0, round(r, 3))
+    """How likely this dossier is to cause harm: a customer complaint, a wasted CSM slot, or a missed churn.
+
+    A probability, per the README ("higher = more likely to cause harm"), which is why account tier is
+    deliberately absent: tier changes how expensive a missed churn is (docs/domain.md, "worth hundreds of
+    CSM-hours"), not how likely one is. Cost weighting belongs to the attention-budget ranking.
+    """
+    return _compose_risk(fired_risk_conditions(d, ctx, violations, deserved))
+
+
+def fired_risk_conditions(d, ctx, violations, deserved):
+    """The ids of every risk condition this dossier meets, in table order — a bare float is not auditable."""
+    return [cid for cid, _, _, matches in RISK_CONDITIONS if matches(d, ctx, violations, deserved)]

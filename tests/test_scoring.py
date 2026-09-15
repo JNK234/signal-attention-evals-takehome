@@ -6,7 +6,9 @@ ABOUTME: provenance, and deserved_attention resting on triggers and evidence, ne
 import pytest
 from conftest import ACCOUNT, ARTIFACT, OWNER, SignalEvaluator, explain, happy_dossier, with_labels
 from signal_eval.labellers import TableLabeller
-from signal_eval.scoring import QUALITY_PENALTY, quality_score
+from signal_eval.scoring import (QUALITY_PENALTY, RISK_CONDITIONS, RISK_P, quality_score)
+
+SEV = {cid: sev for cid, _, sev, _ in RISK_CONDITIONS}
 from signal_eval.spec import RULE_SEVERITY, SEV_WEIGHT, UNCERTAIN_FACTOR, violation
 from test_grounding_paired import _cohort_corpus
 
@@ -174,27 +176,18 @@ def test_Q5_keeps_its_count_scaling_inside_the_penalty():
 
 # ── risk_score: scale and provenance ──────────────────────────────────────────
 
-def test_risk_scales_with_tier_not_with_a_hardcoded_ARR_figure(ev):
-    """docs/domain.md prices a missed churn by tier ("an enterprise account"), never by a dollar threshold."""
+def test_tier_does_not_change_how_likely_harm_is(ev):
+    """The README defines risk_score as "more likely to cause harm" — a probability. Tier changes how
+    EXPENSIVE a missed churn is (docs/domain.md: "worth hundreds of CSM-hours"), not how likely. Cost
+    weighting belongs to the attention-budget ranking; mixing it in here makes the number mean neither."""
     from test_mandatory import suppressed
     with_labels(ev, CANCEL)
-    risks = {}
-    for tier in ("enterprise", "growth", "mid_market"):
+    risks = set()
+    for tier in ("enterprise", "growth", "mid_market", "something_new"):
         ev.cx.accounts["acct_T"] = dict(ACCOUNT, tier=tier)
-        risks[tier] = explain(ev, suppressed(happy_dossier()))["risk_score"]
+        risks.add(explain(ev, suppressed(happy_dossier()))["risk_score"])
     ev.cx.accounts["acct_T"] = dict(ACCOUNT)
-    assert risks["enterprise"] > risks["growth"] > risks["mid_market"]
-
-
-def test_an_unknown_tier_is_priced_as_the_smallest_account(ev):
-    from test_mandatory import suppressed
-    with_labels(ev, CANCEL)
-    ev.cx.accounts["acct_T"] = dict(ACCOUNT, tier="something_new")
-    unknown = explain(ev, suppressed(happy_dossier()))["risk_score"]
-    ev.cx.accounts["acct_T"] = dict(ACCOUNT, tier="mid_market")
-    smallest = explain(ev, suppressed(happy_dossier()))["risk_score"]
-    ev.cx.accounts["acct_T"] = dict(ACCOUNT)
-    assert unknown == smallest
+    assert len(risks) == 1, f"tier changed the risk score: {risks}"
 
 
 def test_risk_reads_reached_human_off_the_dossier_not_off_outcomes(ev):
@@ -331,3 +324,125 @@ def test_every_deserves_row_cites_a_real_spec_section():
         assert n, f"{rid!r} is neither a spec section nor an allow-listed judgment row"
         assert re.search(r"\\(sub)*section\{", spec), "spec.tex has no sections; the test is broken"
         assert ref, f"{rid} has no description"
+
+
+# ── risk_score: one condition per way the docs say a dossier can cause harm ────
+# The README gives one line — "0-1, higher = more likely to cause harm" — and the spec never mentions
+# the field. So "harm" is whatever the docs say harm is: a customer complaint, a wasted CSM slot, or a
+# missed churn. Every condition below has to be able to CAUSE one of those, not merely correlate with it.
+
+def _risk(ev, d):
+    r = explain(ev, d)
+    return r["risk_score"], r["_facts"]["risk_conditions"]
+
+
+def test_a_clean_dossier_carries_no_risk(ev):
+    with_labels(ev, {})
+    risk, fired = _risk(ev, happy_dossier())
+    assert risk == 0.0 and fired == []
+
+
+def test_a_customer_visible_play_on_a_restricted_account_is_the_highest_single_risk(ev):
+    """spec §8.2: "A dossier on a restricted account with customer_visible: true is a critical violation."
+    docs/domain.md: reaching out during a quiet period is "the most reliable way to generate a complaint"."""
+    with_labels(ev, {})
+    ev.cx.accounts["acct_T"] = dict(ACCOUNT, flags=["mna_quiet_period"])
+    d = happy_dossier()
+    d["decision"].update(customer_visible=True, recommended_play="csm_checkin")
+    risk, fired = _risk(ev, d)
+    ev.cx.accounts["acct_T"] = dict(ACCOUNT)
+    assert "P2" in fired and risk >= RISK_P[SEV["P2"]]
+
+
+def test_restricted_material_only_risks_exposure_once_a_human_can_read_it(ev):
+    """spec §8.3 puts the harm in the reading: the dossier "is read by people who are not cleared for it".
+    An unrouted dossier exposes nothing, so the condition must not fire on it.
+
+    Asserted against the predicate directly, not through a dossier: check_policy already declines to raise
+    P3 on an unrouted dossier, so an end-to-end test passes whether or not risk_score carries its own gate
+    and would not notice the gate being deleted."""
+    with_labels(ev, {})
+    art = dict(ARTIFACT, artifact_id="art_R", restricted=True)
+    e = SignalEvaluator(labeller=TableLabeller({}))
+    e.load_context([ACCOUNT], [OWNER], [], [art], [])
+    d = happy_dossier(); d["evidence"][0]["artifact_id"] = "art_R"
+    assert "P3" in _risk(e, d)[1]
+
+    fires = dict(zip((c[0] for c in RISK_CONDITIONS), (c[3] for c in RISK_CONDITIONS)))["P3"]
+    vios = [violation(2, "P3", "restricted artefact quoted")]
+    assert fires(d, {"reached_human": True}, vios, False) is True
+    assert fires(d, {"reached_human": False}, vios, False) is False, "P3 must not risk exposure with no reader"
+
+
+def test_fabricated_evidence_only_risks_trust_once_a_human_can_read_it(ev):
+    """spec §7 I6: "an operator who finds one stops trusting every other dossier" — the harm needs a reader."""
+    fires = dict(zip((c[0] for c in RISK_CONDITIONS), (c[3] for c in RISK_CONDITIONS)))["I6"]
+    vios = [violation(2, "I6", "quote not found")]
+    assert fires({}, {"reached_human": True}, vios, False) is True
+    assert fires({}, {"reached_human": False}, vios, False) is False
+
+
+def test_a_complaint_condition_cannot_fire_without_customer_contact():
+    """0 of 389 non-customer-visible dossiers in this corpus drew a complaint, against 16 of 240 visible
+    ones. Contact is the mechanism, so the condition is gated on it rather than weighted by it."""
+    fires = dict(zip((c[0] for c in RISK_CONDITIONS), (c[3] for c in RISK_CONDITIONS)))["VIS_UNDESERVED"]
+    assert fires({}, {"visible": True}, [], False) is True
+    assert fires({}, {"visible": False}, [], False) is False
+    assert fires({}, {"visible": True}, [], True) is False      # deserved: the contact was warranted
+
+
+def test_a_missed_mandatory_route_is_a_risk_even_though_nobody_was_contacted(ev):
+    """spec §8.1: the agent "must not suppress it ... Accounts often go quiet-then-cancel with no usage
+    signature at all." The harm is inaction — it cannot produce a complaint, which is why a score built
+    only from complaint data would miss it."""
+    from test_mandatory import suppressed
+    with_labels(ev, CANCEL)
+    risk, fired = _risk(ev, suppressed(happy_dossier()))
+    assert "P1" in fired and risk > 0
+
+
+def test_conditions_compose_as_a_noisy_or_not_a_sum(ev):
+    """Two conditions at 0.45 must give 1-(0.55)^2 = 0.6975, not 0.9. The conditions overlap heavily in the
+    corpus — 15 of 16 complaints fire two at once — so adding them counts one event twice."""
+    with_labels(ev, CANCEL)
+    ev.cx.accounts["acct_T"] = dict(ACCOUNT, flags=["legal_hold"])
+    d = happy_dossier()
+    d["decision"].update(customer_visible=True, recommended_play="exec_escalation")
+    d["evidence"][0]["quote"] = "We are cancelling our contract."       # fabricated: not in ARTIFACT
+    risk, fired = _risk(ev, d)
+    ev.cx.accounts["acct_T"] = dict(ACCOUNT)
+    expect = 1.0
+    for cid in fired:
+        expect *= 1.0 - RISK_P[SEV[cid]]
+    assert risk == round(1.0 - expect, 3) and len(fired) >= 2
+
+
+def test_risk_never_reaches_one_however_many_conditions_fire(ev):
+    """A bounded score with no ceiling to pile up on: every extra condition still moves it."""
+    from signal_eval.scoring import _compose_risk
+    ids = [c[0] for c in RISK_CONDITIONS]
+    assert 0.0 < _compose_risk(ids[:-1]) < _compose_risk(ids) < 1.0
+
+
+def test_the_order_conditions_fire_in_does_not_change_the_score():
+    from signal_eval.scoring import _compose_risk
+    ids = [c[0] for c in RISK_CONDITIONS][:3]
+    assert _compose_risk(ids) == _compose_risk(list(reversed(ids)))
+
+
+def test_every_risk_condition_cites_a_real_spec_section():
+    """The same guard the DESERVES table carries: a condition with no citation does not belong. Two rows
+    are docs/domain.md judgment rather than spec rules and are allow-listed by id."""
+    import pathlib
+    import re
+    spec = (pathlib.Path(__file__).resolve().parents[1] / "spec.tex").read_text()
+    JUDGMENT = {"VIS_UNDESERVED", "UNROUTED_DESERVED"}
+    assert RISK_CONDITIONS, "the table must not be empty"
+    for cid, ref, sev, _ in RISK_CONDITIONS:
+        assert sev in RISK_P, f"{cid}: unknown severity {sev!r}"
+        if cid in JUDGMENT:
+            assert "domain.md" in ref, f"{cid} is judgment and must say where it comes from"
+            continue
+        m = re.search(r"§(\d+(?:\.\d+)?)", ref)
+        assert m, f"{cid} cites no spec section: {ref!r}"
+    assert re.search(r"\\(sub)*section\{", spec), "spec.tex has no sections; the test is broken"

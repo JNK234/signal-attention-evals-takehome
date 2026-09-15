@@ -147,7 +147,11 @@ class SignalEvaluator:
             deserved, why = False, f"scoring error: {exc!r}"
             errors.append({"check": "deserved_attention", "error": repr(exc)})
         try:
-            risk = scoring.risk_score(d, ctx, violations, deserved)
+            # computed once and shared: the score is the composition, ctx carries the ids so the
+            # reason is auditable in _facts and groupable in the analysis scripts
+            fired = scoring.fired_risk_conditions(d, ctx, violations, deserved)
+            ctx["risk_conditions"] = fired
+            risk = scoring._compose_risk(fired)
         except Exception as exc:
             risk = 0.0
             errors.append({"check": "risk_score", "error": repr(exc)})
@@ -183,6 +187,7 @@ class SignalEvaluator:
             "account_triggers_unattached": ctx.get("account_triggers_unattached", []),
             "reached_human": ctx.get("reached_human"),
             "enrichment_timed_out": bool(ctx.get("enrichment_timed_out")),   # spec §4.6 deserves-attention ground
+            "risk_conditions": ctx.get("risk_conditions", []),               # which harms risk_score is composed from
             # risk_score prices a missed churn by tier; an unrecognised tier silently takes the smallest
             # scale, so the value we actually saw has to be visible in the record
             "acct_tier": (ctx.get("acct") or {}).get("tier"),
