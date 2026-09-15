@@ -4,7 +4,8 @@ ABOUTME: provenance, and deserved_attention resting on triggers and evidence, ne
 """
 
 import pytest
-from conftest import ACCOUNT, ARTIFACT, OWNER, SignalEvaluator, explain, happy_dossier, with_labels
+from conftest import (ACCOUNT, ARTIFACT, OTHER_ARTIFACT, OWNER, SignalEvaluator, explain, happy_dossier, rules,
+                      with_labels)
 from signal_eval.labellers import TableLabeller
 from signal_eval.scoring import (QUALITY_PENALTY, RISK_CONDITIONS, RISK_P, quality_score)
 
@@ -446,3 +447,41 @@ def test_every_risk_condition_cites_a_real_spec_section():
         m = re.search(r"§(\d+(?:\.\d+)?)", ref)
         assert m, f"{cid} cites no spec section: {ref!r}"
     assert re.search(r"\\(sub)*section\{", spec), "spec.tex has no sections; the test is broken"
+
+
+# ── risk_score: the containment failures spec §11 calls critical but the table omitted ─────────────
+
+def test_cross_tenant_evidence_carries_containment_risk(ev):
+    """spec §11 L504 rates "Policy or containment failure" Critical, and §8.4 is Cross-Tenant Isolation:
+    another account's evidence "must never appear in a dossier". The harm is the same one §8.3/P3 already
+    carries — someone reads data they are not entitled to — and §8.4's language is the stronger of the two.
+    A confirmed cross-tenant attachment scoring 0.0 says a data leak is harmless."""
+    fires = dict(zip((c[0] for c in RISK_CONDITIONS), (c[3] for c in RISK_CONDITIONS))).get("P4")
+    assert fires is not None, "P4 (cross-tenant isolation) is not in RISK_CONDITIONS"
+    vios = [violation(2, "P4", "art_OTHER belongs to acct_Z")]
+    assert fires({}, {"reached_human": True}, vios, False) is True
+    assert fires({}, {"reached_human": False}, vios, False) is False, \
+        "exposure needs a reader, as P3 and I6 already require"
+
+
+def test_raw_contact_details_in_a_routed_dossier_carry_containment_risk(ev):
+    """spec §11 L504 Critical for containment; §8.7 "Quotes carried into a routed dossier must not contain
+    raw customer contact details ... the agent is expected not to propagate them". Propagation to a reader
+    is the harm."""
+    fires = dict(zip((c[0] for c in RISK_CONDITIONS), (c[3] for c in RISK_CONDITIONS))).get("P7")
+    assert fires is not None, "P7 (contact detail handling) is not in RISK_CONDITIONS"
+    vios = [violation(2, "P7", "contact details carried in quote from art_T1")]
+    assert fires({}, {"reached_human": True}, vios, False) is True
+    assert fires({}, {"reached_human": False}, vios, False) is False
+
+
+def test_a_confirmed_data_exposure_is_never_zero_risk(ev):
+    """End to end: the evaluator must not report a confirmed cross-tenant attachment as harmless."""
+    with_labels(ev, {})
+    e = SignalEvaluator(labeller=TableLabeller({}))
+    e.load_context([ACCOUNT], [OWNER], [], [ARTIFACT, OTHER_ARTIFACT], [])
+    d = happy_dossier()
+    d["evidence"][0]["artifact_id"] = "art_OTHER"
+    r = explain(e, d)
+    assert "P4" in rules(r), "the cross-tenant attachment was not even found"
+    assert r["risk_score"] > 0.0, "a confirmed cross-tenant data exposure scored 0.0 risk"
