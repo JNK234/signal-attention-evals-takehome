@@ -13,6 +13,10 @@ from .util import ts
 # The dossier fields every check iterates as a list of dicts (README l.218-222: a check must see well-typed input
 # so one malformed entry cannot hide findings on the valid ones).
 LIST_FIELDS = ("lifecycle", "actions", "evidence", "notifications", "hypotheses", "metrics_claimed")
+# Fields the checks group by, so they must be hashable: `{ev["artifact_id"] for ...}`, `Counter(...)`,
+# dict keys. A list or dict here is unhashable and throws deep inside a check, past the findings it had
+# already made (README l.218-222: a malformed entry must not hide findings on the valid ones).
+ID_FIELDS = ("artifact_id", "signal_id", "account_id", "owner_id", "step", "metric", "action", "channel")
 # The rules that read artefact text through the labeller; named when it could not read anything (decision 7).
 TEXT_RULES = ["P1", "Q2", "I5", "Q4"]
 BOT_SOURCES = {"bot_alert", "billing_event"}     # cold path: the author is unknown, the source type says bot
@@ -39,13 +43,30 @@ def _unevaluated(ctx, cx):
                            f"not evaluated over {len(read)} artefact(s)"}
 
 
+def _scrub_ids(field, i, item, errors):
+    """Drop the identifier values a check would group by if they are unhashable. An absent id is already
+    handled everywhere (None is a legal group key); an unhashable one is not, and would throw past findings
+    the check had already recorded."""
+    bad = [k for k in ID_FIELDS if k in item and not isinstance(item[k], (str, int, float, bool, type(None)))]
+    if not bad:
+        return item
+    out = dict(item)
+    for k in bad:
+        errors.append({"check": "input",
+                       "error": f"{field}[{i}].{k} is {type(item[k]).__name__}, expected a scalar id; treated as absent"})
+        out[k] = None
+    return out
+
+
 def _drop_malformed_entries(field, items, errors):
     """Keep the dict entries of a list field; record and drop everything else (README l.222: the valid
-    entries still get evaluated instead of the whole check dying on the first bad one)."""
+    entries still get evaluated instead of the whole check dying on the first bad one). Kept entries get
+    their group-by identifiers scrubbed, so a malformed *value* inside a well-formed dict cannot throw
+    either."""
     kept = []
     for i, item in enumerate(items):
         if isinstance(item, dict):
-            kept.append(item)
+            kept.append(_scrub_ids(field, i, item, errors))
         else:
             errors.append({"check": "input", "error": f"{field}[{i}] is {type(item).__name__}, expected dict; dropped"})
     return kept

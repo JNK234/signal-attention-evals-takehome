@@ -119,6 +119,33 @@ def test_malformed_evidence_entry_does_not_hide_fabrication_in_valid_entry(ev):
     assert [e for e in r["_facts"]["errors"] if e["check"] != "input"] == []
 
 
+def test_unhashable_artifact_id_does_not_erase_findings_from_valid_entries(ev):
+    """A well-formed dict whose *value* is malformed must not take a check down with it. The entry is a
+    dict, so _drop_malformed_entries keeps it; an unhashable artifact_id then throws deep inside the
+    check, and the broad except discards every finding the check had already made — a worse dossier
+    scoring better than the same dossier without the junk entry."""
+    d = happy_dossier()
+    d["evidence"][0]["quote"] = "We are planning a backfill of about 180M rows."
+    clean = rules(explain(ev, d))
+    assert "I6" in clean                                    # the fabrication is found without the junk
+
+    d["evidence"].append({"artifact_id": [], "quote": "x"})  # a dict, but unhashable inside
+    r = explain(ev, d)
+    assert "I6" in rules(r), "the fabrication in evidence[0] was erased by the malformed entry"
+    assert [e for e in r["_facts"]["errors"] if e["check"] != "input"] == []
+
+
+def test_unhashable_value_never_improves_the_scores(ev):
+    """The scores must not get better because the input got worse."""
+    d = happy_dossier()
+    d["evidence"][0]["quote"] = "We are planning a backfill of about 180M rows."
+    before = ev.evaluate(json.loads(json.dumps(d)))
+    d["evidence"].append({"artifact_id": [], "quote": "x"})
+    after = ev.evaluate(d)
+    assert after["quality_score"] <= before["quality_score"]
+    assert after["risk_score"] >= before["risk_score"]
+
+
 @pytest.mark.parametrize("field", LIST_FIELDS)
 def test_non_dict_entries_are_dropped_and_recorded(ev, field):
     d = happy_dossier()
