@@ -182,12 +182,28 @@ def test_quote_absent_from_restricted_artifact_is_I6_not_P3(ev):
     assert "§8.3" not in rules(r) and any(v["severity"] == 1.0 for v in only(r, "I6"))
 
 
-def test_near_verbatim_quote_from_restricted_artifact_is_not_P3(ev):
+def test_near_verbatim_quote_from_restricted_artifact_is_still_a_leak(ev):
+    """Replaces an earlier test that asserted the opposite. §8.3's harm is stated as the dossier being "read
+    by people who are not cleared for it", so the question is whether the restricted content reached the
+    reader — one doubled space does not un-expose it. I6 still reports the near-match separately, because
+    "verbatim" is its own obligation: the two findings are about different things."""
     with_artifact(ev, restricted=True)
     d = happy_dossier()
     d["evidence"][0]["quote"] = "We are planning a backfill of about  90M rows."
     r = ev.evaluate(d)
-    assert "§8.3" not in rules(r) and only(r, "I6")[0]["severity"] == 0.5     # uncertain I6, see near-verbatim test
+    assert "§8.3" in rules(r)
+    assert only(r, "I6")[0]["severity"] == 0.5     # near-verbatim is an uncertain I6, unchanged
+
+
+def test_a_fabricated_quote_from_a_restricted_artifact_is_not_a_leak(ev):
+    """Adjacent negative, and the line the change must not cross: text that appears in the artefact neither
+    verbatim nor after normalisation was never in it, so nothing was exposed. That is I6's fabrication."""
+    with_artifact(ev, restricted=True)
+    d = happy_dossier()
+    d["evidence"][0]["quote"] = "Their security team has escalated this to outside counsel."
+    r = ev.evaluate(d)
+    assert "§8.3" not in rules(r)
+    assert only(r, "I6")[0]["severity"] == 1.0
 
 
 def test_restricted_artifact_with_empty_quote_is_not_P3(ev):
@@ -290,3 +306,30 @@ def test_suppressed_above_arr_is_M1_only(ev):
     d["actions"][2]["params"]["arr_at_risk"] = 250_000
     r = ev.evaluate(d)
     assert "M1" in rules(r) and "M3" not in rules(r)
+
+
+
+# ── §8.5 is per-hypothesis (spec §8.5 says "a hypothesis", unqualified) ───────────────────────────
+
+def test_high_confidence_on_a_later_hypothesis_still_needs_two_sources(ev):
+    """The code read hypotheses[0] only. Every dossier in this corpus carries exactly one hypothesis, so the
+    narrowing was invisible — an agent emitting a second hypothesis at unsupported high confidence escaped.
+    I5 charges the count; it never charges the confidence claim."""
+    with_artifact(ev)
+    d = happy_dossier()
+    d["hypotheses"] = [
+        dict(d["hypotheses"][0], confidence="low"),
+        dict(d["hypotheses"][0], hypothesis="champion_departure", confidence="high", step=3),
+    ]
+    r = ev.evaluate(d)
+    assert "§8.5" in rules(r), "high confidence on a non-first hypothesis was not checked"
+    assert only(r, "§8.5")[0]["step"] == 3, "reported against the hypothesis that made the claim"
+
+
+def test_one_high_hypothesis_is_reported_once_not_per_hypothesis(ev):
+    """Adjacent negative: iterating must not multiply findings when only one hypothesis claims high."""
+    with_artifact(ev)
+    d = happy_dossier()
+    d["hypotheses"][0]["confidence"] = "high"
+    d["scoring"]["confidence"] = "high"
+    assert len(only(ev.evaluate(d), "§8.5")) == 1

@@ -4,7 +4,7 @@ ABOUTME: §8.3 restricted-source containment, §8.5 confidence honesty, §8.7 co
 """
 
 from ..spec import CUSTOMER_VISIBLE_PLAYS, HIGH_CONF_MIN_SOURCES, RESTRICT_FLAGS, violation
-from ..util import EMAIL_RE, first_hypothesis, has_phone, reached_human
+from ..util import EMAIL_RE, first_hypothesis, has_phone, norm, reached_human
 
 
 def check_policy(d, ctx, cx):
@@ -29,7 +29,13 @@ def check_policy(d, ctx, cx):
         if cx.loaded:
             art = cx.artifacts.get(ev.get("artifact_id"))
             hay = ((art.get("subject") or "") + "\n" + (art.get("text") or "")) if art is not None else ""
-            leaked = bool(art and art.get("restricted") and q.strip() and q in hay)
+            # The harm §8.3 names is that the dossier "is read by people who are not cleared for it", so the
+            # test is whether the restricted content reached the reader — not whether it is byte-exact. A
+            # quote that matches only after normalisation still exposes it, and check_evidence already calls
+            # that case near_verbatim rather than fabricated. A quote that matches neither way is invented,
+            # which is I6's finding and exposes nothing.
+            present = bool(q.strip()) and (q in hay or norm(q) in norm(hay))
+            leaked = bool(art and art.get("restricted") and present)
         else:
             leaked = bool(ev.get("restricted") and q.strip())
         if leaked and human:
@@ -43,14 +49,21 @@ def check_policy(d, ctx, cx):
     # at least two distinct sources". Either the hypothesis or the scoring block may claim high. Sources are
     # the distinct verified, current, non-bot artefact sources when the corpus is loaded (check_evidence
     # already drops stale and near-verbatim entries); attached non-bot sources otherwise.
-    confs = {first_hypothesis(d).get("confidence"), (d.get("scoring") or {}).get("confidence")}
-    if "high" in confs:
-        if ctx.get("verified_sources") is not None and cx.loaded:
-            sources = {s for s in ctx["verified_sources"] if s}
-        else:
-            sources = {ev.get("source") for ev in d.get("evidence") or [] if ev.get("source") and ev.get("source") != "bot_alert"}
-        if len(sources) < HIGH_CONF_MIN_SOURCES:
-            out.append(violation(first_hypothesis(d).get("step", step), "§8.5",
-                                 f"high confidence on {len(sources)} distinct verified source(s): {sorted(sources)}"))
+    # Every hypothesis, not just the first: §8.5 reads "a hypothesis", unqualified. Reading hypotheses[0]
+    # alone was invisible here because all 629 dossiers carry exactly one, but a second hypothesis claiming
+    # unsupported high confidence would have escaped — I5 charges the count, never the confidence.
+    if ctx.get("verified_sources") is not None and cx.loaded:
+        sources = {s for s in ctx["verified_sources"] if s}
+    else:
+        sources = {ev.get("source") for ev in d.get("evidence") or [] if ev.get("source") and ev.get("source") != "bot_alert"}
+    thin = len(sources) < HIGH_CONF_MIN_SOURCES
+    claims_high = [h for h in d.get("hypotheses") or [] if h.get("confidence") == "high"]
+    if thin and (d.get("scoring") or {}).get("confidence") == "high" and not claims_high:
+        # the scoring block claims high while no hypothesis does — reported once, at the scoring step
+        out.append(violation(first_hypothesis(d).get("step", step), "§8.5",
+                             f"high confidence on {len(sources)} distinct verified source(s): {sorted(sources)}"))
+    for h in claims_high if thin else []:
+        out.append(violation(h.get("step", step), "§8.5",
+                             f"high confidence on {len(sources)} distinct verified source(s): {sorted(sources)}"))
     ctx.update(visible=visible, routed=dec.get("disposition") in ("routed", "acknowledged"))
     return out
