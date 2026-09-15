@@ -115,3 +115,27 @@ def rules(result):
 def explain(ev, d):
     """evaluate() plus "_facts" — what tests read when they assert on extracted facts, not just violations."""
     return ev.explain(d)
+
+
+def spec_sections():
+    """Every section number the specification actually defines, resolved from spec.tex.
+
+    LaTeX does not write the numbers — they are positional, so they are counted the way the renderer
+    counts them: each \\section increments the major number and resets the minor, each \\subsection
+    increments the minor. Returns {"4", "4.7", "8", "8.4", ...}.
+
+    This exists because the guards it serves used to assert only that the *shape* of a citation looked
+    like a section and that spec.tex contained any section at all — a constant-true test that accepted
+    §999.999. A citation that cannot be resolved here is not a citation.
+    """
+    import re
+    from pathlib import Path
+    out, major, minor = set(), 0, 0
+    for line in (Path(__file__).resolve().parents[1] / "spec.tex").read_text().splitlines():
+        if re.match(r"\s*\\section\{", line):
+            major, minor = major + 1, 0
+            out.add(str(major))
+        elif re.match(r"\s*\\subsection\{", line):
+            minor += 1
+            out.add(f"{major}.{minor}")
+    return out

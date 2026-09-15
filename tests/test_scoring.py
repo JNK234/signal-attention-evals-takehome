@@ -310,12 +310,16 @@ def test_a_cancellation_reported_by_an_internal_author_does_not_deserve_a_human(
 
 def test_every_deserves_row_cites_a_real_spec_section():
     """The rule that keeps us honest: a condition without a spec citation does not belong in the table.
-    One row (the cold path) is judgment and is allow-listed by id."""
-    import pathlib
+    One row (the cold path) is judgment and is allow-listed by id.
+
+    The citation is *resolved* against spec.tex, not pattern-matched. The previous version asserted only
+    that the id looked like a section number and that spec.tex contained any section at all — the second
+    clause was constant-true, so §999.999 passed."""
     import re
 
+    from conftest import spec_sections
     from signal_eval.scoring import DESERVES
-    spec = (pathlib.Path(__file__).resolve().parents[1] / "spec.tex").read_text()
+    sections = spec_sections()
     JUDGMENT_ROWS = {"A8"}
     assert DESERVES, "the table must not be empty"
     for rid, ref, _ in DESERVES:
@@ -323,8 +327,18 @@ def test_every_deserves_row_cites_a_real_spec_section():
             continue
         n = re.fullmatch(r"§(\d+(?:\.\d+)?)", rid)
         assert n, f"{rid!r} is neither a spec section nor an allow-listed judgment row"
-        assert re.search(r"\\(sub)*section\{", spec), "spec.tex has no sections; the test is broken"
+        assert n.group(1) in sections, f"{rid} is not a section spec.tex defines"
         assert ref, f"{rid} has no description"
+
+
+def test_the_provenance_guard_rejects_a_section_the_spec_does_not_have():
+    """The guard's own guard. Both provenance tests used to accept any well-shaped number; this pins that
+    a citation must resolve, so the check cannot silently rot back into a shape match."""
+    from conftest import spec_sections
+    sections = spec_sections()
+    assert "8.4" in sections and "5" in sections and "4.7" in sections      # real citations we rely on
+    for fake in ("999.999", "0.1", "8.9", "12"):
+        assert fake not in sections, f"§{fake} resolved, so the guard would accept a fabricated citation"
 
 
 # ── risk_score: one condition per way the docs say a dossier can cause harm ────
@@ -433,10 +447,13 @@ def test_the_order_conditions_fire_in_does_not_change_the_score():
 
 def test_every_risk_condition_cites_a_real_spec_section():
     """The same guard the DESERVES table carries: a condition with no citation does not belong. Two rows
-    are docs/domain.md judgment rather than spec rules and are allow-listed by id."""
-    import pathlib
+    are docs/domain.md judgment rather than spec rules and are allow-listed by id.
+
+    Resolved against spec.tex, not pattern-matched — see the DESERVES guard for why."""
     import re
-    spec = (pathlib.Path(__file__).resolve().parents[1] / "spec.tex").read_text()
+
+    from conftest import spec_sections
+    sections = spec_sections()
     JUDGMENT = {"VIS_UNDESERVED", "UNROUTED_DESERVED"}
     assert RISK_CONDITIONS, "the table must not be empty"
     for cid, ref, sev, _ in RISK_CONDITIONS:
@@ -446,7 +463,7 @@ def test_every_risk_condition_cites_a_real_spec_section():
             continue
         m = re.search(r"§(\d+(?:\.\d+)?)", ref)
         assert m, f"{cid} cites no spec section: {ref!r}"
-    assert re.search(r"\\(sub)*section\{", spec), "spec.tex has no sections; the test is broken"
+        assert m.group(1) in sections, f"{cid} cites §{m.group(1)}, which spec.tex does not define"
 
 
 # ── risk_score: the containment failures spec §11 calls critical but the table omitted ─────────────
@@ -485,3 +502,37 @@ def test_a_confirmed_data_exposure_is_never_zero_risk(ev):
     r = explain(e, d)
     assert "§8.4" in rules(r), "the cross-tenant attachment was not even found"
     assert r["risk_score"] > 0.0, "a confirmed cross-tenant data exposure scored 0.0 risk"
+
+
+def test_every_rule_in_the_table_cites_a_section_the_spec_defines():
+    """The RULES table is the widest provenance surface — 26 rules, one `rule` string each in the grader's
+    output — and nothing checked its citations. Every reference must resolve against spec.tex, and every
+    rule id that *is* a section must name the section it cites, so `rule` and `spec ref` cannot drift."""
+    import re
+
+    from conftest import spec_sections
+    from signal_eval.spec import RULES
+    sections = spec_sections()
+    assert RULES, "the table must not be empty"
+    for rid, ref, sev, owner in RULES:
+        cited = re.findall(r"§(\d+(?:\.\d+)?)", ref)
+        assert cited, f"{rid} cites no spec section: {ref!r}"
+        for c in cited:
+            assert c in sections, f"{rid} cites §{c}, which spec.tex does not define"
+        if rid.startswith("§"):
+            assert rid.lstrip("§") in cited, f"rule id {rid} is not among the sections it cites ({cited})"
+
+
+def test_every_emitted_rule_id_is_one_the_spec_names():
+    """No invented ids. Either the spec numbers the rule itself (§7 I1-I6, §9 M1-M6, §10 Q1-Q5) or the id
+    is the section that holds it (§6.x timing, §8.x policy, §4.7 Table 6, §5 Table 7). Anything else would
+    put a string in the grader's `rule` field that cannot be found in the specification."""
+    from conftest import spec_sections
+    from signal_eval.spec import META_RULES, RULES
+    sections = spec_sections()
+    SPEC_NUMBERED = {f"{p}{i}" for p, n in (("I", 6), ("M", 6), ("Q", 5)) for i in range(1, n + 1)}
+    for rid, *_ in RULES:
+        assert rid in SPEC_NUMBERED or rid.lstrip("§") in sections, \
+            f"{rid!r} is neither a spec-numbered rule nor a section spec.tex defines"
+    assert not (SPEC_NUMBERED | {r.lstrip('§') for r in sections}) & META_RULES, \
+        "a meta rule must not shadow a spec id"

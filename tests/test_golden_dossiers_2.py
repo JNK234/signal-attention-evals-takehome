@@ -539,6 +539,12 @@ def test_sig_0442_fast_tracked_scoring_paged_at_3am_ingest_gap_manufactures_the_
     assert not {"§6.3", "§6.4", "§8.2", "§8.5", "§8.6", "§8.7", "M4", "§8.1", "Q5"} & rules(r)
     needs_labels(corpus)
     assert f["triggers"] == []
+    # Asserted BEFORE the xfail below: pytest.xfail() raises immediately, so anything after it never runs.
+    # This verdict is independent of the labeller miss — the comment there says as much — and was being
+    # silently skipped on every run where Q2 fired.
+    # The bake-off email is a champion arguing Cartogram's case internally, not a written statement of
+    # intent to cancel; no §8.1 trigger and enrichment returned normally, so the spec requires no human.
+    assert r["deserved_attention"] is False
     if "Q2" in rules(r):
         # Documented recall limit, not a rule error: art_00988 ("Cartogram won on modelling, lost on scheduled PDF
         # export. Quantiq is being pushed hard") is a product gap with a competitor named (spec §3.2), yet the model
@@ -548,9 +554,6 @@ def test_sig_0442_fast_tracked_scoring_paged_at_3am_ingest_gap_manufactures_the_
         # §8.1 triggers and §4.6 timeouts — a product gap is a hypothesis class (§3.2), not a trigger.
         pytest.xfail("labeller recall miss on an implicit product gap with a competitor named (art_00988)")
     assert "Q2" not in rules(r)
-    # The bake-off email is a champion arguing Cartogram's case internally, not a written statement of
-    # intent to cancel; no §8.1 trigger and enrichment returned normally, so the spec requires no human.
-    assert r["deserved_attention"] is False
 
 
 def test_sig_0500_score_params_under_notify_owner_legal_hold_rca_share_gap_artifact_below_floor(corpus):
