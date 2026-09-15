@@ -18,6 +18,14 @@ def check_materiality(d, ctx, cx):
     routed = any((e.get("from_state"), e.get("to_state")) == ("scored", "routed") for e in d.get("lifecycle") or [])
     if risk is not None and arr is not None and risk > arr:
         out.append(violation(step, "M1", f"arr_at_risk {risk:,.0f} > arr_annual {arr:,.0f}"))
+    # spec §5 Table 7's score_signal row says "ARR at risk must sit between the materiality floor and the
+    # account's annual ARR", and read alone that is a rule on the action with no routing condition. It is
+    # deliberately NOT checked that way: §9 M4 prescribes suppression with a stated reason as the remedy for
+    # a below-floor figure, and the agent cannot discover the figure is below the floor without scoring it
+    # first. Enforcing the bound at score time would make M4's own remedy unreachable and would charge the
+    # agent for doing exactly what §9 tells it to do — 10 dossiers in this corpus (sig_0391 at 17,500 against
+    # an 18,000 floor, suppressed with that reason) are the case. The upper bound is M1, which is
+    # unconditional; the lower bound belongs to routing, which is M3/M4.
     if floor is not None and arr is not None and floor > arr:
         out.append(violation(step, "M2", f"materiality_floor {floor:,.0f} > arr_annual {arr:,.0f}"))
     # M3/M4 — routed must be material. Below-floor is M4 (its own rule); above-ARR is already M1, so M3

@@ -875,3 +875,33 @@ def test_dropped_evidence_is_a_q4_violation(ev):
     # art_T2 was attached but never appears in evidence[]
     assert [v for v in explain(ev, d)["violations"] if v["rule"] == "Q4" and "art_T2" in v["explanation"]], \
         "evidence attached by an action but missing from evidence[] not reported"
+
+
+def test_scoring_below_the_floor_and_suppressing_is_what_the_spec_prescribes(ev):
+    """spec §5 Table 7 says score_signal's "ARR at risk must sit between the materiality floor and the
+    account's annual ARR", but that bound is deliberately not enforced at score time.
+
+    §9 M4 makes suppression-with-a-reason the *remedy* for a below-floor figure, and the agent cannot know
+    the figure is below the floor until it has scored the signal. Enforcing the bound on the action would
+    make M4's own remedy unreachable and would charge the agent for following §9. This pins that reading:
+    scoring 1,000 against an 18,000 floor and then suppressing with that reason is clean.
+
+    The bound is still enforced where the spec scopes it — M1 for the upper end (unconditional), M3/M4 for
+    routing. sig_0391 (17,500 against 18,000, suppressed) is the corpus case.
+    """
+    d = happy_dossier()
+    d["scoring"]["arr_at_risk"] = 1_000                          # floor is 18,000
+    d["actions"][2]["params"]["arr_at_risk"] = 1_000
+    d["lifecycle"] = d["lifecycle"][:6] + [
+        {"step": 6, "from_state": "scored", "to_state": "suppressed", "at": "2026-03-02T14:00:00Z",
+         "trigger": "agent_action", "reason": "ARR at risk $1,000 below materiality floor $18,000"}]
+    d["actions"] = d["actions"][:3] + [
+        {"step": 6, "action": "suppress", "at": "2026-03-02T14:00:00Z",
+         "params": {"reason": "ARR at risk $1,000 below materiality floor $18,000"}}]
+    d["notifications"] = []
+    d["decision"] = {"disposition": "suppressed", "recommended_play": None, "customer_visible": False,
+                     "reason": "below materiality floor"}
+    r = explain(ev, d)
+    assert not {"M3", "M4"} & rules(r), "M3/M4 are routing rules; this signal was never routed"
+    assert not [v for v in r["violations"] if "arr_at_risk" in v["explanation"]], \
+        "scoring below the floor then suppressing is M4's prescribed remedy, not a violation"
