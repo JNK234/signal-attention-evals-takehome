@@ -161,7 +161,7 @@ def test_malformed_lifecycle_entry_keeps_other_findings(ev):
     d["evidence"][0]["artifact_id"] = "art_OTHER"     # P4 from the evidence check
     d["lifecycle"].insert(0, "garbage")                # would have thrown inside check_transitions
     r = explain(ev, d)
-    assert "P4" in rules(r)
+    assert "§8.4" in rules(r)
     assert len(input_errors(r)) == 1
 
 

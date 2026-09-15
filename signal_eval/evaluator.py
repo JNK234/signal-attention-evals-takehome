@@ -18,7 +18,7 @@ LIST_FIELDS = ("lifecycle", "actions", "evidence", "notifications", "hypotheses"
 # already made (README l.218-222: a malformed entry must not hide findings on the valid ones).
 ID_FIELDS = ("artifact_id", "signal_id", "account_id", "owner_id", "step", "metric", "action", "channel")
 # The rules that read artefact text through the labeller; named when it could not read anything (decision 7).
-TEXT_RULES = ["P1", "Q2", "I5", "Q4"]
+TEXT_RULES = ["§8.1", "Q2", "I5", "Q4"]
 BOT_SOURCES = {"bot_alert", "billing_event"}     # cold path: the author is unknown, the source type says bot
 
 
@@ -39,7 +39,7 @@ def _unevaluated(ctx, cx):
         return None
     reason = cx.classifier_reason if cx.labeller is None else f"{cx.classifier_reason}; every current block unreadable"
     return {"step": -1, "rule": "UNEVALUATED", "severity": 0.0,
-            "explanation": f"labeller unavailable ({reason}): P1 (text triggers), Q2/I5 (hypothesis fit), Q4 (sarcasm) "
+            "explanation": f"labeller unavailable ({reason}): §8.1 (text triggers), Q2/I5 (hypothesis fit), Q4 (sarcasm) "
                            f"not evaluated over {len(read)} artefact(s)"}
 
 
@@ -101,8 +101,8 @@ class SignalEvaluator:
     evaluate(dossier) -> {quality_score, risk_score, deserved_attention, violations}   (README §1, exactly)
     explain(dossier)  -> the same four keys plus "_facts": every extracted fact, for analysis and tests.
 
-    load_context() is optional. Without it, corpus checks (I6, P4, M6, Q5) are skipped; the model
-    still reads the quotes the dossier carries, so P1/Q2 keep working with lower confidence.
+    load_context() is optional. Without it, corpus checks (I6, C4, M6, Q5) are skipped; the model
+    still reads the quotes the dossier carries, so C1/Q2 keep working with lower confidence.
     Without a labeller, one UNEVALUATED meta entry (severity 0) in `violations` names the text rules
     that were not evaluated (decision 7) — silence is never a pass.
     A check that throws on malformed input is recorded in _facts["errors"], not raised.

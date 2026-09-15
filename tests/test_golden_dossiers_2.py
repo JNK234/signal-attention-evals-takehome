@@ -117,7 +117,7 @@ def test_sig_0104_missing_days_inflate_a_real_seat_decline(corpus):
     assert [e["status"] for e in f["evidence"]] == ["verified", "verified"]
     assert f["has_customer_text"] is False and f["triggers"] == [] and f["reached_human"] is False
     assert f["days_to_renewal"] == 138
-    assert "P1" not in rules(r) and "P5" not in rules(r)
+    assert "§8.1" not in rules(r) and "§8.5" not in rules(r)
     assert r["deserved_attention"] is False
     needs_labels(corpus)
     assert "Q2" in rules(r) and any("benign_variation" in v["explanation"] for v in only(r, "Q2"))
@@ -142,9 +142,9 @@ def test_sig_0202_high_confidence_on_one_source_late_notify_wrong_claim(corpus):
     Routed and acknowledged → reached_human True, so the trigger is honoured and no P1 (§8.1). Q5: sig_0283 (seat_decay)
     opened 05-24, later. deserved_attention True on the confirmed billing trigger (label-gated)."""
     r = run(corpus, "sig_0202")
-    assert {"P5", "T3", "M6"} <= rules(r) <= {"P5", "T3", "M6", "Q2"}
-    assert only(r, "P5")[0]["step"] == 2 and only(r, "P5")[0]["severity"] == 1.0
-    t3 = only(r, "T3")[0]
+    assert {"§8.5", "§6.3", "M6"} <= rules(r) <= {"§8.5", "§6.3", "M6", "Q2"}
+    assert only(r, "§8.5")[0]["step"] == 2 and only(r, "§8.5")[0]["severity"] == 1.0
+    t3 = only(r, "§6.3")[0]
     assert t3["step"] == 6 and t3["severity"] == 0.6 and "77.1h" in t3["explanation"]
     m6 = only(r, "M6")[0]
     assert m6["step"] == 2 and m6["severity"] == 0.6 and "paired -30.7%" in m6["explanation"]
@@ -156,7 +156,7 @@ def test_sig_0202_high_confidence_on_one_source_late_notify_wrong_claim(corpus):
     assert [e["status"] for e in f["evidence"]] == ["verified", "verified"]
     assert f["verified_sources"] == ["billing_event"] and f["has_customer_text"] is False
     assert f["reached_human"] is True and f["days_to_renewal"] == 242
-    assert not {"P1", "T1", "T2", "P6", "M4", "I4", "TM"} & rules(r)
+    assert not {"§8.1", "§6.1", "§6.2", "§8.6", "M4", "§5", "§4.7"} & rules(r)
     needs_labels(corpus)
     assert f["triggers"] == ["billing_dispute"]
     assert "Q2" in rules(r) and any("onboarding_failure" in v["explanation"] for v in only(r, "Q2"))
@@ -208,10 +208,10 @@ def test_sig_0350_suppressed_after_enrichment_timeout(corpus):
     sig_0525 (06-19) are outside 7 days. benign_variation with only a platform-review note → Q2 label-gated.
     deserved_attention True — §4.6 requires a human after an enrichment timeout."""
     r = run(corpus, "sig_0350")
-    assert {"TM"} <= rules(r) <= {"TM", "Q2"}
-    tm = only(r, "TM")
+    assert {"§4.7"} <= rules(r) <= {"§4.7", "Q2"}
+    tm = only(r, "§4.7")
     assert len(tm) == 1 and tm[0]["step"] == 5 and tm[0]["severity"] == 0.6 and "4.5" in tm[0]["explanation"]
-    assert not {"I4", "P2", "P5", "P1", "M4"} & rules(r)
+    assert not {"§5", "§8.2", "§8.5", "§8.1", "M4"} & rules(r)
     f = r["_facts"]
     assert [e["status"] for e in f["evidence"]] == ["verified"]
     assert f["has_customer_text"] is False and f["triggers"] == [] and f["reached_human"] is False
@@ -250,7 +250,7 @@ def test_sig_0383_impossible_minus_106_claim(corpus):
     assert [e["status"] for e in f["evidence"]] == ["verified", "verified"]
     assert f["verified_sources"] == ["chat_message", "support_ticket"] and f["has_customer_text"] is True
     assert f["triggers"] == [] and f["reached_human"] is False and f["days_to_renewal"] == 122
-    assert "P5" not in rules(r) and "P1" not in rules(r)
+    assert "§8.5" not in rules(r) and "§8.1" not in rules(r)
     # A 25-day-old "Feature request: dark mode … Not urgent" is a product_gap hypothesis class (§3.2), not a
     # mandatory-route trigger (§8.1). The hand derivation said False; the placeholder rule said True and this
     # was an expected failure until deserved_attention was cut back to what the spec authorises.
@@ -306,12 +306,12 @@ def test_sig_0394_customer_visible_play_on_legal_hold_plus_renotify_and_duplicat
     left at no_hypothesis → I5 (medium 0.3), label-gated. deserved_attention False: no trigger, the current customer
     text is a seat expansion, no claims."""
     r = run(corpus, "sig_0394")
-    assert {"P2", "T2", "T3", "Q5"} <= rules(r) <= {"P2", "T2", "T3", "Q5", "I5"}
-    p2 = only(r, "P2")[0]
+    assert {"§8.2", "§6.2", "§6.3", "Q5"} <= rules(r) <= {"§8.2", "§6.2", "§6.3", "Q5", "I5"}
+    p2 = only(r, "§8.2")[0]
     assert p2["step"] == 6 and p2["severity"] == 1.0 and "legal_hold" in p2["explanation"] and "csm_checkin" in p2["explanation"]
-    t2 = only(r, "T2")
+    t2 = only(r, "§6.2")
     assert len(t2) == 1 and t2[0]["severity"] == 0.6 and "0.9h" in t2[0]["explanation"]
-    t3 = only(r, "T3")[0]
+    t3 = only(r, "§6.3")[0]
     assert t3["step"] == 6 and t3["severity"] == 0.6 and "82.3h" in t3["explanation"]
     q5 = only(r, "Q5")[0]
     assert "sig_0391" in q5["explanation"] and abs(q5["severity"] - 0.033) < 0.001
@@ -343,17 +343,17 @@ def test_sig_0415_fabricated_cancel_quote_high_confidence_on_nothing(corpus):
     departure → no P1 (days_to_renewal 17). Q5: no other signal on the account. Q2 is admitted but not required —
     §10 Q2 is about evidence the hypothesis fails to match, and this dossier has none. deserved_attention True — §4.6 requires a human after an enrichment timeout."""
     r = run(corpus, "sig_0415")
-    assert {"I6", "P5"} <= rules(r) <= {"I6", "P5", "Q2"}
+    assert {"I6", "§8.5"} <= rules(r) <= {"I6", "§8.5", "Q2"}
     i6 = only(r, "I6")[0]
     assert i6["step"] == 2 and i6["severity"] == 1.0 and "art_01279" in i6["explanation"]
-    p5 = only(r, "P5")[0]
+    p5 = only(r, "§8.5")[0]
     assert p5["severity"] == 1.0 and "0 distinct" in p5["explanation"]
     f = r["_facts"]
     assert [e["status"] for e in f["evidence"]] == ["fabricated"]
     assert f["verified_sources"] == [] and f["has_customer_text"] is False
     assert f["triggers"] == [] and f["reached_human"] is False and f["days_to_renewal"] == 17
     assert f["claim_status"] == []
-    assert "P1" not in rules(r)
+    assert "§8.1" not in rules(r)
     assert r["deserved_attention"] is False
 
 
@@ -380,8 +380,8 @@ def test_sig_0441_ingest_gap_inflates_api_decline_routed_late_on_a_joke(corpus):
     §10 Q2 (structural: the only claim is a pipeline artefact and nothing in the record describes a departure).
     deserved_attention False: no trigger, no customer text, the claim is an artefact."""
     r = run(corpus, "sig_0441")
-    assert rules(r) == {"T3", "M6", "Q2"}
-    t3 = only(r, "T3")[0]
+    assert rules(r) == {"§6.3", "M6", "Q2"}
+    t3 = only(r, "§6.3")[0]
     assert t3["step"] == 8 and t3["severity"] == 0.6 and "75.7h" in t3["explanation"]
     m6 = only(r, "M6")[0]
     assert m6["step"] == 2 and m6["severity"] == 0.6
@@ -424,8 +424,8 @@ def test_sig_0003_impossible_minus_112_on_one_source_high_confidence(corpus):
     planned-change reading and no cohort → §10 Q2, label-gated. deserved_attention False: no trigger, the customer
     text is a scheduling note, the one claim is wrong."""
     r = run(corpus, "sig_0003")
-    assert {"P5", "M6"} <= rules(r) <= {"P5", "M6", "Q2"}
-    p5 = only(r, "P5")[0]
+    assert {"§8.5", "M6"} <= rules(r) <= {"§8.5", "M6", "Q2"}
+    p5 = only(r, "§8.5")[0]
     assert p5["step"] == 2 and p5["severity"] == 1.0 and "1 distinct" in p5["explanation"]
     m6 = only(r, "M6")
     assert len(m6) == 1 and m6[0]["step"] == 2 and m6[0]["severity"] == 0.6 and "paired -21.2%" in m6[0]["explanation"]
@@ -437,7 +437,7 @@ def test_sig_0003_impossible_minus_112_on_one_source_high_confidence(corpus):
     assert [e["status"] for e in f["evidence"]] == ["verified"]
     assert f["verified_sources"] == ["email_thread"] and f["has_customer_text"] is True
     assert f["triggers"] == [] and f["reached_human"] is False and f["days_to_renewal"] == 214
-    assert not {"I4", "TM", "M4", "P1", "P7", "Q5"} & rules(r)
+    assert not {"§5", "§4.7", "M4", "§8.1", "§8.7", "Q5"} & rules(r)
     assert r["deserved_attention"] is False
     needs_labels(corpus)
     assert "Q2" in rules(r) and any("benign_variation" in v["explanation"] for v in only(r, "Q2"))
@@ -516,14 +516,14 @@ def test_sig_0442_fast_tracked_scoring_paged_at_3am_ingest_gap_manufactures_the_
     read → False; with labels the current customer text reads as product_gap → True under the placeholder rule, and by
     hand too (a champion naming a competitor eight days before open, with a formal cancellation four days later)."""
     r = run(corpus, "sig_0442")
-    assert {"TM", "I4", "T1", "T2", "M6"} <= rules(r) <= {"TM", "I4", "T1", "T2", "M6", "Q2"}   # Q2 is label-gated, see below
-    tm = only(r, "TM")
+    assert {"§4.7", "§5", "§6.1", "§6.2", "M6"} <= rules(r) <= {"§4.7", "§5", "§6.1", "§6.2", "M6", "Q2"}   # Q2 is label-gated, see below
+    tm = only(r, "§4.7")
     assert len(tm) == 1 and tm[0]["step"] == 3 and tm[0]["severity"] == 0.6 and "hypothesis_formed→scored" in tm[0]["explanation"]
-    i4 = only(r, "I4")
+    i4 = only(r, "§5")
     assert len(i4) == 1 and i4[0]["step"] == 3 and "score_signal" in i4[0]["explanation"] and "hypothesis_formed→scored" in i4[0]["explanation"]
-    t1 = only(r, "T1")
+    t1 = only(r, "§6.1")
     assert len(t1) == 1 and t1[0]["step"] == 4 and t1[0]["severity"] == 0.3 and "03:32" in t1[0]["explanation"]
-    t2 = only(r, "T2")
+    t2 = only(r, "§6.2")
     assert len(t2) == 1 and t2[0]["step"] == 4 and t2[0]["severity"] == 0.6 and "5.1h" in t2[0]["explanation"]
     m6 = only(r, "M6")[0]
     assert m6["step"] == 2 and m6["severity"] == 0.6
@@ -536,7 +536,7 @@ def test_sig_0442_fast_tracked_scoring_paged_at_3am_ingest_gap_manufactures_the_
     assert [e["status"] for e in f["evidence"]] == ["verified", "verified"]
     assert f["verified_sources"] == ["email_thread"] and f["has_customer_text"] is True
     assert f["reached_human"] is True and f["days_to_renewal"] == -69 and f["final_state"] == "routed"
-    assert not {"T3", "T4", "P2", "P5", "P6", "P7", "M4", "P1", "Q5"} & rules(r)
+    assert not {"§6.3", "§6.4", "§8.2", "§8.5", "§8.6", "§8.7", "M4", "§8.1", "Q5"} & rules(r)
     needs_labels(corpus)
     assert f["triggers"] == []
     if "Q2" in rules(r):
@@ -585,11 +585,11 @@ def test_sig_0500_score_params_under_notify_owner_legal_hold_rca_share_gap_artif
     non-benign topic (product_gap) → True — asserted as the placeholder gives it; by hand the tickets say 'not
     urgent' and the drop is a pipeline gap, so the signal did not deserve the RCA share it got."""
     r = run(corpus, "sig_0500")
-    assert {"I4", "P2", "M4", "M6"} <= rules(r) <= {"I4", "P2", "M4", "M6", "Q2"}
-    i4 = only(r, "I4")
+    assert {"§5", "§8.2", "M4", "M6"} <= rules(r) <= {"§5", "§8.2", "M4", "M6", "Q2"}
+    i4 = only(r, "§5")
     assert len(i4) == 1 and i4[0]["step"] == 5 and "notify_owner" in i4[0]["explanation"]
     assert "evidence_received→scored" in i4[0]["explanation"] and "params missing" in i4[0]["explanation"]
-    p2 = only(r, "P2")[0]
+    p2 = only(r, "§8.2")[0]
     assert p2["step"] == 6 and p2["severity"] == 1.0 and "legal_hold" in p2["explanation"] and "reliability_rca_share" in p2["explanation"]
     m4 = only(r, "M4")
     assert len(m4) == 1 and m4[0]["severity"] == 0.6 and "6,500" in m4[0]["explanation"] and "9,000" in m4[0]["explanation"]
@@ -605,7 +605,7 @@ def test_sig_0500_score_params_under_notify_owner_legal_hold_rca_share_gap_artif
     assert f["verified_sources"] == ["meeting_note", "support_ticket"] and f["has_customer_text"] is True
     assert f["reached_human"] is True and f["days_to_renewal"] == 48 and f["final_state"] == "expired"
     assert f["context_loss"] is None
-    assert not {"TM", "I1", "I2", "T1", "T2", "T3", "T4", "P5", "P6", "P1", "Q5"} & rules(r)
+    assert not {"§4.7", "I1", "I2", "§6.1", "§6.2", "§6.3", "§6.4", "§8.5", "§8.6", "§8.1", "Q5"} & rules(r)
     needs_labels(corpus)
     assert f["triggers"] == []
     assert "Q2" in rules(r) and any("benign_variation" in v["explanation"] for v in only(r, "Q2"))
@@ -648,21 +648,21 @@ def test_sig_0606_grounded_holiday_dip_routed_late_at_night_on_a_legal_hold_acco
     current customer text reads as product_gap — asserted as the placeholder gives it; by hand the dip is a
     customer-flagged holiday and did not deserve an RCA share."""
     r = run(corpus, "sig_0606")
-    assert {"I4", "P5", "T1", "T3", "P2", "M4", "Q4"} <= rules(r) <= {"I4", "P5", "T1", "T3", "P2", "M4", "Q4", "Q2"}
-    i4 = only(r, "I4")
+    assert {"§5", "§8.5", "§6.1", "§6.3", "§8.2", "M4", "Q4"} <= rules(r) <= {"§5", "§8.5", "§6.1", "§6.3", "§8.2", "M4", "Q4", "Q2"}
+    i4 = only(r, "§5")
     assert len(i4) == 2 and all(v["step"] == 5 and v["severity"] == 0.6 for v in i4)
     assert any("request_enrichment" in v["explanation"] and "metrics" in v["explanation"] for v in i4)
     assert any("notify_owner" in v["explanation"] and "evidence_received→scored" in v["explanation"] for v in i4)
     q4 = only(r, "Q4")
     assert len(q4) == 2 and any("art_03246" in v["explanation"] and "2 times" in v["explanation"] for v in q4)
     assert any("requested again" in v["explanation"] for v in q4)
-    p5 = only(r, "P5")[0]
+    p5 = only(r, "§8.5")[0]
     assert p5["step"] == 2 and p5["severity"] == 1.0 and "1 distinct" in p5["explanation"]
-    t1 = only(r, "T1")
+    t1 = only(r, "§6.1")
     assert len(t1) == 1 and t1[0]["step"] == 6 and t1[0]["severity"] == 0.3 and "21:20" in t1[0]["explanation"]
-    t3 = only(r, "T3")[0]
+    t3 = only(r, "§6.3")[0]
     assert t3["step"] == 6 and t3["severity"] == 0.6 and "88.7h" in t3["explanation"]
-    p2 = only(r, "P2")[0]
+    p2 = only(r, "§8.2")[0]
     assert p2["step"] == 6 and p2["severity"] == 1.0 and "legal_hold" in p2["explanation"]
     assert "7,000" in only(r, "M4")[0]["explanation"] and only(r, "M4")[0]["severity"] == 0.6
     f = r["_facts"]
@@ -674,7 +674,7 @@ def test_sig_0606_grounded_holiday_dip_routed_late_at_night_on_a_legal_hold_acco
     assert f["verified_sources"] == ["support_ticket"] and f["has_customer_text"] is True
     assert f["reached_human"] is True and f["days_to_renewal"] == 27 and f["final_state"] == "acknowledged"
     assert f["duplicates"] == []
-    assert not {"TM", "I1", "I2", "T2", "T4", "P6", "P7", "M6", "P1", "Q5"} & rules(r)
+    assert not {"§4.7", "I1", "I2", "§6.2", "§6.4", "§8.6", "§8.7", "M6", "§8.1", "Q5"} & rules(r)
     # The seat decline is real and account-specific, but docs/domain.md says "a usage decline is not
     # automatically a risk" and no §8.1 trigger is present — the spec does not route this.
     assert r["deserved_attention"] is False

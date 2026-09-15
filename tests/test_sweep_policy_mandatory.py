@@ -60,7 +60,7 @@ def test_P2_restricted_flag_with_internal_play_is_clean(ev, flag):
         for play in ("watch_only", "renewal_risk_review"):
             d = happy_dossier()
             d["decision"].update(recommended_play=play, customer_visible=False)
-            assert "P2" not in rules(ev.evaluate(d)), (flag, play)
+            assert "§8.2" not in rules(ev.evaluate(d)), (flag, play)
     finally:
         ev.cx.accounts["acct_T"]["flags"] = []
 
@@ -71,7 +71,7 @@ def test_P2_mna_quiet_period_with_customer_visible_play(ev):
     try:
         d = happy_dossier()
         d["decision"].update(recommended_play="csm_checkin", customer_visible=True)
-        p2 = only(ev.evaluate(d), "P2")
+        p2 = only(ev.evaluate(d), "§8.2")
         assert len(p2) == 1 and p2[0]["severity"] == SEV_WEIGHT["critical"] and "mna_quiet_period" in p2[0]["explanation"]
     finally:
         ev.cx.accounts["acct_T"]["flags"] = []
@@ -84,7 +84,7 @@ def test_P2_customer_visible_play_declared_not_visible_is_still_P2(ev):
     try:
         d = happy_dossier()
         d["decision"].update(recommended_play="exec_escalation", customer_visible=False)
-        p2 = only(ev.evaluate(d), "P2")
+        p2 = only(ev.evaluate(d), "§8.2")
         assert len(p2) == 1 and "exec_escalation" in p2[0]["explanation"]
     finally:
         ev.cx.accounts["acct_T"]["flags"] = []
@@ -97,7 +97,7 @@ def test_P2_non_restricting_flags_do_not_fire(ev):
     try:
         d = happy_dossier()
         d["decision"].update(recommended_play="csm_checkin", customer_visible=True)
-        assert "P2" not in rules(ev.evaluate(d))
+        assert "§8.2" not in rules(ev.evaluate(d))
     finally:
         ev.cx.accounts["acct_T"]["flags"] = []
 
@@ -109,7 +109,7 @@ def test_P2_on_a_suppressed_dossier_still_fires(ev):
     try:
         d = suppressed(happy_dossier())
         d["decision"].update(recommended_play="csm_checkin", customer_visible=True)
-        assert "P2" in rules(ev.evaluate(d))
+        assert "§8.2" in rules(ev.evaluate(d))
     finally:
         ev.cx.accounts["acct_T"]["flags"] = []
 
@@ -125,7 +125,7 @@ def test_P5_two_artefacts_of_the_same_source_type_is_one_source(ev):
     d["evidence"].append({"step": 2, "artifact_id": "art_T2", "source": "support_ticket", "restricted": False,
                           "attached_at": "2026-03-02T09:40:00Z", "quote": "Second ticket, same topic."})
     try:
-        p5 = only(ev.evaluate(d), "P5")
+        p5 = only(ev.evaluate(d), "§8.5")
     finally:
         del ev.cx.artifacts["art_T2"]
     assert len(p5) == 1 and "1 distinct" in p5[0]["explanation"] and p5[0]["severity"] == SEV_WEIGHT["critical"]
@@ -137,7 +137,7 @@ def test_P5_high_confidence_with_zero_evidence(ev):
     d["scoring"]["confidence"] = "high"
     d["evidence"] = []
     d["actions"] = [a for a in d["actions"] if a["action"] != "attach_evidence"]
-    p5 = only(ev.evaluate(d), "P5")
+    p5 = only(ev.evaluate(d), "§8.5")
     assert len(p5) == 1 and "0 distinct" in p5[0]["explanation"]
 
 
@@ -153,7 +153,7 @@ def test_P5_second_source_fabricated_does_not_count(ev):
         r = ev.evaluate(d)
     finally:
         del ev.cx.artifacts["art_T2"]
-    assert {"P5", "I6"} <= rules(r)
+    assert {"§8.5", "I6"} <= rules(r)
 
 
 # ── P7 (§8.7) ───────────────────────────────────────────────────────────────────────────────────
@@ -164,7 +164,7 @@ def test_P7_phone_number_in_routed_quote(ev):
     d = happy_dossier()
     d["evidence"][0]["quote"] = "Ring me on +49 30 1234 5678 if the sync fails again."
     try:
-        p7 = only(ev.evaluate(d), "P7")
+        p7 = only(ev.evaluate(d), "§8.7")
     finally:
         ev.cx.artifacts["art_T1"] = ARTIFACT
     assert len(p7) == 1 and p7[0]["step"] == 2 and p7[0]["severity"] == SEV_WEIGHT["critical"]
@@ -176,7 +176,7 @@ def test_P7_contact_details_in_a_suppressed_dossier_is_not_P7(ev):
     d = suppressed(happy_dossier())
     d["evidence"][0]["quote"] = "Call me. ada@example.com"
     try:
-        assert "P7" not in rules(ev.evaluate(d))
+        assert "§8.7" not in rules(ev.evaluate(d))
     finally:
         ev.cx.artifacts["art_T1"] = ARTIFACT
 
@@ -188,7 +188,7 @@ def test_P7_invoice_id_and_iso_timestamp_in_routed_quote_are_not_contact_details
     d = happy_dossier()
     d["evidence"][0]["quote"] = text
     try:
-        assert "P7" not in rules(ev.evaluate(d))
+        assert "§8.7" not in rules(ev.evaluate(d))
     finally:
         ev.cx.artifacts["art_T1"] = ARTIFACT
 
@@ -197,7 +197,7 @@ def test_P7_fires_on_the_cold_path_from_the_quote_alone():
     """Without load_context the quote is all there is; an email in a routed quote is still §8.7."""
     d = happy_dossier()
     d["evidence"][0]["quote"] = "Reach me at ada@example.com"
-    assert "P7" in rules(SignalEvaluator(labeller=None).evaluate(d))
+    assert "§8.7" in rules(SignalEvaluator(labeller=None).evaluate(d))
 
 
 # ── P3 (§8.3) ───────────────────────────────────────────────────────────────────────────────────
@@ -216,7 +216,7 @@ def test_P3_restricted_quote_reaching_a_human_by_preempt_only(ev):
         r = ev.evaluate(d)
     finally:
         ev.cx.artifacts["art_T1"] = ARTIFACT
-    assert "P3" in rules(r)
+    assert "§8.3" in rules(r)
 
 
 # ── P1: departure window boundaries (§8.1 bullet 4, 'within 90 days of renewal') ───────────────
@@ -231,9 +231,9 @@ def test_P1_departure_window_boundaries(ev, dtr, expect_trigger):
     art = dict(CUSTOMER, author="Ada Lovelace", text="I am moving on at the end of the quarter.")
     r = case(ev, [art], DEPART, dtr=dtr)
     if expect_trigger:
-        assert src(r)["confirmed"] == ["buyer_or_champion_departure"] and only(r, "P1")[0]["severity"] == 1.0
+        assert src(r)["confirmed"] == ["buyer_or_champion_departure"] and only(r, "§8.1")[0]["severity"] == 1.0
     else:
-        assert r["_facts"]["triggers"] == [] and "P1" not in rules(r)
+        assert r["_facts"]["triggers"] == [] and "§8.1" not in rules(r)
         assert "outside" in src(r)["per_artifact"]["art_T2"]["facts"]["buyer_or_champion_departure"]
 
 
@@ -246,7 +246,7 @@ def test_P1_departure_with_unknown_renewal_date_is_uncertain(ev):
     r = case(ev, [art], DEPART, dossier=d)
     assert r["_facts"]["days_to_renewal"] is None
     assert src(r)["uncertain"] == ["buyer_or_champion_departure"] and src(r)["confirmed"] == []
-    p1 = only(r, "P1")
+    p1 = only(r, "§8.1")
     assert len(p1) == 1 and p1[0]["severity"] == pytest.approx(SEV_WEIGHT["critical"] * UNCERTAIN_FACTOR)
 
 
@@ -255,14 +255,14 @@ def test_P1_first_person_departure_by_a_non_champion_author_is_unattributed(ev):
     to nobody → unattributed, no trigger, no P1."""
     art = dict(CUSTOMER, author="Grace", text="I am moving on at the end of the quarter.")
     r = case(ev, [art], DEPART, dtr=60)
-    assert r["_facts"]["triggers"] == [] and src(r)["unattributed"] == ["departure"] and "P1" not in rules(r)
+    assert r["_facts"]["triggers"] == [] and src(r)["unattributed"] == ["departure"] and "§8.1" not in rules(r)
 
 
 def test_P1_departure_named_only_in_quoted_history_is_historical(ev):
     """The champion's name in a depth-1 quote is history (§4.2), not a current departure."""
     art = dict(CUSTOMER, text="Thanks, all sorted.\n\nOn 1 Jan 2026, Grace wrote:\n> Ada Lovelace is moving on next month.")
     r = case(ev, [art], DEPART, dtr=60)
-    assert r["_facts"]["triggers"] == [] and src(r)["historical"] == ["departure"] and "P1" not in rules(r)
+    assert r["_facts"]["triggers"] == [] and src(r)["historical"] == ["departure"] and "§8.1" not in rules(r)
 
 
 # ── P1: billing amount location and structure (§8.1 bullet 5) ───────────────────────────────────
@@ -277,7 +277,7 @@ def test_P1_billing_amount_only_in_the_subject_is_read(ev):
     the body: $20,000 = 20% of ARR → confirmed billing_dispute, P1 1.0 when suppressed."""
     bill = _bill("Status: disputed by customer AP.", subject="Invoice INV-9 for $20,000 disputed")
     r = case(ev, [bill], {}, detector="billing_dispute")
-    assert src(r)["confirmed"] == ["billing_dispute"] and only(r, "P1")[0]["severity"] == 1.0
+    assert src(r)["confirmed"] == ["billing_dispute"] and only(r, "§8.1")[0]["severity"] == 1.0
 
 
 def test_P1_billing_detector_with_no_billing_artefact_attached_is_uncertain(ev):
@@ -286,7 +286,7 @@ def test_P1_billing_detector_with_no_billing_artefact_attached_is_uncertain(ev):
     art = dict(CUSTOMER, text="Following up on the backfill plan.")
     r = case(ev, [art], {}, detector="billing_dispute")
     assert src(r)["uncertain"] == ["billing_dispute(amount unverified)"]
-    p1 = only(r, "P1")
+    p1 = only(r, "§8.1")
     assert len(p1) == 1 and p1[0]["severity"] == pytest.approx(SEV_WEIGHT["critical"] * UNCERTAIN_FACTOR)
 
 
@@ -323,7 +323,7 @@ def test_P1_trigger_honoured_by_human_preempt_is_not_P1(ev):
     d["notifications"] = []
     d["closed_at"] = "2026-03-02T11:00:00Z"
     r = case(ev, [art], {"not be renewing": {"cancel_intent": 0.9}}, dossier=d)
-    assert src(r)["confirmed"] == ["cancel_intent"] and "P1" not in rules(r) and r["_facts"]["reached_human"] is True
+    assert src(r)["confirmed"] == ["cancel_intent"] and "§8.1" not in rules(r) and r["_facts"]["reached_human"] is True
 
 
 def test_P1_trigger_on_a_still_open_signal_inside_its_TTA_is_not_yet_a_missed_route(ev):
@@ -339,7 +339,7 @@ def test_P1_trigger_on_a_still_open_signal_inside_its_TTA_is_not_yet_a_missed_ro
     d["decision"] = {"disposition": None, "recommended_play": None, "customer_visible": False, "reason": None}
     r = case(ev, [art], {"not be renewing": {"cancel_intent": 0.9}}, dossier=d)
     assert src(r)["confirmed"] == ["cancel_intent"]
-    assert "P1" not in rules(r)
+    assert "§8.1" not in rules(r)
 
 
 def test_P1_on_the_cold_path_from_a_quote_is_uncertain():
@@ -351,7 +351,7 @@ def test_P1_on_the_cold_path_from_a_quote_is_uncertain():
     d["evidence"][0]["quote"] = "We will not be renewing."
     r = e.explain(d)
     assert r["_facts"]["trigger_source"]["uncertain"] == ["cancel_intent"]
-    p1 = only(r, "P1")
+    p1 = only(r, "§8.1")
     assert len(p1) == 1 and p1[0]["severity"] == pytest.approx(SEV_WEIGHT["critical"] * UNCERTAIN_FACTOR)
 
 
@@ -360,4 +360,4 @@ def test_P1_legal_reference_by_customer_at_depth_zero_with_bot_forward_below(ev)
     though the depth-1 block is a bot digest; the forward is not masked because no other account is named."""
     art = dict(CUSTOMER, text="Our counsel will be in touch about the SLA.\n\n---------- Forwarded message ----------\nFrom: alerts\nSent: Monday\nDeploy finished.")
     r = case(ev, [art], {"counsel": {"legal_reference": 0.9}})
-    assert src(r)["confirmed"] == ["legal_reference"] and only(r, "P1")[0]["severity"] == 1.0
+    assert src(r)["confirmed"] == ["legal_reference"] and only(r, "§8.1")[0]["severity"] == 1.0

@@ -42,7 +42,7 @@ def billing_event(amount, artifact_id="art_BILL", status="disputed by customer A
 
 
 def p1s(result):
-    return [v for v in result["violations"] if v["rule"] == "P1"]
+    return [v for v in result["violations"] if v["rule"] == "§8.1"]
 
 
 def case(ev, arts, table, dossier=None, detector=None, dtr=None):
@@ -85,7 +85,7 @@ def test_trigger_routed_and_acknowledged_is_not_P1(ev):
     d["detector"] = "billing_dispute"
     ev.cx.artifacts["art_BILL"] = billing_event(20_000)
     r = explain(ev, d)
-    assert "billing_dispute" in r["_facts"]["triggers"] and "P1" not in rules(r)
+    assert "billing_dispute" in r["_facts"]["triggers"] and "§8.1" not in rules(r)
 
 
 def test_trigger_with_no_human_and_no_suppression_is_still_P1(ev):
@@ -117,14 +117,14 @@ def test_cancel_only_in_quoted_history_is_historical_not_trigger(ev):
     art = dict(SECOND_CUSTOMER, text=THREAD)
     r = case(ev, [art], {"done with this vendor": {"cancel_intent": 0.9}})
     assert src(r)["historical"] == ["cancel_intent"] and r["_facts"]["triggers"] == []
-    assert "P1" not in rules(r)
+    assert "§8.1" not in rules(r)
 
 
 def test_internal_report_of_cancel_is_fact_not_trigger(ev):
     """A9: an internal author writing that the customer is cancelling is not 'from a customer-side author'."""
     art = dict(INTERNAL_NOTE, text="Call with Ada: they told us they will not renew in June.")
     r = case(ev, [art], {"will not renew": {"cancel_intent": 0.9}})
-    assert r["_facts"]["triggers"] == [] and "P1" not in rules(r)
+    assert r["_facts"]["triggers"] == [] and "§8.1" not in rules(r)
     assert src(r)["per_artifact"]["art_INT"]["facts"]["cancel_intent"] == "reported_by_internal"
 
 
@@ -132,7 +132,7 @@ def test_bot_artifact_contributes_nothing_but_billing(ev):
     art = dict(SECOND_CUSTOMER, artifact_id="art_BOT", type="bot_alert", source="bot_alert", author="alerts", author_type="bot",
                text="Auto-summary: customer says they will not renew; counsel engaged.")
     r = case(ev, [art], {"not renew": {"cancel_intent": 0.9, "legal_reference": 0.9, "security_incident": 0.9}})
-    assert r["_facts"]["triggers"] == [] and src(r)["historical"] == [] and "P1" not in rules(r)
+    assert r["_facts"]["triggers"] == [] and src(r)["historical"] == [] and "§8.1" not in rules(r)
 
 
 def test_forwarded_text_about_another_account_is_masked(ev):
@@ -140,7 +140,7 @@ def test_forwarded_text_about_another_account_is_masked(ev):
     art = dict(SECOND_CUSTOMER, mentions_other_account="Other Co",
                text="FYI, see below.\n\n---------- Forwarded message ----------\nFrom: Other Co\nSent: Monday\nOther Co is cancelling their contract.")
     r = case(ev, [art], {"cancelling": {"cancel_intent": 0.9}})
-    assert r["_facts"]["triggers"] == [] and "P1" not in rules(r)
+    assert r["_facts"]["triggers"] == [] and "§8.1" not in rules(r)
     assert src(r)["per_artifact"]["art_T2"]["facts"]["masked_other_account"] == "Other Co"
 
 
@@ -148,7 +148,7 @@ def test_depth0_block_naming_another_account_is_masked(ev):
     art = dict(SECOND_CUSTOMER, mentions_other_account="Other Co",
                text="Heard from Other Co that they are cancelling; we are staying put.")
     r = case(ev, [art], {"cancelling": {"cancel_intent": 0.9}})
-    assert r["_facts"]["triggers"] == [] and "P1" not in rules(r)
+    assert r["_facts"]["triggers"] == [] and "§8.1" not in rules(r)
     assert src(r)["per_artifact"]["art_T2"]["facts"]["masked_other_account"] == "Other Co"
 
 
@@ -170,7 +170,7 @@ def test_legal_assertion_is_trigger_but_mention_is_not(ev):
     r = case(ev, [assertion], LEGAL)
     assert src(r)["confirmed"] == ["legal_reference"] and p1s(r)[0]["severity"] == 1.0
     r = case(ev, [mention], LEGAL)
-    assert r["_facts"]["triggers"] == [] and "P1" not in rules(r)
+    assert r["_facts"]["triggers"] == [] and "§8.1" not in rules(r)
 
 
 def test_internal_note_with_legal_reference_is_trigger(ev):
@@ -186,7 +186,7 @@ def test_security_incident_needs_customer_author(ev):
     table = {"exfiltrated": {"security_incident": 0.9}}
     internal = dict(INTERNAL_NOTE, text="Their SOC says data was exfiltrated from a shared workspace.")
     r = case(ev, [internal], table)
-    assert r["_facts"]["triggers"] == [] and "P1" not in rules(r)
+    assert r["_facts"]["triggers"] == [] and "§8.1" not in rules(r)
     customer = dict(SECOND_CUSTOMER, text="Our SOC confirmed data was exfiltrated from the shared workspace.")
     r = case(ev, [customer], table)
     assert src(r)["confirmed"] == ["security_incident"] and p1s(r)
@@ -236,7 +236,7 @@ def test_one_word_title_is_not_a_role_phrase(ev):
 def test_departure_of_unnamed_person_is_unattributed(ev):
     art = dict(SECOND_CUSTOMER, text="Our intern resigned last week; no impact on the rollout.")
     r = case(ev, [art], DEPART, dtr=60)
-    assert r["_facts"]["triggers"] == [] and "P1" not in rules(r)
+    assert r["_facts"]["triggers"] == [] and "§8.1" not in rules(r)
     assert src(r)["unattributed"] == ["departure"]
     assert src(r)["per_artifact"]["art_T2"]["facts"]["departure"] == "unattributed"
 
@@ -247,13 +247,13 @@ def test_departure_of_unnamed_person_is_unattributed(ev):
 def test_departure_decoys_scoring_zero_leave_nothing(ev, text):
     art = dict(SECOND_CUSTOMER, text=text)
     r = case(ev, [art], {}, dtr=60)
-    assert r["_facts"]["triggers"] == [] and src(r)["unattributed"] == [] and "P1" not in rules(r)
+    assert r["_facts"]["triggers"] == [] and src(r)["unattributed"] == [] and "§8.1" not in rules(r)
 
 
 def test_named_departure_outside_renewal_window_is_fact_not_trigger(ev):
     art = dict(SECOND_CUSTOMER, author="Ada Lovelace", text="I am moving on at the end of the quarter.")
     r = case(ev, [art], DEPART, dtr=200)
-    assert r["_facts"]["triggers"] == [] and "P1" not in rules(r)
+    assert r["_facts"]["triggers"] == [] and "§8.1" not in rules(r)
     assert "outside" in src(r)["per_artifact"]["art_T2"]["facts"]["buyer_or_champion_departure"]
 
 
@@ -270,7 +270,7 @@ def test_billing_po_mismatch_above_five_percent_is_confirmed(ev):
 def test_credit_memo_labelled_not_disputed_is_nothing(ev):
     memo = billing_event(88_000, status="credit memo issued, dispute resolved")
     r = case(ev, [memo], {"credit memo": {"billing_dispute": 0.1}}, detector="seat_decay")
-    assert r["_facts"]["triggers"] == [] and "P1" not in rules(r)
+    assert r["_facts"]["triggers"] == [] and "§8.1" not in rules(r)
 
 
 def test_non_usd_amount_is_uncertain(ev):
@@ -283,7 +283,7 @@ def test_non_usd_amount_is_uncertain(ev):
 
 def test_billing_dispute_at_exactly_five_percent_is_not_trigger(ev):
     r = case(ev, [billing_event(5_000)], {}, detector="billing_dispute")      # ARR 100,000
-    assert r["_facts"]["triggers"] == [] and "P1" not in rules(r)
+    assert r["_facts"]["triggers"] == [] and "§8.1" not in rules(r)
 
 
 def test_billing_dispute_just_above_five_percent_is_trigger(ev):
@@ -329,7 +329,7 @@ def _unattached(ev, when, closed_at="2026-03-03T12:00:00Z"):
 
 def test_trigger_written_after_close_is_not_unattached(ev):
     r = _unattached(ev, "2026-03-05T10:00:00Z")
-    assert r["_facts"]["account_triggers_unattached"] == [] and "P1" not in rules(r)
+    assert r["_facts"]["account_triggers_unattached"] == [] and "§8.1" not in rules(r)
 
 
 def test_trigger_written_while_open_is_unattached_and_uncertain(ev):

@@ -12,21 +12,21 @@ RULES = [
     ("I1", "spec §4.6 / §7 I1  no backward transition (except low-conf → corroborating)", "critical", "lifecycle"),
     ("I2", "spec §7 I2  exit states are final",                                            "critical", "lifecycle"),
     ("I3", "spec §7 I3  one state at a time (lifecycle continuity)",                       "critical", "lifecycle"),
-    ("TM", "spec §4.7 Table 6  transition matrix edge / trigger",                          "high",     "lifecycle"),
-    ("I4", "spec §5 Table 7  action must ride its allowed transition",                     "high",     "lifecycle"),
+    ("§4.7", "spec §4.7 Table 6  transition matrix edge / trigger",                          "high",     "lifecycle"),
+    ("§5", "spec §5 Table 7  action must ride its allowed transition",                     "high",     "lifecycle"),
     ("I5", "spec §7 I5  exactly one hypothesis; not no_hypothesis when evidence is clear", "critical", "lifecycle"),
     ("I6", "spec §7 I6  evidence must be real (exists, same account, verbatim)",           "critical", "evidence"),
-    ("P1", "spec §8.1  mandatory-route trigger must not be suppressed",                    "critical", "mandatory"),
-    ("P2", "spec §8.2  no customer-visible play on legal_hold / mna_quiet_period",         "critical", "policy"),
-    ("P3", "spec §8.3  restricted artefact must not be quoted in a routed dossier",        "critical", "policy"),
-    ("P4", "spec §8.4  cross-tenant isolation",                                            "critical", "evidence"),
-    ("P5", "spec §8.5  high confidence needs ≥2 distinct sources",                         "critical", "policy"),
-    ("P6", "spec §8.6  notify on owner's channel and locale",                              "soft",     "timing"),
-    ("P7", "spec §8.7  no raw email / phone in routed quotes",                             "critical", "policy"),
-    ("T1", "spec §6.1  notify 08:00–19:00 in owner timezone (P0 exempt)",                  "medium",   "timing"),
-    ("T2", "spec §6.2  ≥6h between notifications, ≤3 total",                               "high",     "timing"),
-    ("T3", "spec §6.3  time-to-attention target per severity",                             "high",     "timing"),
-    ("T4", "spec §6.4  staleness: expire only after 14 idle days",                         "medium",   "timing"),
+    ("§8.1", "spec §8.1  mandatory-route trigger must not be suppressed",                    "critical", "mandatory"),
+    ("§8.2", "spec §8.2  no customer-visible play on legal_hold / mna_quiet_period",         "critical", "policy"),
+    ("§8.3", "spec §8.3  restricted artefact must not be quoted in a routed dossier",        "critical", "policy"),
+    ("§8.4", "spec §8.4  cross-tenant isolation",                                            "critical", "evidence"),
+    ("§8.5", "spec §8.5  high confidence needs ≥2 distinct sources",                         "critical", "policy"),
+    ("§8.6", "spec §8.6  notify on owner's channel and locale",                              "soft",     "timing"),
+    ("§8.7", "spec §8.7  no raw email / phone in routed quotes",                             "critical", "policy"),
+    ("§6.1", "spec §6.1  notify 08:00–19:00 in owner timezone (P0 exempt)",                  "medium",   "timing"),
+    ("§6.2", "spec §6.2  ≥6h between notifications, ≤3 total",                               "high",     "timing"),
+    ("§6.3", "spec §6.3  time-to-attention target per severity",                             "high",     "timing"),
+    ("§6.4", "spec §6.4  staleness: expire only after 14 idle days",                         "medium",   "timing"),
     ("M1", "spec §9 M1  arr_at_risk ≤ arr_annual",                                         "high",     "materiality"),
     ("M2", "spec §9 M2  materiality_floor ≤ arr_annual",                                   "high",     "materiality"),
     ("M3", "spec §9 M3  routed ⇒ floor ≤ arr_at_risk ≤ arr_annual",                        "high",     "materiality"),
@@ -47,15 +47,15 @@ RULE_OWNER = {rid: owner for rid, _, _, owner in RULES}
 # The table maps a *family* to a word, and every class above is read off it:
 #   Invariant violation → Critical            I1–I6
 #   Fabricated evidence → Critical            I6
-#   Policy or containment failure → Critical  P1–P7
-#   Missed mandatory route → Critical         P1
-#   Invalid state transition → High           TM, I4
+#   Policy or containment failure → Critical  §8.1–§8.7
+#   Missed mandatory route → Critical         §8.1
+#   Invalid state transition → High           §4.7, I4
 #   Materiality or grounding error → High     M1–M6
 #   Timing violation → Medium–High            T1–T4
 #   Quality issue → Variable                  Q1–Q5
 #
 # Two places where a more specific spec sentence overrides the table, both deliberate:
-#   P6  §8.6 calls it "a low-severity failure but a persistent one" in the rule's own text,
+#   §8.6  §8.6 calls it "a low-severity failure but a persistent one" in the rule's own text,
 #       so it is soft rather than the critical the policy row would give it.
 #   T1–T4  "Medium–High" is a range, not a value. Split on whether the breach costs the
 #       queue or merely annoys: T2 (§6.2 "owners… stop reading the queue, which costs more
@@ -132,7 +132,7 @@ HYPOTHESIS_CLASSES = frozenset({"no_hypothesis", "champion_departure", "budget_p
                                 "onboarding_failure", "reliability_erosion", "benign_variation"})
 BENIGN_CLASS = "benign_variation"        # §3.2 "explained by seasonality, a data event, or a planned change"
 # §3.2 "Each hypothesis also carries a confidence level: high, medium or low." Validated, because an
-# unrecognised value silently weakens two other rules: P5 reads `"high" in confs` (so a misspelled "high"
+# unrecognised value silently weakens two other rules: §8.5 reads `"high" in confs` (so a misspelled "high"
 # escapes the two-source test) and I1 reads `conf != "low"` (so it reads as a backward-edge violation).
 CONFIDENCE_LEVELS = frozenset({"high", "medium", "low"})
 

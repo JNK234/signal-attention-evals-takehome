@@ -67,9 +67,9 @@ def test_sig_0001_fabricated_quote_skipped_enrichment_artifact_claim(corpus):
     text (the only evidence is the fabricated quote) → Q2 (§10 Q2); notify 00:28Z = 16:28 Los Angeles, 29.1h after
     open (P2 target 72h); email/en-US matches owner; 20,000 within [18,000, 75,000]; acknowledged by owner."""
     r = run(corpus, "sig_0001")
-    assert rules(r) == {"TM", "I4", "I6", "M6", "Q2"}
-    assert only(r, "TM")[0]["step"] == 3 and "hypothesis_formed→scored" in only(r, "TM")[0]["explanation"]
-    assert only(r, "I4")[0]["step"] == 3 and "score_signal" in only(r, "I4")[0]["explanation"]
+    assert rules(r) == {"§4.7", "§5", "I6", "M6", "Q2"}
+    assert only(r, "§4.7")[0]["step"] == 3 and "hypothesis_formed→scored" in only(r, "§4.7")[0]["explanation"]
+    assert only(r, "§5")[0]["step"] == 3 and "score_signal" in only(r, "§5")[0]["explanation"]
     i6 = only(r, "I6")[0]
     assert i6["step"] == 2 and i6["severity"] == 1.0 and "art_00620" in i6["explanation"]
     m6 = only(r, "M6")[0]
@@ -94,10 +94,10 @@ def test_sig_0005_restricted_quote_quoted_history_missing_day_artifact(corpus):
     → no P2; confidence low → no P5; routed with the owner notified → no P1 whatever the triggers say (§8.1 asks
     for a human, and one was put on it). The trigger expectation itself lives in the companion test below."""
     r = run(corpus, "sig_0005")
-    assert {"TM", "I4", "P6", "M4", "P3", "M6"} <= rules(r)
-    assert not {"P2", "P5", "P7", "I6", "P1"} & rules(r)
-    assert len(only(r, "P6")) == 2
-    assert only(r, "P3")[0]["severity"] == 1.0 and "art_02564" in only(r, "P3")[0]["explanation"]
+    assert {"§4.7", "§5", "§8.6", "M4", "§8.3", "M6"} <= rules(r)
+    assert not {"§8.2", "§8.5", "§8.7", "I6", "§8.1"} & rules(r)
+    assert len(only(r, "§8.6")) == 2
+    assert only(r, "§8.3")[0]["severity"] == 1.0 and "art_02564" in only(r, "§8.3")[0]["explanation"]
     assert "17,500" in only(r, "M4")[0]["explanation"]
     f = r["_facts"]
     assert f["claim_status"] == ["artifact"]
@@ -121,7 +121,7 @@ def test_sig_0005_internal_legal_reference_is_a_trigger_but_not_P1(corpus):
     needs_labels(corpus)
     r = run(corpus, "sig_0005")
     assert r["_facts"]["triggers"] == ["legal_reference"]
-    assert "P1" not in rules(r) and r["_facts"]["reached_human"] is True
+    assert "§8.1" not in rules(r) and r["_facts"]["reached_human"] is True
 
 
 def test_sig_0013_legal_hold_with_customer_visible_play(corpus):
@@ -130,8 +130,8 @@ def test_sig_0013_legal_hold_with_customer_visible_play(corpus):
     slack/en-AU matches; 11,500 within [6,000, 42,000]; no metric claims; confidence low. The only other finding
     the record supports is Q2 (companion test below) — nothing else in §4–§9 is touched."""
     r = run(corpus, "sig_0013")
-    assert "P2" in rules(r) and rules(r) <= {"P2", "Q2"}
-    assert only(r, "P2")[0]["severity"] == 1.0 and "legal_hold" in only(r, "P2")[0]["explanation"]
+    assert "§8.2" in rules(r) and rules(r) <= {"§8.2", "Q2"}
+    assert only(r, "§8.2")[0]["severity"] == 1.0 and "legal_hold" in only(r, "§8.2")[0]["explanation"]
     f = r["_facts"]
     assert f["claim_status"] == [] and f["triggers"] == [] and f["reached_human"] is True
     assert f["days_to_renewal"] == 49
@@ -144,7 +144,7 @@ def test_sig_0013_reliability_erosion_unsupported_is_Q2(corpus):
     problem → Q2 alongside the P2 from the companion test, and nothing else."""
     needs_labels(corpus)
     r = run(corpus, "sig_0013")
-    assert rules(r) == {"P2", "Q2"}
+    assert rules(r) == {"§8.2", "Q2"}
     assert any("reliability_erosion" in v["explanation"] for v in only(r, "Q2"))
 
 
@@ -154,8 +154,8 @@ def test_sig_0009_human_preempt_high_confidence_single_source(corpus):
     → one distinct non-bot source → P5; duplicate attach → Q4; 375,500 within [60,000, 715,000];
     hypothesis champion_departure, evidence 'usage steady, champion happy' → unsupported."""
     r = run(corpus, "sig_0009")
-    assert {"P5", "Q4"} <= rules(r)
-    assert not {"TM", "I1", "I2", "I3", "I4", "T3", "P1"} & rules(r)
+    assert {"§8.5", "Q4"} <= rules(r)
+    assert not {"§4.7", "I1", "I2", "I3", "§5", "§6.3", "§8.1"} & rules(r)
     assert "art_03493" in only(r, "Q4")[0]["explanation"] and "2 times" in only(r, "Q4")[0]["explanation"]
     f = r["_facts"]
     assert f["reached_human"] is True and f["final_state"] == "acknowledged" and f["triggers"] == []
@@ -178,9 +178,9 @@ def test_sig_0015_enrichment_timeout_then_routed_late(corpus):
     Q2. That finding needs the NLI labels, so the closed-set assertion admits it and the label-gated block
     requires it."""
     r = run(corpus, "sig_0015")
-    assert {"I4", "T3"} <= rules(r) <= {"I4", "T3", "Q2"}
-    assert only(r, "I4")[0]["step"] == 4 and "notify_owner" in only(r, "I4")[0]["explanation"]
-    assert only(r, "T3")[0]["severity"] == 0.6
+    assert {"§5", "§6.3"} <= rules(r) <= {"§5", "§6.3", "Q2"}
+    assert only(r, "§5")[0]["step"] == 4 and "notify_owner" in only(r, "§5")[0]["explanation"]
+    assert only(r, "§6.3")[0]["severity"] == 0.6
     f = r["_facts"]
     assert f["reached_human"] is True and f["triggers"] == [] and f["days_to_renewal"] == 34
     needs_labels(corpus)
@@ -200,9 +200,9 @@ def test_sig_0278_legacy_double_count_artifact_and_backward_move(corpus):
     uncorrected sum −66.5% → artifact named 'legacy', inflating a real decline; customer chat 'team is on holiday'
     is real text."""
     r = run(corpus, "sig_0278")
-    assert rules(r) == {"I1", "TM", "T3", "M4", "M6"}
-    assert only(r, "I1")[0]["step"] == 3 and only(r, "TM")[0]["step"] == 4
-    assert only(r, "T3")[0]["severity"] == 0.6 and "91.3h" in only(r, "T3")[0]["explanation"]
+    assert rules(r) == {"I1", "§4.7", "§6.3", "M4", "M6"}
+    assert only(r, "I1")[0]["step"] == 3 and only(r, "§4.7")[0]["step"] == 4
+    assert only(r, "§6.3")[0]["severity"] == 0.6 and "91.3h" in only(r, "§6.3")[0]["explanation"]
     assert "2,500" in only(r, "M4")[0]["explanation"]
     assert "legacy" in only(r, "M6")[0]["explanation"] and "inflated real decline" in only(r, "M6")[0]["explanation"]
     f = r["_facts"]
@@ -245,19 +245,19 @@ def test_sig_0058_departure_notice_suppressed_after_timeout(corpus):
     per = r["_facts"]["trigger_source"]["per_artifact"].get("art_01647", {})
     if "departure" in (per.get("facts") or {}).get("unread", []):
         # art_01647 was never read: no trigger can stand, and the single UNEVALUATED entry says so
-        assert "P1" not in rules(r) and any(v["rule"] == "UNEVALUATED" for v in r["violations"])
+        assert "§8.1" not in rules(r) and any(v["rule"] == "UNEVALUATED" for v in r["violations"])
     else:
-        assert per.get("confirmed") == ["buyer_or_champion_departure"] and "P1" in rules(r)
-    assert {"I6", "TM"} <= rules(r)
+        assert per.get("confirmed") == ["buyer_or_champion_departure"] and "§8.1" in rules(r)
+    assert {"I6", "§4.7"} <= rules(r)
     assert "art_93328" in only(r, "I6")[0]["explanation"] and only(r, "I6")[0]["severity"] == 1.0
-    assert any("4.5" in v["explanation"] for v in only(r, "TM"))
+    assert any("4.5" in v["explanation"] for v in only(r, "§4.7"))
     f = r["_facts"]
     assert f["reached_human"] is False and f["days_to_renewal"] == 60
     assert "M4" not in rules(r)
     assert f["verified_sources"] == ["email_thread", "meeting_note"]
     needs_labels(corpus)
     assert f["triggers"] == ["buyer_or_champion_departure"]
-    assert "P1" in rules(r) and only(r, "P1")[0]["severity"] == 1.0
+    assert "§8.1" in rules(r) and only(r, "§8.1")[0]["severity"] == 1.0
     assert any(v["rule"] == "Q2" and "mandatory trigger" in v["explanation"] for v in r["violations"])
     # Two independent grounds: §8.1 bullet 4 (named champion departing, renewal 60 days out) and §4.6
     # (timed out, then suppressed — exactly what §4.6 forbids).
@@ -275,10 +275,10 @@ def test_sig_0111_cross_tenant_and_twelvefold_restatement(corpus):
     while two customer tickets (art_03222, art_03215: 'Feature request: dark mode … Half the team asked') read as a
     product gap and the one claim is wrong → spec §10 Q2, label-dependent, so admitted here and required below."""
     r = run(corpus, "sig_0111")
-    assert {"I4", "T3", "M4", "M5", "P4", "M6"} <= rules(r) <= {"I4", "T3", "M4", "M5", "P4", "M6", "Q2"}
-    assert only(r, "I4")[0]["step"] == 5
+    assert {"§5", "§6.3", "M4", "M5", "§8.4", "M6"} <= rules(r) <= {"§5", "§6.3", "M4", "M5", "§8.4", "M6", "Q2"}
+    assert only(r, "§5")[0]["step"] == 5
     assert "12×" in only(r, "M5")[0]["explanation"]
-    assert "art_00849" in only(r, "P4")[0]["explanation"] and "acct_0039" in only(r, "P4")[0]["explanation"]
+    assert "art_00849" in only(r, "§8.4")[0]["explanation"] and "acct_0039" in only(r, "§8.4")[0]["explanation"]
     f = r["_facts"]
     assert f["claim_status"] == ["wrong"]
     c = f["claim_detail"][0]
@@ -304,9 +304,9 @@ def test_sig_0208_out_of_window_renotify_altered_quote(corpus):
     dau_seats paired-day change Σ35.7 vs Σ39.8 = −10.3% on 6 clean pairs (2026-04-28 missing), raw zero-filled
     −30.4% → artifact inflating a real decline; hypothesis no_hypothesis resting only on that artefact claim → Q2."""
     r = run(corpus, "sig_0208")
-    assert rules(r) == {"TM", "I4", "T1", "T2", "M4", "M5", "I6", "M6", "Q2"}
-    assert only(r, "T1")[0]["step"] == 4 and "05:41" in only(r, "T1")[0]["explanation"]
-    assert "5.7h" in only(r, "T2")[0]["explanation"]
+    assert rules(r) == {"§4.7", "§5", "§6.1", "§6.2", "M4", "M5", "I6", "M6", "Q2"}
+    assert only(r, "§6.1")[0]["step"] == 4 and "05:41" in only(r, "§6.1")[0]["explanation"]
+    assert "5.7h" in only(r, "§6.2")[0]["explanation"]
     assert "12×" in only(r, "M5")[0]["explanation"]
     assert only(r, "I6")[0]["severity"] == 1.0
     f = r["_facts"]

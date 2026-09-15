@@ -94,19 +94,19 @@ def _expired(d, at):
 def test_evidence_attached_after_expiry_does_not_make_expiry_premature(ev):
     d = _expired(happy_dossier(), "2026-03-20T12:00:00Z")          # 18 idle days after the 03-02 evidence
     d["evidence"].append(dict(d["evidence"][0], step=8, attached_at="2026-03-25T09:00:00Z"))
-    assert not _by_rule(ev.evaluate(d), "T4")
+    assert not _by_rule(ev.evaluate(d), "§6.4")
 
 
 def test_premature_expiry_is_T4(ev):
     d = _expired(happy_dossier(), "2026-03-10T12:00:00Z")          # 8 idle days
-    t4 = _by_rule(ev.evaluate(d), "T4")
+    t4 = _by_rule(ev.evaluate(d), "§6.4")
     assert len(t4) == 1 and t4[0]["step"] == 7 and "expired after 8 idle days" in t4[0]["explanation"]
 
 
 def test_evidence_attached_before_expiry_counts_toward_idle_time(ev):
     d = _expired(happy_dossier(), "2026-03-20T12:00:00Z")
     d["evidence"].append(dict(d["evidence"][0], step=7, attached_at="2026-03-15T09:00:00Z"))   # 5 idle days
-    t4 = _by_rule(ev.evaluate(d), "T4")
+    t4 = _by_rule(ev.evaluate(d), "§6.4")
     assert len(t4) == 1 and t4[0]["step"] == 7 and "expired after 5 idle days" in t4[0]["explanation"]
 
 
@@ -124,21 +124,21 @@ def _still_open(d):
 
 def test_still_open_overdue_is_T4(ev):
     d = _still_open(happy_dossier())
-    t4 = _by_rule(ev.evaluate(d), "T4")
+    t4 = _by_rule(ev.evaluate(d), "§6.4")
     assert len(t4) == 1 and t4[0]["step"] == 6 and "still open 18 days after the last evidence" in t4[0]["explanation"]
 
 
 def test_evidence_after_last_observed_event_does_not_reset_overdue(ev):
     d = _still_open(happy_dossier())
     d["evidence"].append(dict(d["evidence"][0], step=8, attached_at="2026-03-25T09:00:00Z"))
-    t4 = _by_rule(ev.evaluate(d), "T4")
+    t4 = _by_rule(ev.evaluate(d), "§6.4")
     assert len(t4) == 1 and "still open 18 days" in t4[0]["explanation"]
 
 
 def test_still_open_with_recent_evidence_is_not_T4(ev):
     d = _still_open(happy_dossier())
     d["evidence"].append(dict(d["evidence"][0], step=6, attached_at="2026-03-18T09:00:00Z"))   # 2 idle days
-    assert not _by_rule(ev.evaluate(d), "T4")
+    assert not _by_rule(ev.evaluate(d), "§6.4")
 
 
 # ── Q2: p95 claim spanning the instrumentation step (spec §10 Q2) ───────────────────────────

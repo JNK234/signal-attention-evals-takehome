@@ -1,5 +1,5 @@
 """
-ABOUTME: Evidence integrity — spec §7 I6 (exists, same account, verbatim) and §8.4 P4.
+ABOUTME: Evidence integrity — spec §7 I6 (exists, same account, verbatim) and §8.4 §8.4.
 ABOUTME: Labels each entry with the model when possible: from the artefact if the corpus is loaded,
 ABOUTME: from the bare quote if not — so the cold path still reads.
 """
@@ -17,7 +17,7 @@ def quote_location(quote, subject, text):
 
 
 def check_evidence(d, ctx, cx):
-    """Runs on both paths. With corpus: I6/P4 + labels from full artefact text. Without: labels from quotes."""
+    """Runs on both paths. With corpus: I6/C4 + labels from full artefact text. Without: labels from quotes."""
     out = []
     verified, stale, facts = [], [], []
     opened = ts(d.get("opened_at"))
@@ -54,7 +54,7 @@ def check_evidence(d, ctx, cx):
                  mentions_other=bool(art.get("mentions_other_account")))
         if art.get("account_id") != d.get("account_id"):
             f["status"] = "other_account"
-            out.append(violation(ev.get("step"), "P4", f"{aid} belongs to {art.get('account_id')}, signal is on {d.get('account_id')} (also fails I6 same-account test)"))
+            out.append(violation(ev.get("step"), "§8.4", f"{aid} belongs to {art.get('account_id')}, signal is on {d.get('account_id')} (also fails I6 same-account test)"))
             continue
         hay = (art.get("subject") or "") + "\n" + (art.get("text") or "")
         if q and q not in hay:

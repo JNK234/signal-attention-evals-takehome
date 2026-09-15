@@ -86,7 +86,7 @@ def test_zero_evidence_has_no_evidence_findings(ev):
     d["evidence"] = []
     d["actions"] = [a for a in d["actions"] if a["action"] != "attach_evidence"]
     r = explain(ev, d)
-    assert not {"I6", "P4", "P3", "P7", "Q4", "UNEVALUATED"} & rules(r)
+    assert not {"I6", "§8.4", "§8.3", "§8.7", "Q4", "UNEVALUATED"} & rules(r)
     assert r["_facts"]["verified_sources"] == [] and r["_facts"]["has_attached_text"] is False
 
 
@@ -202,7 +202,7 @@ def test_cold_path_without_labeller_on_a_dossier_with_quotes_is_UNEVALUATED():
     r = SignalEvaluator(labeller=None).explain(happy_dossier())
     meta = only(r, "UNEVALUATED")
     assert len(meta) == 1 and meta[0]["severity"] == 0.0 and "1 artefact" in meta[0]["explanation"]
-    assert r["_facts"]["unevaluated"] == ["P1", "Q2", "I5", "Q4"]
+    assert r["_facts"]["unevaluated"] == ["§8.1", "Q2", "I5", "Q4"]
 
 
 def test_cold_path_skips_corpus_rules_but_still_runs_the_rest():
@@ -213,7 +213,7 @@ def test_cold_path_skips_corpus_rules_but_still_runs_the_rest():
     d["notifications"][0]["at"] = "2026-03-06T14:00:00Z"
     d["actions"][3]["at"] = "2026-03-06T14:00:00Z"
     r = SignalEvaluator(labeller=None).evaluate(d)
-    assert "I6" not in rules(r) and "T3" in rules(r)
+    assert "I6" not in rules(r) and "§6.3" in rules(r)
 
 
 def test_loaded_evaluator_on_an_account_absent_from_the_corpus_uses_metadata(ev):
@@ -224,7 +224,7 @@ def test_loaded_evaluator_on_an_account_absent_from_the_corpus_uses_metadata(ev)
     d["scoring"]["arr_at_risk"] = 250_000
     d["actions"][2]["params"]["arr_at_risk"] = 250_000
     r = explain(ev, d)
-    assert {"M1", "P4"} <= rules(r) and r["_facts"]["errors"] == []
+    assert {"M1", "§8.4"} <= rules(r) and r["_facts"]["errors"] == []
 
 
 def test_evidence_entry_with_none_artifact_id_is_I6_not_a_crash(ev):
@@ -242,5 +242,5 @@ def test_lifecycle_entries_with_unparseable_timestamps_do_not_crash_and_actions_
     for e in d["lifecycle"]:
         e["at"] = "not a time"
     r = explain(ev, d)
-    assert r["_facts"]["errors"] == [] and "TM" not in rules(r)
-    assert {v["step"] for v in only(r, "I4")} >= {3, 5, 6}
+    assert r["_facts"]["errors"] == [] and "§4.7" not in rules(r)
+    assert {v["step"] for v in only(r, "§5")} >= {3, 5, 6}

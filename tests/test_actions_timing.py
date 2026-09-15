@@ -10,7 +10,7 @@ SCORE_PARAMS = {"severity": "P2", "arr_at_risk": 30_000, "confidence": "medium"}
 
 
 def i4(result):
-    return [v for v in result["violations"] if v["rule"] == "I4"]
+    return [v for v in result["violations"] if v["rule"] == "§5"]
 
 
 # ── 1. the happy path: every edge action sits on its transition instant ──────────────────────
@@ -114,6 +114,6 @@ def test_closed_at_after_terminal_is_a_fact_not_a_violation(ev):
     d["closed_at"] = "2026-03-09T14:00:00Z"
     r = explain(ev, d)
     assert r["_facts"]["closed_at_after_terminal"] is True
-    assert not ({"I2", "I4"} & rules(r))
+    assert not ({"I2", "§5"} & rules(r))
     d["closed_at"] = "2026-03-02T14:00:00Z"
     assert explain(ev, d)["_facts"]["closed_at_after_terminal"] is False

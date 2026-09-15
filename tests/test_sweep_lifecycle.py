@@ -84,7 +84,7 @@ def test_backward_from_evidence_pending_at_low_is_allowed_and_at_medium_is_I1(ev
                 a["step"] += 3
         d["notifications"][0]["step"] += 3
         return d
-    assert not {"I1", "TM", "I3"} & rules(ev.evaluate(build("low")))
+    assert not {"I1", "§4.7", "I3"} & rules(ev.evaluate(build("low")))
     i1 = only(ev.evaluate(build("medium")), "I1")
     assert len(i1) == 1 and i1[0]["step"] == 4 and "evidence_pending→corroborating" in i1[0]["explanation"]
 
@@ -122,7 +122,7 @@ def test_suppress_from_forbidden_state_is_TM(ev, keep, from_state, at):
     """spec §4.7 Table 6: suppressed column is '---' for ev_pend, routed and ackd. Expect one TM at the suppression
     step naming the edge, high 0.6 (certain)."""
     d = _suppress_at(happy_dossier(), keep, at, from_state)
-    tm = [v for v in only(ev.evaluate(d), "TM") if "not an allowed edge" in v["explanation"]]
+    tm = [v for v in only(ev.evaluate(d), "§4.7") if "not an allowed edge" in v["explanation"]]
     assert len(tm) == 1 and tm[0]["step"] == keep and f"{from_state}→suppressed" in tm[0]["explanation"]
     assert tm[0]["severity"] == SEV_WEIGHT["high"]
 
@@ -135,7 +135,7 @@ def test_suppress_from_forbidden_state_is_TM(ev, keep, from_state, at):
 def test_suppress_from_an_allowed_progression_state_is_not_TM(ev, keep, from_state, at):
     """spec §4.3 'From any progression state … may close to suppressed' minus the Table 6 exceptions."""
     d = _suppress_at(happy_dossier(), keep, at, from_state)
-    assert not {"TM", "I1", "I3", "I4"} & rules(ev.evaluate(d))
+    assert not {"§4.7", "I1", "I3", "§5"} & rules(ev.evaluate(d))
 
 
 def test_suppression_without_a_stated_reason_is_TM_uncertain_and_I4_params(ev):
@@ -144,9 +144,9 @@ def test_suppression_without_a_stated_reason_is_TM_uncertain_and_I4_params(ev):
     d = _suppress_at(happy_dossier(), 6, "2026-03-02T14:00:00Z", "scored", reason="")
     d["actions"][-1]["params"] = {}
     r = ev.evaluate(d)
-    tm = [v for v in only(r, "TM") if "without a stated reason" in v["explanation"]]
+    tm = [v for v in only(r, "§4.7") if "without a stated reason" in v["explanation"]]
     assert len(tm) == 1 and tm[0]["step"] == 6 and tm[0]["severity"] == pytest.approx(SEV_WEIGHT["high"] * UNCERTAIN_FACTOR)
-    i4 = only(r, "I4")
+    i4 = only(r, "§5")
     assert len(i4) == 1 and "reason" in i4[0]["explanation"]
 
 
@@ -155,7 +155,7 @@ def test_transition_to_suppressed_without_a_suppress_action_is_uncertain_I4(ev):
     no suppress action on it. The evaluator cannot know whether the action was dropped from the record → I4 at
     half weight (0.3) on the suppression step."""
     d = _suppress_at(happy_dossier(), 6, "2026-03-02T14:00:00Z", "scored", with_action=False)
-    i4 = only(ev.evaluate(d), "I4")
+    i4 = only(ev.evaluate(d), "§5")
     assert len(i4) == 1 and i4[0]["step"] == 6 and "without a suppress action" in i4[0]["explanation"]
     assert i4[0]["severity"] == pytest.approx(SEV_WEIGHT["high"] * UNCERTAIN_FACTOR)
 
@@ -180,7 +180,7 @@ def test_expired_from_acknowledged_on_staleness_timeout_is_allowed_with_no_T4(ev
                            "trigger": "staleness_timeout", "reason": ""})
     d["closed_at"] = "2026-03-05T12:00:00Z"
     d["decision"]["disposition"] = "expired"
-    assert not {"TM", "T4", "I1", "I2", "I3"} & rules(ev.evaluate(d))
+    assert not {"§4.7", "§6.4", "I1", "I2", "I3"} & rules(ev.evaluate(d))
 
 
 def test_expired_without_staleness_timeout_trigger_is_uncertain_TM(ev):
@@ -189,7 +189,7 @@ def test_expired_without_staleness_timeout_trigger_is_uncertain_TM(ev):
     d = happy_dossier()
     d["lifecycle"][-1] = {"step": 7, "from_state": "routed", "to_state": "expired", "at": "2026-03-20T12:00:00Z", "trigger": "agent_action", "reason": ""}
     d["decision"]["disposition"] = "expired"
-    tm = only(ev.evaluate(d), "TM")
+    tm = only(ev.evaluate(d), "§4.7")
     assert len(tm) == 1 and tm[0]["step"] == 7 and "staleness_timeout" in tm[0]["explanation"]
     assert tm[0]["severity"] == pytest.approx(SEV_WEIGHT["high"] * UNCERTAIN_FACTOR)
 
@@ -206,9 +206,9 @@ def test_evidence_pending_to_scored_without_enrichment_timeout_is_TM(ev):
     d["actions"] = d["actions"][:2] + [dict(d["actions"][2], step=4, at="2026-03-02T12:00:00Z"), dict(d["actions"][3], step=5)]
     d["notifications"][0]["step"] = 5
     r = ev.evaluate(d)
-    tm = only(r, "TM")
+    tm = only(r, "§4.7")
     assert len(tm) == 1 and tm[0]["step"] == 4 and "enrichment_timeout" in tm[0]["explanation"] and tm[0]["severity"] == SEV_WEIGHT["high"]
-    assert any(v["step"] == 4 and "score_signal" in v["explanation"] and "enrichment_timeout" in v["explanation"] for v in only(r, "I4"))
+    assert any(v["step"] == 4 and "score_signal" in v["explanation"] and "enrichment_timeout" in v["explanation"] for v in only(r, "§5"))
 
 
 def test_score_signal_on_the_timeout_edge_with_waited_minutes_is_not_I4(ev):
@@ -227,7 +227,7 @@ def test_score_signal_on_the_timeout_edge_with_waited_minutes_is_not_I4(ev):
     ]
     d["notifications"] = [dict(d["notifications"][0], step=5, at="2026-03-04T12:00:00Z")]
     d["closed_at"] = "2026-03-04T15:00:00Z"
-    assert not {"I4", "TM", "I1", "I3"} & rules(ev.evaluate(d))
+    assert not {"§5", "§4.7", "I1", "I3"} & rules(ev.evaluate(d))
 
 
 def test_human_preempt_from_candidate_is_allowed_but_agent_action_to_acknowledged_is_TM(ev):
@@ -243,8 +243,8 @@ def test_human_preempt_from_candidate_is_allowed_but_agent_action_to_acknowledge
         d["hypotheses"][0]["step"] = 0
         d["closed_at"] = "2026-03-02T08:30:00Z"
         return d
-    assert not {"TM", "I1", "I3"} & rules(ev.evaluate(build("human_preempt")))
-    tm = only(ev.evaluate(build("agent_action")), "TM")
+    assert not {"§4.7", "I1", "I3"} & rules(ev.evaluate(build("human_preempt")))
+    tm = only(ev.evaluate(build("agent_action")), "§4.7")
     assert len(tm) == 1 and tm[0]["step"] == 1 and "human_preempt" in tm[0]["explanation"]
 
 
@@ -253,7 +253,7 @@ def test_opening_edge_with_a_different_detector_trigger_is_uncertain_TM(ev):
     detector:usage_cliff → TM at half weight on step 0."""
     d = happy_dossier()
     d["lifecycle"][0]["trigger"] = "detector:usage_cliff"
-    tm = only(ev.evaluate(d), "TM")
+    tm = only(ev.evaluate(d), "§4.7")
     assert len(tm) == 1 and tm[0]["step"] == 0 and "usage_cliff" in tm[0]["explanation"]
     assert tm[0]["severity"] == pytest.approx(SEV_WEIGHT["high"] * UNCERTAIN_FACTOR)
 
@@ -290,7 +290,7 @@ def test_notify_before_scored_during_corroborating_is_I4(ev):
     d["notifications"].insert(0, {"step": 1, "at": "2026-03-02T09:45:00Z", "channel": "slack", "locale": "de-DE", "owner_id": "u_T", "attempt": 1})
     d["notifications"][1]["attempt"] = 2
     d["actions"][-1]["params"]["attempt"] = 2
-    i4 = only(ev.evaluate(d), "I4")
+    i4 = only(ev.evaluate(d), "§5")
     assert len(i4) == 1 and i4[0]["step"] == 1
     assert "notify_owner" in i4[0]["explanation"] and "candidate→corroborating" in i4[0]["explanation"]
 
@@ -301,7 +301,7 @@ def test_attach_during_hypothesis_formed_is_I4(ev):
     d = happy_dossier()
     d["actions"][0].update(step=3, at="2026-03-02T10:30:00Z")
     d["evidence"][0].update(step=3, attached_at="2026-03-02T10:30:00Z")
-    i4 = only(ev.evaluate(d), "I4")
+    i4 = only(ev.evaluate(d), "§5")
     assert len(i4) == 1 and i4[0]["step"] == 3 and "attach_evidence" in i4[0]["explanation"] and "during hypothesis_formed" in i4[0]["explanation"]
 
 
@@ -310,7 +310,7 @@ def test_attach_before_the_signal_opened_is_I4(ev):
     d = happy_dossier()
     d["actions"][0].update(step=0, at="2026-03-02T07:00:00Z")
     d["evidence"][0].update(step=0, attached_at="2026-03-02T07:00:00Z")
-    i4 = only(ev.evaluate(d), "I4")
+    i4 = only(ev.evaluate(d), "§5")
     assert len(i4) == 1 and i4[0]["step"] == 0 and "before the first transition" in i4[0]["explanation"]
 
 
@@ -319,14 +319,14 @@ def test_action_with_extra_params_is_not_I4(ev):
     d = happy_dossier()
     d["actions"][2]["params"]["note"] = "scored on enrichment payload"
     d["actions"][3]["params"]["template"] = "v2"
-    assert "I4" not in rules(ev.evaluate(d))
+    assert "§5" not in rules(ev.evaluate(d))
 
 
 def test_action_without_a_timestamp_is_I4(ev):
     """Table 7 places actions on transitions; an action with no `at` cannot be placed → I4 naming that."""
     d = happy_dossier()
     d["actions"][2]["at"] = None
-    i4 = only(ev.evaluate(d), "I4")
+    i4 = only(ev.evaluate(d), "§5")
     assert len(i4) == 1 and i4[0]["step"] == 5 and "timestamp" in i4[0]["explanation"]
 
 
@@ -335,7 +335,7 @@ def test_request_enrichment_on_the_wrong_edge_is_I4(ev):
     (09:00) → I4 naming the edge it rode."""
     d = happy_dossier()
     d["actions"][1].update(step=1, at="2026-03-02T09:00:00Z")
-    i4 = only(ev.evaluate(d), "I4")
+    i4 = only(ev.evaluate(d), "§5")
     assert len(i4) == 1 and i4[0]["step"] == 1 and "request_enrichment" in i4[0]["explanation"] and "candidate→corroborating" in i4[0]["explanation"]
 
 
@@ -374,4 +374,4 @@ def test_still_open_dossier_inside_its_TTA_has_no_lifecycle_or_timing_findings(e
     d["scoring"] = {}
     d["decision"] = {"disposition": None, "recommended_play": None, "customer_visible": False, "reason": None}
     r = ev.evaluate(d)
-    assert not {"I1", "I2", "I3", "TM", "I4", "T1", "T2", "T3", "T4"} & rules(r)
+    assert not {"I1", "I2", "I3", "§4.7", "§5", "§6.1", "§6.2", "§6.3", "§6.4"} & rules(r)

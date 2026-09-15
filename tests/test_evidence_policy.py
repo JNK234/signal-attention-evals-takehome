@@ -153,7 +153,7 @@ def test_quoted_history_alone_does_not_make_head_quote_stale(ev):
 def test_restricted_verbatim_quote_reaching_human_is_critical_P3(ev):
     with_artifact(ev, restricted=True)
     r = ev.evaluate(happy_dossier())
-    p3 = only(r, "P3")
+    p3 = only(r, "§8.3")
     assert len(p3) == 1 and p3[0]["severity"] == 1.0 and p3[0]["step"] == 2
     assert "art_T1" in p3[0]["explanation"] and "verbatim" in p3[0]["explanation"]
 
@@ -163,7 +163,7 @@ def test_restricted_quote_not_reaching_human_is_fact_not_P3(ev):
     suppressed dossier nobody read is not that; the quote is recorded as a fact for the analysis, not a P3."""
     with_artifact(ev, restricted=True)
     r = explain(ev, suppressed_dossier())
-    assert "P3" not in rules(r)
+    assert "§8.3" not in rules(r)
     assert r["_facts"]["restricted_quoted_unrouted"] == ["art_T1"]
     assert explain(ev, happy_dossier())["_facts"]["restricted_quoted_unrouted"] == []
 
@@ -171,7 +171,7 @@ def test_restricted_quote_not_reaching_human_is_fact_not_P3(ev):
 def test_restricted_routed_then_expired_is_still_critical_P3(ev):
     with_artifact(ev, restricted=True)
     r = ev.evaluate(routed_then_expired_dossier())
-    assert only(r, "P3")[0]["severity"] == 1.0
+    assert only(r, "§8.3")[0]["severity"] == 1.0
 
 
 def test_quote_absent_from_restricted_artifact_is_I6_not_P3(ev):
@@ -179,7 +179,7 @@ def test_quote_absent_from_restricted_artifact_is_I6_not_P3(ev):
     d = happy_dossier()
     d["evidence"][0]["quote"] = "Nothing like this appears in the artefact."
     r = ev.evaluate(d)
-    assert "P3" not in rules(r) and any(v["severity"] == 1.0 for v in only(r, "I6"))
+    assert "§8.3" not in rules(r) and any(v["severity"] == 1.0 for v in only(r, "I6"))
 
 
 def test_near_verbatim_quote_from_restricted_artifact_is_not_P3(ev):
@@ -187,23 +187,23 @@ def test_near_verbatim_quote_from_restricted_artifact_is_not_P3(ev):
     d = happy_dossier()
     d["evidence"][0]["quote"] = "We are planning a backfill of about  90M rows."
     r = ev.evaluate(d)
-    assert "P3" not in rules(r) and only(r, "I6")[0]["severity"] == 0.5     # uncertain I6, see near-verbatim test
+    assert "§8.3" not in rules(r) and only(r, "I6")[0]["severity"] == 0.5     # uncertain I6, see near-verbatim test
 
 
 def test_restricted_artifact_with_empty_quote_is_not_P3(ev):
     with_artifact(ev, restricted=True)
     d = happy_dossier()
     d["evidence"][0]["quote"] = ""
-    assert "P3" not in rules(ev.evaluate(d))
+    assert "§8.3" not in rules(ev.evaluate(d))
 
 
 def test_cold_path_P3_falls_back_to_dossier_restricted_flag():
     d = happy_dossier()
     d["evidence"][0]["restricted"] = True
     r = SignalEvaluator(labeller=None).evaluate(d)
-    assert only(r, "P3")[0]["severity"] == 1.0
+    assert only(r, "§8.3")[0]["severity"] == 1.0
     d["evidence"][0]["restricted"] = False
-    assert "P3" not in rules(SignalEvaluator(labeller=None).evaluate(d))
+    assert "§8.3" not in rules(SignalEvaluator(labeller=None).evaluate(d))
 
 
 # ── P5 ───────────────────────────────────────────────────────────────────────
@@ -211,12 +211,12 @@ def test_high_hypothesis_confidence_with_one_source_is_P5(ev):
     d = happy_dossier()
     d["hypotheses"][0]["confidence"] = "high"          # scoring stays medium
     r = ev.evaluate(d)
-    p5 = only(r, "P5")
+    p5 = only(r, "§8.5")
     assert len(p5) == 1 and p5[0]["step"] == 2 and "1 distinct" in p5[0]["explanation"]
 
 
 def test_medium_confidence_everywhere_is_not_P5(ev):
-    assert "P5" not in rules(ev.evaluate(happy_dossier()))
+    assert "§8.5" not in rules(ev.evaluate(happy_dossier()))
 
 
 def test_high_confidence_with_two_verified_sources_is_not_P5(ev):
@@ -227,7 +227,7 @@ def test_high_confidence_with_two_verified_sources_is_not_P5(ev):
     d["evidence"].append({"step": 2, "artifact_id": "art_T2", "source": "crm_note", "restricted": False,
                           "attached_at": "2026-03-02T09:40:00Z", "quote": "Alan confirmed the budget freeze on the call."})
     r = explain(ev, d)
-    assert "P5" not in rules(r) and r["_facts"]["verified_sources"] == ["crm_note", "support_ticket"]
+    assert "§8.5" not in rules(r) and r["_facts"]["verified_sources"] == ["crm_note", "support_ticket"]
 
 
 def test_high_confidence_second_source_from_quoted_history_is_P5(ev):
@@ -237,7 +237,7 @@ def test_high_confidence_second_source_from_quoted_history_is_P5(ev):
     d["evidence"].append({"step": 2, "artifact_id": "art_T2", "source": "crm_note", "restricted": False,
                           "attached_at": "2026-03-02T09:40:00Z", "quote": TAIL_QUOTE})
     r = explain(ev, d)
-    assert "P5" in rules(r) and r["_facts"]["verified_sources"] == ["support_ticket"]
+    assert "§8.5" in rules(r) and r["_facts"]["verified_sources"] == ["support_ticket"]
 
 
 def test_high_confidence_second_source_bot_alert_is_P5(ev):
@@ -247,16 +247,16 @@ def test_high_confidence_second_source_bot_alert_is_P5(ev):
     d["scoring"]["confidence"] = "high"
     d["evidence"].append({"step": 2, "artifact_id": "art_BOT", "source": "bot_alert", "restricted": False,
                           "attached_at": "2026-03-02T09:40:00Z", "quote": "Deploy finished. Auto-resolved."})
-    assert "P5" in rules(ev.evaluate(d))
+    assert "§8.5" in rules(ev.evaluate(d))
 
 
 def test_cold_path_P5_counts_attached_non_bot_sources():
     d = happy_dossier()
     d["hypotheses"][0]["confidence"] = "high"
-    assert "P5" in rules(SignalEvaluator(labeller=None).evaluate(d))
+    assert "§8.5" in rules(SignalEvaluator(labeller=None).evaluate(d))
     d["evidence"].append({"step": 2, "artifact_id": "art_X", "source": "crm_note", "restricted": False,
                           "attached_at": "2026-03-02T09:40:00Z", "quote": "anything"})
-    assert "P5" not in rules(SignalEvaluator(labeller=None).evaluate(d))
+    assert "§8.5" not in rules(SignalEvaluator(labeller=None).evaluate(d))
 
 
 # ── M3 / M4 ──────────────────────────────────────────────────────────────────

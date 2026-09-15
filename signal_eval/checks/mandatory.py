@@ -1,6 +1,6 @@
 """
 ABOUTME: Mandatory-route triggers — spec §8.1. triggers_from_reading() reads one artefact's block Reading into
-ABOUTME: confirmed / uncertain / historical / unattributed triggers; P1 fires on confirmed ∪ uncertain when suppressed or no human.
+ABOUTME: confirmed / uncertain / historical / unattributed triggers; §8.1 fires on confirmed ∪ uncertain when suppressed or no human.
 """
 
 from datetime import timedelta
@@ -214,7 +214,7 @@ def check_mandatory_route(d, ctx, cx):
     lifecycle = d.get("lifecycle") or []
     suppressed = disp == "suppressed" or any(e.get("to_state") == "suppressed" for e in lifecycle)
     # spec §8.1: the agent "must put a human on the signal, and must not suppress it" — two duties, either
-    # breach is P1. spec §4.3: suppression is forbidden when a trigger is present, so notifying first is no cure.
+    # breach is §8.1. spec §4.3: suppression is forbidden when a trigger is present, so notifying first is no cure.
     # spec §8.1 gives the duty, §6.3 gives the clock: a signal still in a progression state, not closed, inside its
     # time-to-attention target has failed neither yet — recorded as a pending trigger, not a missed route. Past the
     # target it is a late route (uncertain: the record may simply end before the notification).
@@ -226,7 +226,7 @@ def check_mandatory_route(d, ctx, cx):
         if hours is not None and hours <= target:
             ctx["pending_trigger"] = {"triggers": sorted(trig), "hours_open": round(hours, 1), "target_hours": target}
             return out
-        out.append(violation(lifecycle[-1].get("step") if lifecycle else 0, "P1",
+        out.append(violation(lifecycle[-1].get("step") if lifecycle else 0, "§8.1",
                              f"still open {hours if hours is None else round(hours, 1)}h after opening with no human notified, past the "
                              f"{target}h target, despite mandatory-route trigger(s): confirmed {sorted(merged['confirmed'])}", certain=False))
         return out
@@ -235,10 +235,10 @@ def check_mandatory_route(d, ctx, cx):
         what = ("suppressed after a human was notified" if suppressed and human
                 else f"{disp or 'closed'} without any human notified")
         detail = f"confirmed {sorted(merged['confirmed'])}" + (f", uncertain {sorted(merged['uncertain'])}" if merged["uncertain"] else "")
-        out.append(violation(step, "P1", f"{what} despite mandatory-route trigger(s): {detail}", certain=bool(merged["confirmed"])))
+        out.append(violation(step, "§8.1", f"{what} despite mandatory-route trigger(s): {detail}", certain=bool(merged["confirmed"])))
     elif missed and not human:
         step = next((e.get("step") for e in lifecycle if e.get("to_state") in ("suppressed", "expired")), 0)
         kinds = sorted({t for _, _, ts_ in missed for t in ts_})
-        out.append(violation(step, "P1", f"{disp or 'closed'} without any human notified while the account carried an unattached written trigger {kinds} "
+        out.append(violation(step, "§8.1", f"{disp or 'closed'} without any human notified while the account carried an unattached written trigger {kinds} "
                              f"({', '.join(aid for _, aid, _ in missed[:3])}) — cross-source lookup missed it", certain=False))
     return out

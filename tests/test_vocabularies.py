@@ -54,7 +54,7 @@ def test_an_unknown_severity_does_not_silently_skip_the_time_to_attention_check(
         if e.get("to_state") in ("routed", "acknowledged"):
             e["at"] = "2026-03-20T10:00:00Z"
     r = explain(_eval(), d)
-    assert "T3" in rules(r) or r["_facts"].get("unevaluated"), \
+    assert "§6.3" in rules(r) or r["_facts"].get("unevaluated"), \
         "an unknown severity turned off T3 with no violation and no UNEVALUATED marker"
 
 
@@ -100,13 +100,13 @@ def test_an_unknown_state_still_raises_a_transition_violation():
     d = happy_dossier()
     d["lifecycle"][3]["to_state"] = "triage"
     d["lifecycle"][4]["from_state"] = "triage"
-    assert "TM" in rules(_eval().evaluate(d))
+    assert "§4.7" in rules(_eval().evaluate(d))
 
 
 def test_an_unknown_action_still_raises_a_violation():
     d = happy_dossier()
     d["actions"][1]["action"] = "escalate_to_legal"
-    assert "I4" in rules(_eval().evaluate(d))
+    assert "§5" in rules(_eval().evaluate(d))
 
 
 def test_an_unknown_hypothesis_class_still_raises_a_violation():
@@ -137,7 +137,7 @@ def test_an_unknown_detector_still_raises_a_violation():
     d = happy_dossier()
     d["detector"] = "vibes_detector"
     d["lifecycle"][0]["trigger"] = "detector:vibes_detector"
-    assert "I5" in rules(_eval().evaluate(d)) or "TM" in rules(_eval().evaluate(d))
+    assert "I5" in rules(_eval().evaluate(d)) or "§4.7" in rules(_eval().evaluate(d))
 
 
 def test_the_detector_vocabulary_has_one_definition():

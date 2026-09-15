@@ -45,7 +45,7 @@ def test_self_transition_in_the_current_state_is_not_I3(ev):
     _shift_steps(d, 2)
     d["lifecycle"].insert(2, {"step": 2, "from_state": "corroborating", "to_state": "corroborating", "at": "2026-03-02T09:30:00Z",
                               "trigger": "agent_action", "reason": "bot alert attached, staying"})
-    assert not {"I3", "TM", "I1"} & rules(ev.evaluate(d))
+    assert not {"I3", "§4.7", "I1"} & rules(ev.evaluate(d))
 
 
 # ── 2. forward edges that ride a system event must carry it (spec §4.1 Table) ──────────────
@@ -53,7 +53,7 @@ def test_self_transition_in_the_current_state_is_not_I3(ev):
 def test_evidence_received_without_enrichment_returned_is_TM(ev):
     d = happy_dossier()
     d["lifecycle"][4]["trigger"] = "agent_action"                       # evidence_pending→evidence_received
-    v = hits(ev.evaluate(d), "TM")
+    v = hits(ev.evaluate(d), "§4.7")
     assert len(v) == 1
     assert v[0]["step"] == 4
     assert v[0]["severity"] == pytest.approx(0.3)                      # high (0.6) × 0.5
@@ -63,7 +63,7 @@ def test_evidence_received_without_enrichment_returned_is_TM(ev):
 def test_acknowledged_without_owner_acknowledged_is_TM(ev):
     d = happy_dossier()
     d["lifecycle"][7]["trigger"] = "agent_action"                       # routed→acknowledged
-    v = hits(ev.evaluate(d), "TM")
+    v = hits(ev.evaluate(d), "§4.7")
     assert len(v) == 1
     assert v[0]["step"] == 7
     assert v[0]["severity"] == pytest.approx(0.3)
@@ -72,9 +72,9 @@ def test_acknowledged_without_owner_acknowledged_is_TM(ev):
 
 def test_forward_edges_with_their_own_trigger_are_not_TM(ev):
     d = happy_dossier()                                                 # step 4 enrichment_returned, step 7 owner_acknowledged
-    assert not hits(ev.evaluate(d), "TM")
+    assert not hits(ev.evaluate(d), "§4.7")
     d["lifecycle"][7]["trigger"] = "human_preempt"                      # spec §4.4: preempt reaches acknowledged from any state
-    assert not hits(ev.evaluate(d), "TM")
+    assert not hits(ev.evaluate(d), "§4.7")
 
 
 # ── 3. exit states are final for evidence and notifications too (spec §7 I2) ───────────────
@@ -127,7 +127,7 @@ def test_expired_after_enrichment_timeout_without_reaching_a_human_is_TM(ev):
     d["lifecycle"].append({"step": 5, "from_state": "scored", "to_state": "expired", "at": "2026-03-18T11:00:00Z",
                            "trigger": "staleness_timeout", "reason": ""})
     d["decision"].update(disposition="expired", recommended_play="watch_only")
-    v = [x for x in hits(ev.evaluate(d), "TM") if "4.5" in x["explanation"]]
+    v = [x for x in hits(ev.evaluate(d), "§4.7") if "4.5" in x["explanation"]]
     assert len(v) == 1
     assert v[0]["step"] == 5
     assert "expired" in v[0]["explanation"] and "enrichment_timeout" in v[0]["explanation"]
@@ -144,7 +144,7 @@ def test_expired_after_enrichment_timeout_that_was_routed_is_not_TM(ev):
                          "params": {"channel": "slack", "locale": "de-DE", "owner_id": "u_T", "attempt": 1, "severity": "P2"}})
     d["notifications"] = [{"step": 5, "at": "2026-03-04T12:00:00Z", "channel": "slack", "locale": "de-DE", "owner_id": "u_T", "attempt": 1}]
     d["decision"].update(disposition="expired")
-    assert not hits(ev.evaluate(d), "TM")
+    assert not hits(ev.evaluate(d), "§4.7")
 
 
 # ── 5. hypothesis must be one of the seven classes (spec §3.2 / §7 I5) ─────────────────────

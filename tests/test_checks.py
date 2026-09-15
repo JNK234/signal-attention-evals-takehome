@@ -34,8 +34,8 @@ def test_no_labeller_adds_single_unevaluated_entry(ev, ev_nolabeller):
     r = explain(ev_nolabeller, happy_dossier())
     meta = [v for v in r["violations"] if v["rule"] == "UNEVALUATED"]
     assert len(meta) == 1 and meta[0] == {"step": -1, "rule": "UNEVALUATED", "severity": 0.0, "explanation":
-                                          "labeller unavailable (disabled): P1 (text triggers), Q2/I5 (hypothesis fit), Q4 (sarcasm) not evaluated over 1 artefact(s)"}
-    assert r["_facts"]["unevaluated"] == ["P1", "Q2", "I5", "Q4"]
+                                          "labeller unavailable (disabled): §8.1 (text triggers), Q2/I5 (hypothesis fit), Q4 (sarcasm) not evaluated over 1 artefact(s)"}
+    assert r["_facts"]["unevaluated"] == ["§8.1", "Q2", "I5", "Q4"]
     assert "UNEVALUATED" in META_RULES and r["quality_score"] == 1.0
     with_labels(ev, {"backfill": {"topic:budget_pressure": 0.9}})
     read = explain(ev, happy_dossier())
@@ -78,9 +78,9 @@ def test_skipping_enrichment_is_a_matrix_violation_and_misplaced_action(ev):
     d["notifications"][0]["step"] = 4
     d["decision"]["disposition"] = "routed"
     r = ev.evaluate(d)
-    assert {"TM", "I4"} <= rules(r)
-    assert only(r, "TM")[0]["step"] == 3 and "hypothesis_formed→scored" in only(r, "TM")[0]["explanation"]
-    assert only(r, "I4")[0]["step"] == 3 and "score_signal" in only(r, "I4")[0]["explanation"]
+    assert {"§4.7", "§5"} <= rules(r)
+    assert only(r, "§4.7")[0]["step"] == 3 and "hypothesis_formed→scored" in only(r, "§4.7")[0]["explanation"]
+    assert only(r, "§5")[0]["step"] == 3 and "score_signal" in only(r, "§5")[0]["explanation"]
 
 
 def test_backward_at_medium_confidence_is_I1(ev):
@@ -114,7 +114,7 @@ def test_lifecycle_discontinuity_is_I3(ev):
     r = ev.evaluate(d)
     i3 = only(r, "I3")
     assert len(i3) == 1 and i3[0]["step"] == 2 and "discontinuity" in i3[0]["explanation"]
-    assert not {"TM", "I1"} & rules(r)
+    assert not {"§4.7", "I1"} & rules(r)
 
 
 def test_skipped_state_with_continuity_is_TM_not_I3(ev):
@@ -124,7 +124,7 @@ def test_skipped_state_with_continuity_is_TM_not_I3(ev):
     d["lifecycle"][1]["from_state"] = "candidate"
     r = ev.evaluate(d)
     assert "I3" not in rules(r)
-    assert only(r, "TM")[0]["step"] == 2 and "candidate→hypothesis_formed" in only(r, "TM")[0]["explanation"]
+    assert only(r, "§4.7")[0]["step"] == 2 and "candidate→hypothesis_formed" in only(r, "§4.7")[0]["explanation"]
 
 
 def test_self_transition_from_wrong_state_is_I3_at_that_step(ev):
@@ -186,7 +186,7 @@ def test_other_accounts_artifact_is_P4(ev):
     d = happy_dossier()
     d["evidence"][0]["artifact_id"] = "art_OTHER"
     r = ev.evaluate(d)
-    assert "P4" in rules(r) and only(r, "P4")[0]["step"] == 2
+    assert "§8.4" in rules(r) and only(r, "§8.4")[0]["step"] == 2
 
 
 def test_missing_artifact_is_I6(ev):
@@ -211,17 +211,17 @@ def test_notification_outside_owner_window_is_T1_unless_P0(ev):
     d = happy_dossier()
     d["notifications"][0]["at"] = "2026-03-02T18:30:00Z"
     r = ev.evaluate(d)
-    t1 = only(r, "T1")
+    t1 = only(r, "§6.1")
     assert len(t1) == 1 and t1[0]["step"] == 6 and "19:30" in t1[0]["explanation"]
     d["scoring"]["severity"] = "P0"
-    assert "T1" not in rules(ev.evaluate(d))
+    assert "§6.1" not in rules(ev.evaluate(d))
 
 
 def test_notification_inside_owner_window_but_outside_utc_is_not_T1(ev):
     """spec §6.1 mirror: 07:30Z is outside 08–19 UTC but 08:30 in Europe/Berlin — inside the owner's window."""
     d = happy_dossier()
     d["notifications"][0]["at"] = "2026-03-02T07:30:00Z"
-    assert "T1" not in rules(ev.evaluate(d))
+    assert "§6.1" not in rules(ev.evaluate(d))
 
 
 def test_unknown_owner_timezone_is_unverifiable_T1(ev):
@@ -233,7 +233,7 @@ def test_unknown_owner_timezone_is_unverifiable_T1(ev):
         r = explain(ev, happy_dossier())
     finally:
         ev.cx.owners["u_T"]["timezone"] = orig
-    t1 = only(r, "T1")
+    t1 = only(r, "§6.1")
     assert len(t1) == 1 and t1[0]["step"] == 6 and t1[0]["severity"] == pytest.approx(SEV_WEIGHT["medium"] * UNCERTAIN_FACTOR)
     assert "Mars/Olympus_Mons" in t1[0]["explanation"] and "unverifiable" in t1[0]["explanation"]
     assert any(e["check"] == "check_timing" and "Mars/Olympus_Mons" in e["error"] for e in r["_facts"]["errors"])
@@ -271,7 +271,7 @@ def test_wrong_channel_is_P6(ev):
     """spec §8.6: notify on the owner's declared preferred_channel."""
     d = happy_dossier()
     d["notifications"][0]["channel"] = "email"
-    p6 = only(ev.evaluate(d), "P6")
+    p6 = only(ev.evaluate(d), "§8.6")
     assert len(p6) == 1 and p6[0]["step"] == 6
     assert "channel email" in p6[0]["explanation"] and "slack" in p6[0]["explanation"]
 
@@ -280,7 +280,7 @@ def test_wrong_locale_is_P6(ev):
     """spec §8.6: notify in the owner's declared locale."""
     d = happy_dossier()
     d["notifications"][0]["locale"] = "en-US"
-    p6 = only(ev.evaluate(d), "P6")
+    p6 = only(ev.evaluate(d), "§8.6")
     assert len(p6) == 1 and p6[0]["step"] == 6
     assert "locale en-US" in p6[0]["explanation"] and "de-DE" in p6[0]["explanation"]
 
@@ -289,7 +289,7 @@ def test_slow_notification_is_T3(ev):
     d = happy_dossier()
     d["notifications"][0]["at"] = "2026-03-06T14:00:00Z"   # 102h after open, P2 target 72h
     r = ev.evaluate(d)
-    assert "T3" in rules(r) and only(r, "T3")[0]["step"] == 6
+    assert "§6.3" in rules(r) and only(r, "§6.3")[0]["step"] == 6
 
 
 def test_too_many_notifications_before_ack_is_T2(ev):
@@ -297,15 +297,15 @@ def test_too_many_notifications_before_ack_is_T2(ev):
     times = ["2026-03-02T14:00:00Z", "2026-03-02T21:00:00Z", "2026-03-03T04:00:00Z", "2026-03-03T11:00:00Z"]
     d["notifications"] = [dict(d["notifications"][0], at=t, attempt=i + 1) for i, t in enumerate(times)]
     r = ev.evaluate(d)
-    assert "T2" in rules(r)
-    assert any(v["step"] == 6 and "4 notifications" in v["explanation"] for v in only(r, "T2"))
+    assert "§6.2" in rules(r)
+    assert any(v["step"] == 6 and "4 notifications" in v["explanation"] for v in only(r, "§6.2"))
 
 
 def test_notifications_after_ack_do_not_count_for_T2(ev):
     d = happy_dossier()
     times = ["2026-03-02T14:00:00Z", "2026-03-04T14:00:00Z", "2026-03-05T14:00:00Z", "2026-03-06T14:00:00Z"]
     d["notifications"] = [dict(d["notifications"][0], at=t, attempt=i + 1) for i, t in enumerate(times)]
-    assert "T2" not in rules(ev.evaluate(d))
+    assert "§6.2" not in rules(ev.evaluate(d))
 
 
 def _expired(d, at):
@@ -319,14 +319,14 @@ def _expired(d, at):
 def test_expired_before_14_idle_days_is_T4(ev):
     """spec §6.4 / §4.3: expiry only after 14 days with no new evidence — 8 idle days is premature."""
     r = ev.evaluate(_expired(happy_dossier(), "2026-03-10T12:00:00Z"))
-    t4 = only(r, "T4")
+    t4 = only(r, "§6.4")
     assert len(t4) == 1 and t4[0]["step"] == 7
     idle = re.search(r"expired after (\d+) idle days", t4[0]["explanation"])
     assert idle and int(idle.group(1)) < 14
 
 
 def test_expired_after_20_idle_days_is_not_T4(ev):
-    assert "T4" not in rules(ev.evaluate(_expired(happy_dossier(), "2026-03-22T12:00:00Z")))
+    assert "§6.4" not in rules(ev.evaluate(_expired(happy_dossier(), "2026-03-22T12:00:00Z")))
 
 
 def test_suppressed_after_enrichment_timeout_is_TM(ev):
@@ -340,7 +340,7 @@ def test_suppressed_after_enrichment_timeout_is_TM(ev):
     d["notifications"] = []
     d["decision"].update(disposition="suppressed", recommended_play="watch_only")
     r = ev.evaluate(d)
-    assert any(v["rule"] == "TM" and v["step"] == 5 and "4.5" in v["explanation"] for v in r["violations"])
+    assert any(v["rule"] == "§4.7" and v["step"] == 5 and "4.5" in v["explanation"] for v in r["violations"])
 
 
 def test_human_preempt_counts_as_reached_human(ev):
@@ -349,7 +349,7 @@ def test_human_preempt_counts_as_reached_human(ev):
     d["actions"] = d["actions"][:1]
     d["notifications"] = []
     r = explain(ev, d)
-    assert "TM" not in rules(r) and r["_facts"]["reached_human"] is True
+    assert "§4.7" not in rules(r) and r["_facts"]["reached_human"] is True
 
 
 def test_routed_below_floor_is_M4(ev):
@@ -446,7 +446,7 @@ def test_customer_visible_play_on_legal_hold_is_P2(ev):
     ev.cx.accounts["acct_T"]["flags"] = ["legal_hold"]
     try:
         r = ev.evaluate(d)
-        assert "P2" in rules(r) and only(r, "P2")[0]["step"] == 6
+        assert "§8.2" in rules(r) and only(r, "§8.2")[0]["step"] == 6
     finally:
         ev.cx.accounts["acct_T"]["flags"] = []
 
@@ -458,11 +458,11 @@ def test_empty_account_flags_win_over_metadata_flags(ev):
     d["decision"].update(recommended_play="csm_checkin", customer_visible=True)
     d["metadata"]["account_flags"] = ["legal_hold"]
     r = explain(ev, d)                                            # ACCOUNT["flags"] == []
-    assert "P2" not in rules(r)
+    assert "§8.2" not in rules(r)
     assert any("flags" in m for m in r["_facts"]["context_loss"] or [])
     ev.cx.accounts["acct_T"]["flags"] = None                     # no record at all → metadata is all we have
     try:
-        assert "P2" in rules(ev.evaluate(d))
+        assert "§8.2" in rules(ev.evaluate(d))
     finally:
         ev.cx.accounts["acct_T"]["flags"] = []
 
@@ -473,7 +473,7 @@ def test_restricted_quote_when_routed_is_P3(ev):
     ev.cx.artifacts["art_T1"] = dict(ARTIFACT, restricted=True)
     try:
         r = ev.evaluate(d)
-        assert "P3" in rules(r) and only(r, "P3")[0]["step"] == 2
+        assert "§8.3" in rules(r) and only(r, "§8.3")[0]["step"] == 2
     finally:
         ev.cx.artifacts["art_T1"] = ARTIFACT
 
@@ -481,14 +481,14 @@ def test_restricted_quote_when_routed_is_P3(ev):
 def test_dossier_restricted_flag_alone_is_not_P3_when_artifact_says_otherwise(ev):
     d = happy_dossier()
     d["evidence"][0]["restricted"] = True
-    assert "P3" not in rules(ev.evaluate(d))
+    assert "§8.3" not in rules(ev.evaluate(d))
 
 
 def test_high_confidence_single_source_is_P5(ev):
     d = happy_dossier()
     d["scoring"]["confidence"] = "high"
     r = ev.evaluate(d)
-    assert "P5" in rules(r) and only(r, "P5")[0]["step"] == 2
+    assert "§8.5" in rules(r) and only(r, "§8.5")[0]["step"] == 2
 
 
 def test_email_in_routed_quote_is_P7(ev):
@@ -497,7 +497,7 @@ def test_email_in_routed_quote_is_P7(ev):
     d["evidence"][0]["quote"] = "Call me. ada@example.com"
     try:
         r = ev.evaluate(d)
-        assert "P7" in rules(r) and only(r, "P7")[0]["step"] == 2
+        assert "§8.7" in rules(r) and only(r, "§8.7")[0]["step"] == 2
     finally:
         ev.cx.artifacts["art_T1"] = ARTIFACT
 
@@ -589,8 +589,8 @@ def test_billing_dispute_suppressed_is_P1():
     d["notifications"] = []
     d["decision"].update(disposition="suppressed", recommended_play="watch_only")
     r = explain(e, d)
-    assert "P1" in rules(r) and "billing_dispute" in r["_facts"]["triggers"]
-    assert only(r, "P1")[0]["step"] == 6
+    assert "§8.1" in rules(r) and "billing_dispute" in r["_facts"]["triggers"]
+    assert only(r, "§8.1")[0]["step"] == 6
 
 
 def test_P0_without_trigger_is_Q3(ev):
@@ -657,12 +657,12 @@ def test_three_visits_to_corroborating_is_Q1(ev):
     r = ev.evaluate(_with_backward_moves(happy_dossier(), 2))
     q1 = only(r, "Q1")
     assert len(q1) == 1 and q1[0]["step"] == 2 and "oscillation" in q1[0]["explanation"]
-    assert not {"I1", "TM", "I3"} & rules(r)
+    assert not {"I1", "§4.7", "I3"} & rules(r)
 
 
 def test_single_low_confidence_backward_move_is_not_Q1(ev):
     r = ev.evaluate(_with_backward_moves(happy_dossier(), 1))
-    assert not {"Q1", "I1", "TM", "I3"} & rules(r)
+    assert not {"Q1", "I1", "§4.7", "I3"} & rules(r)
 
 
 def test_self_transitions_do_not_count_as_visits_for_Q1(ev):
@@ -678,7 +678,7 @@ def test_self_transitions_do_not_count_as_visits_for_Q1(ev):
         a["step"] += 2
     d["evidence"][0]["step"] += 2
     d["notifications"][0]["step"] += 2
-    assert not {"Q1", "I1", "TM", "I3", "I4"} & rules(ev.evaluate(d))
+    assert not {"Q1", "I1", "§4.7", "I3", "§5"} & rules(ev.evaluate(d))
 
 
 def _evaluator_with_dau(level):
@@ -773,7 +773,7 @@ def test_self_transition_is_valid(ev):
     for a in d["actions"][1:]:
         a["step"] += 1
     d["notifications"][0]["step"] += 1
-    assert not {"TM", "I1", "I3"} & rules(ev.evaluate(d))
+    assert not {"§4.7", "I1", "I3"} & rules(ev.evaluate(d))
 
 
 def test_expired_after_notification_still_reached_a_human(ev):
@@ -789,7 +789,7 @@ def test_numeric_range_in_quote_is_not_a_phone_number(ev):
     ev.cx.artifacts["art_T1"] = dict(ARTIFACT, text="Seats went from 120 - 400 over the quarter.")
     d["evidence"][0]["quote"] = "Seats went from 120 - 400 over the quarter."
     try:
-        assert "P7" not in rules(ev.evaluate(d))
+        assert "§8.7" not in rules(ev.evaluate(d))
     finally:
         ev.cx.artifacts["art_T1"] = ARTIFACT
 
