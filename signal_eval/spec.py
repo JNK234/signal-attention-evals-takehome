@@ -131,6 +131,16 @@ STALENESS_DAYS = 14
 HYPOTHESIS_CLASSES = frozenset({"no_hypothesis", "champion_departure", "budget_pressure", "product_gap",
                                 "onboarding_failure", "reliability_erosion", "benign_variation"})
 BENIGN_CLASS = "benign_variation"        # §3.2 "explained by seasonality, a data event, or a planned change"
+# §3.2 "Each hypothesis also carries a confidence level: high, medium or low." Validated, because an
+# unrecognised value silently weakens two other rules: P5 reads `"high" in confs` (so a misspelled "high"
+# escapes the two-source test) and I1 reads `conf != "low"` (so it reads as a backward-edge violation).
+CONFIDENCE_LEVELS = frozenset({"high", "medium", "low"})
+
+# ── spec §3.1  detectors ──────────────────────────────────────────────────────
+# "A signal opens when exactly one of eight detectors fires". The names only; the firing thresholds in the
+# same table are a separate obligation (recomputing them needs the corpus, not the dossier).
+DETECTORS = frozenset({"usage_cliff", "seat_decay", "sentiment_drop", "ticket_storm",
+                       "exec_churn_language", "billing_dispute", "security_review_opened", "renewal_silence"})
 
 # ── artefact author ───────────────────────────────────────────────────────────
 # docs/data_dictionary.md `artifacts[].author_type`. Anything outside this set is UNKNOWN, not "not a

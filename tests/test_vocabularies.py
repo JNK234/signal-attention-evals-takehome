@@ -113,3 +113,39 @@ def test_an_unknown_hypothesis_class_still_raises_a_violation():
     d = happy_dossier()
     d["hypotheses"][0]["hypothesis"] = "vendor_consolidation"
     assert "I5" in rules(_eval().evaluate(d))
+
+
+def test_an_unknown_confidence_level_still_raises_a_violation():
+    """spec §3.2: "Each hypothesis also carries a confidence level: high, medium or low." Unlike the three
+    vocabularies above, an unrecognised confidence is not merely unreported — it silently weakens two other
+    rules, because P5 reads `"high" in confs` (a misspelled "high" escapes the two-source test) and I1 reads
+    `conf != "low"` (an unknown value reads as a backward-edge violation)."""
+    d = happy_dossier()
+    d["hypotheses"][0]["confidence"] = "very_high"
+    assert "I5" in rules(_eval().evaluate(d))
+
+
+def test_an_absent_confidence_level_still_raises_a_violation():
+    d = happy_dossier()
+    d["hypotheses"][0].pop("confidence")
+    assert "I5" in rules(_eval().evaluate(d))
+
+
+def test_an_unknown_detector_still_raises_a_violation():
+    """spec §3.1: "A signal opens when exactly one of eight detectors fires" — a name outside the eight is
+    not one of them, and the signal has no legitimate opening."""
+    d = happy_dossier()
+    d["detector"] = "vibes_detector"
+    d["lifecycle"][0]["trigger"] = "detector:vibes_detector"
+    assert "I5" in rules(_eval().evaluate(d)) or "TM" in rules(_eval().evaluate(d))
+
+
+def test_the_detector_vocabulary_has_one_definition():
+    """The eight names live in spec.py; a second copy would let the two drift."""
+    import inspect
+    from signal_eval import spec
+    from signal_eval.checks import lifecycle
+    assert len(spec.DETECTORS) == 8, "spec §3.1 lists exactly eight detectors"
+    src = inspect.getsource(lifecycle)
+    for name in spec.DETECTORS:
+        assert f'"{name}"' not in src, f"{name} is hardcoded as a literal in lifecycle.py"

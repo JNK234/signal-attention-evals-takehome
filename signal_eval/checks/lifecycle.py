@@ -5,8 +5,9 @@ ABOUTME: A finite-state acceptor over lifecycle[]; every edge is tested against 
 
 from collections import Counter
 
-from ..spec import (ACTION_EDGE, ACTION_PARAMS, ATTACH_STATES, BACKWARD_LOW_ONLY, EXIT_STATES, FORWARD_EDGES,
-                    HYPOTHESIS_CLASSES, RANK, SUPPRESS_FORBIDDEN_FROM, TIMEOUT_EDGE, violation)
+from ..spec import (ACTION_EDGE, ACTION_PARAMS, ATTACH_STATES, BACKWARD_LOW_ONLY, CONFIDENCE_LEVELS, DETECTORS,
+                    EXIT_STATES, FORWARD_EDGES, HYPOTHESIS_CLASSES, RANK, SUPPRESS_FORBIDDEN_FROM, TIMEOUT_EDGE,
+                    violation)
 from ..util import reached_human, ts
 
 # spec §4.1 Table (happy path): two forward edges are driven by a platform event, not an agent action —
@@ -236,4 +237,15 @@ def check_hypothesis_count(d, ctx, cx):
     for h in hs:
         if h.get("hypothesis") not in HYPOTHESIS_CLASSES:
             out.append(violation(h.get("step"), "I5", f"unknown hypothesis class {h.get('hypothesis')}; spec §3.2 lists {sorted(HYPOTHESIS_CLASSES)}"))
+        # spec §3.2 "Each hypothesis also carries a confidence level: high, medium or low." An unrecognised
+        # value is not a weaker "high": P5 reads `"high" in confs` and I1 reads `conf != "low"`, so an
+        # unknown value silently escapes the two-source test and reads as a backward-edge violation.
+        if h.get("confidence") not in CONFIDENCE_LEVELS:
+            out.append(violation(h.get("step"), "I5",
+                                 f"confidence {h.get('confidence')!r} is not one of {sorted(CONFIDENCE_LEVELS)} (spec §3.2)"))
+    # spec §3.1 "A signal opens when exactly one of eight detectors fires" — a name outside the eight means
+    # the record does not say which detector opened the signal.
+    det = d.get("detector")
+    if det is not None and det not in DETECTORS:
+        out.append(violation(0, "I5", f"unknown detector {det!r}; spec §3.1 lists {sorted(DETECTORS)}"))
     return out
