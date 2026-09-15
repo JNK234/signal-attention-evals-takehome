@@ -861,3 +861,17 @@ def test_split_quoted_detects_structure_not_tone(text, expect_head, quoted):
         assert head == expect_head
     else:
         assert head == text
+
+
+# ── Batch A: spec obligations the coverage audit found unchecked ───────────────────────────────────
+
+def test_dropped_evidence_is_a_q4_violation(ev):
+    """spec §10 Q4 L489: the agent "should not ... drop evidence it had already gathered". An
+    attach_evidence action whose artefact is absent from the final evidence list is that drop. Two of
+    Q4's three clauses are checked; this is the third."""
+    d = happy_dossier()
+    d["actions"].append({"step": 4, "action": "attach_evidence", "at": "2026-03-02T12:30:00Z",
+                         "params": {"artifact_id": "art_T2"}})
+    # art_T2 was attached but never appears in evidence[]
+    assert [v for v in explain(ev, d)["violations"] if v["rule"] == "Q4" and "art_T2" in v["explanation"]], \
+        "evidence attached by an action but missing from evidence[] not reported"

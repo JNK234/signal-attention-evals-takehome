@@ -114,4 +114,15 @@ def check_quality(d, ctx, cx):
         if a.get("action") == "request_enrichment" and at and any(r < at for r in returned):
             out.append(violation(a.get("step") if a.get("step") is not None else hstep, "Q4",
                                  f"enrichment requested again at {a['at']} after it was already returned"))
+    # spec §10 Q4 "should not ... drop evidence it had already gathered": an attach_evidence action records
+    # the gathering; the artefact missing from evidence[] afterwards is the drop. The action is the only
+    # record of what was gathered — the dossier carries one flat evidence list, not a per-step snapshot.
+    held = {ev.get("artifact_id") for ev in d.get("evidence") or []}
+    for a in d.get("actions") or []:
+        if a.get("action") != "attach_evidence":
+            continue
+        aid = (a.get("params") or {}).get("artifact_id")
+        if aid is not None and aid not in held:
+            out.append(violation(a.get("step") if a.get("step") is not None else hstep, "Q4",
+                                 f"{aid} attached at {a.get('at')} but absent from the dossier's evidence"))
     return out
