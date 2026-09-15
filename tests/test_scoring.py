@@ -555,3 +555,111 @@ def test_rule_ids_that_are_sections_point_at_the_right_subsection():
         title = titles[rid.lstrip("§")].lower()
         assert rid in EXPECT, f"{rid} is a section id with no expected subject; add it"
         assert EXPECT[rid] in title, f"{rid} is titled {title!r}, which is not about {EXPECT[rid]!r}"
+
+
+# ── deserved_attention §6.3: the agent's own severity, read as §6.3 gives it meaning ──────────────
+
+def _sev(d, severity, hypothesis="budget_pressure", dtr_days=None):
+    """Set the agent's severity and hypothesis. dtr_days moves the account's renewal date."""
+    from datetime import date, timedelta
+    d["scoring"]["severity"] = severity
+    d["actions"][2]["params"]["severity"] = severity
+    d["hypotheses"][0]["hypothesis"] = hypothesis
+    if dtr_days is not None:
+        opened = date(2026, 3, 2)
+        d["metadata"]["days_to_renewal"] = dtr_days
+        d["metadata"]["renewal_date"] = (opened + timedelta(days=dtr_days)).isoformat()
+    return d
+
+
+def test_severity_P1_with_a_real_hypothesis_deserves_a_human(ev):
+    """spec §6.3's table gives severity its meaning — P0 "written churn or legal intent; act today",
+    P1 "material risk with corroboration". An agent that assigned P1 and committed to a non-benign
+    explanation has itself recorded that the signal was material, which is the question this key asks."""
+    with_labels(ev, {})
+    ok, why, _ = deserved(ev, _sev(happy_dossier(), "P1"))
+    assert ok is True and "6.3" in why
+
+
+def test_severity_P2_does_not_deserve_on_its_own(ev):
+    """§6.3 calls P2 "worth a look this week" and P3 "background; batch it" — neither is the agent
+    saying a human was needed now. The row is P0/P1 only."""
+    with_labels(ev, {})
+    assert deserved(ev, _sev(happy_dossier(), "P2"))[0] is False
+    assert deserved(ev, _sev(happy_dossier(), "P3"))[0] is False
+
+
+def test_high_severity_on_a_benign_hypothesis_does_not_deserve(ev):
+    """Both halves of the conjunction have to hold: an agent that says "P1" and then explains the
+    anomaly away as seasonality or a data event has not claimed anything needed a human."""
+    with_labels(ev, {})
+    for h in ("benign_variation", "no_hypothesis"):
+        assert deserved(ev, _sev(happy_dossier(), "P1", h))[0] is False, h
+
+
+def test_a_claimed_departure_outside_the_renewal_window_does_not_deserve(ev):
+    """The gate that makes this row admissible. §8.1 bullet 4 bounds the departure trigger to "within
+    90 days of renewal", so a departure at 197 days is deliberately NOT a mandatory route — and a
+    severity read must not override a bound the spec attached to that very trigger. This is sig_0059,
+    one of the two goldens the ungated version broke."""
+    with_labels(ev, {})
+    assert deserved(ev, _sev(happy_dossier(), "P1", "champion_departure", dtr_days=197))[0] is False
+    assert deserved(ev, _sev(happy_dossier(), "P1", "champion_departure", dtr_days=109))[0] is False
+
+
+def test_a_claimed_departure_inside_the_renewal_window_deserves(ev):
+    with_labels(ev, {})
+    ok, why, _ = deserved(ev, _sev(happy_dossier(), "P1", "champion_departure", dtr_days=45))
+    assert ok is True and "6.3" in why
+
+
+def test_the_window_gate_applies_only_to_departure_claims(ev):
+    """Adjacent negative, and the mistake to avoid: only §8.1's departure bullet carries a renewal
+    window. Applying the gate to every hypothesis would suppress a confirmed billing dispute far from
+    renewal (sig_0202, golden True at 242 days), which is a spec-mandated route."""
+    with_labels(ev, {})
+    ok, why, _ = deserved(ev, _sev(happy_dossier(), "P1", "budget_pressure", dtr_days=242))
+    assert ok is True and "6.3" in why
+
+
+def test_arr_at_risk_is_still_never_read(ev):
+    """Tested and rejected on measurement, not principle: arr >= 10% of annual is the strongest
+    held-out signal available, but AND'ing it lets the agent's own figure veto a §4.6 obligation
+    (sig_0350, golden True, ARR 7.6% of annual). Reading a self-report to ADD coverage is safe;
+    reading it to WITHHOLD a spec-required route is not. Flipping the number must change nothing."""
+    with_labels(ev, {})
+    a = deserved(ev, _sev(happy_dossier(), "P1"))
+    d = _sev(happy_dossier(), "P1")
+    d["scoring"]["arr_at_risk"] = 1
+    d["actions"][2]["params"]["arr_at_risk"] = 1
+    b = deserved(ev, d)
+    assert a[0] == b[0] and a[1] == b[1]
+
+
+def test_every_coined_name_is_documented():
+    """docs/custom_definitions.md is the registry of every id we emit that the spec does not number.
+    Four of the five entries accumulated before this test existed — UNEVALUATED, A8, VIS_UNDESERVED and
+    UNROUTED_DESERVED were all live with nothing documenting them — so the test is what stops a sixth."""
+    import pathlib
+    from conftest import spec_sections
+    from signal_eval.scoring import DESERVES, RISK_CONDITIONS
+    from signal_eval.spec import META_RULES, RULES
+
+    doc = (pathlib.Path(__file__).resolve().parents[1] / "docs" / "custom_definitions.md").read_text()
+    sections = spec_sections()
+    SPEC_NUMBERED = {f"{p}{i}" for p, n in (("I", 6), ("M", 6), ("Q", 5)) for i in range(1, n + 1)}
+
+    emitted = ({rid for rid, *_ in RULES} | set(META_RULES)
+               | {rid for rid, *_ in DESERVES} | {cid for cid, *_ in RISK_CONDITIONS})
+    coined = {n for n in emitted if n not in SPEC_NUMBERED and n.lstrip("§") not in sections}
+    assert coined, "the registry test has stopped finding anything — check the collection logic"
+    for name in sorted(coined):
+        assert f"`{name}`" in doc, f"{name} is emitted but has no entry in docs/custom_definitions.md"
+
+
+def test_the_deserved_row_that_is_an_inference_says_so():
+    """§8.1 and §4.6 quote a "must"; §6.3 reasons from a meaning table. A reader of the output should
+    not have to guess which kind of claim a reason string is making."""
+    from signal_eval.scoring import DESERVES
+    ref = next(ref for rid, ref, _ in DESERVES if rid == "§6.3")
+    assert "inference" in ref.lower(), "the §6.3 row must not present itself as a stated obligation"

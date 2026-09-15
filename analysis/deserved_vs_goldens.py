@@ -33,8 +33,8 @@ def candidate_vetoed(s):
     far = dtr(s) is not None and dtr(s) > 90
     return candidate(s) and not far
 
-for name, fn in (('CURRENT (spec only)', lambda s: cur[s]),
-                 ('CANDIDATE (+P0/P1 non-benign)', candidate),
+for name, fn in (('SHIPPED rule', lambda s: cur[s]),
+                 ('ungated severity (rejected)', candidate),
                  ('CANDIDATE + renewal>90 veto', candidate_vetoed)):
     agree = sum(1 for s, g in golds.items() if fn(s) == g)
     print(f'\n{name:34s}  agrees with {agree}/{len(golds)} hand-derived goldens')

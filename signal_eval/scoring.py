@@ -4,7 +4,8 @@ ABOUTME: deserved_attention. Every constant traces to a spec sentence, a measure
 ABOUTME: standard; each is sourced at its definition. Layer 1 (checks) does not depend on this.
 """
 
-from .spec import META_RULES, RULE_SEVERITY, SEV_WEIGHT
+from .spec import BENIGN_CLASS, DEPARTURE_WINDOW_DAYS, META_RULES, RULE_SEVERITY, SEV_WEIGHT
+from .util import first_hypothesis
 
 # What one rule of each class costs quality_score. One penalty per rule id (its worst instance).
 #
@@ -73,13 +74,50 @@ def _cold_path_trigger(d, ctx, loaded):
     return None if loaded else sorted((ctx.get("trigger_source") or {}).get("uncertain") or ())
 
 
-# Every condition under which a human must see the signal. A row without a spec citation does not belong
-# here: the spec never says positively what deserves attention except in these two places, and inventing a
-# third — "usage fell", "a customer is unhappy" — is a judgment the spec declines to make, so we decline too.
-# A table rather than an if/elif chain because these are independent conditions, not a precedence order.
+def _severity_says_material(d, ctx, loaded):
+    """§6.3's table is what gives severity its meaning: P0 is "written churn or legal intent; act
+    today", P1 "material risk with corroboration", P2 "worth a look this week", P3 "background; batch
+    it". So an agent that assigned P0/P1 *and* committed to a non-benign explanation has itself
+    recorded that this needed a human — which is the question this key asks.
+
+    The window clause is what makes the row admissible rather than circular. §8.1 bullet 4 bounds the
+    departure trigger to "within 90 days of renewal", so a claimed departure outside it is
+    deliberately not a mandatory route, and a severity read must not override a bound the spec
+    attached to that very trigger. Without this clause the row calls sig_0059 (197 days) and sig_0441
+    (109 days) deserving and contradicts two hand-derived spec verdicts.
+    """
+    sc = d.get("scoring") or {}
+    if sc.get("severity") not in ("P0", "P1"):
+        return False
+    h = first_hypothesis(d).get("hypothesis")
+    if h in (BENIGN_CLASS, "no_hypothesis"):
+        return False
+    if h == "champion_departure":
+        dtr = ctx.get("days_to_renewal")
+        return dtr is not None and 0 <= dtr <= DEPARTURE_WINDOW_DAYS
+    return True
+
+
+# Every condition under which the signal deserved a human. Each row cites where it comes from; a row with
+# no source does not belong here. A table rather than an if/elif chain because these are independent
+# conditions, not a precedence order.
+#
+# §8.1 and §4.6 are quoted obligations — the spec says "must". §6.3 is an inference: that section gives
+# severity its meaning rather than mandating a route, and the row is marked as such. The README asks for
+# two distinct things — "evaluate whether each dossier conforms to the specification, **and** to assess
+# whether the signal deserved the attention it got" (l.75-76) — and asks us to state "what you counted as
+# a signal that deserved attention and why" (l.257), so the second question is ours to answer with
+# evidence rather than to decline. Measured: adding §6.3 moves dev alignment against annotator majority
+# 0.296 → 0.438 at permutation p = 0.026, and keeps all 18 hand-derived golden verdicts.
 DESERVES = [
     ("§8.1", "mandatory-route trigger", _confirmed_triggers),
     ("§4.6", "enrichment timed out; a signal that timed out waiting for data must still reach a human", _timed_out),
+    # Inference, not a quoted "must": §6.3's severity table is the spec's own statement of what each
+    # level means, so the agent assigning P0/P1 with a non-benign hypothesis is the agent recording that
+    # a human was needed. Gated so it cannot override §8.1's 90-day departure bound — see the predicate.
+    ("§6.3", "agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as "
+             "'material risk with corroboration' (inference from the severity table, not a stated route duty)",
+     _severity_says_material),
     # The one row that is judgment, not spec text, and is allow-listed as such in the tests. On the cold path
     # load_context was never called, so authorship cannot be confirmed and a quote reading as a trigger can
     # only be an uncertain one. The alternative — False — would let an uncalled load_context silently make
@@ -91,9 +129,19 @@ DESERVES = [
 def deserved_attention(d, ctx, loaded):
     """Did the *signal* deserve a human, independent of how well the dossier was built? Returns (bool, reason).
 
-    Reads only the spec's own positive obligations, and only from evidence — never the agent's hypothesis,
-    severity or arr_at_risk, which the spec itself calls "the agent's estimate" (§9) and which M1/M5 catch it
-    getting wrong. Grading the agent with its own answer would let it excuse itself by understating a number.
+    Two of the rows are the spec's own positive obligations read off evidence (§8.1, §4.6). The third reads
+    the agent's *recorded decision* — the severity it assigned and the hypothesis it committed to — because
+    §6.3's table is what gives severity its meaning, and a dossier stamped P0/P1 with a real explanation is
+    the agent itself saying a human was needed.
+
+    `arr_at_risk` is still never read, and that line is drawn on measurement rather than principle. It
+    carries the strongest held-out signal of anything tested (arr ≥ 10% of annual: dev 0.619, held 0.483,
+    p = 0.000), but every usable form of it fails: AND'ed onto the table it lets the agent's own figure veto
+    a spec obligation — sig_0350 is a golden True via §4.6 and its arr_at_risk is 7.6% of annual — and the
+    agent misstates the figure on 59 of 629 dossiers (19 impossible under M1, 42 inconsistent under M5).
+    The distinction that survives: reading a self-report to ADD coverage is safe, since the worst case is a
+    false alarm and §10 Q3 independently tests whether the evidence supports the severity; reading one to
+    WITHHOLD a route the spec requires is not.
 
     Materiality deliberately does not gate this. M3/M4 constrain *routing* ("must not route it as-is") and
     M4's own remedy is to re-scope rather than drop, so a below-floor signal may still have deserved a look.
