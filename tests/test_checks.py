@@ -78,8 +78,8 @@ def test_skipping_enrichment_is_a_matrix_violation_and_misplaced_action(ev):
     d["notifications"][0]["step"] = 4
     d["decision"]["disposition"] = "routed"
     r = ev.evaluate(d)
-    assert {"§4.7", "§5"} <= rules(r)
-    assert only(r, "§4.7")[0]["step"] == 3 and "hypothesis_formed→scored" in only(r, "§4.7")[0]["explanation"]
+    assert {"§4.8", "§5"} <= rules(r)
+    assert only(r, "§4.8")[0]["step"] == 3 and "hypothesis_formed→scored" in only(r, "§4.8")[0]["explanation"]
     assert only(r, "§5")[0]["step"] == 3 and "score_signal" in only(r, "§5")[0]["explanation"]
 
 
@@ -114,7 +114,7 @@ def test_lifecycle_discontinuity_is_I3(ev):
     r = ev.evaluate(d)
     i3 = only(r, "I3")
     assert len(i3) == 1 and i3[0]["step"] == 2 and "discontinuity" in i3[0]["explanation"]
-    assert not {"§4.7", "I1"} & rules(r)
+    assert not {"§4.8", "I1"} & rules(r)
 
 
 def test_skipped_state_with_continuity_is_TM_not_I3(ev):
@@ -124,7 +124,7 @@ def test_skipped_state_with_continuity_is_TM_not_I3(ev):
     d["lifecycle"][1]["from_state"] = "candidate"
     r = ev.evaluate(d)
     assert "I3" not in rules(r)
-    assert only(r, "§4.7")[0]["step"] == 2 and "candidate→hypothesis_formed" in only(r, "§4.7")[0]["explanation"]
+    assert only(r, "§4.8")[0]["step"] == 2 and "candidate→hypothesis_formed" in only(r, "§4.8")[0]["explanation"]
 
 
 def test_self_transition_from_wrong_state_is_I3_at_that_step(ev):
@@ -340,7 +340,7 @@ def test_suppressed_after_enrichment_timeout_is_TM(ev):
     d["notifications"] = []
     d["decision"].update(disposition="suppressed", recommended_play="watch_only")
     r = ev.evaluate(d)
-    assert any(v["rule"] == "§4.7" and v["step"] == 5 and "4.5" in v["explanation"] for v in r["violations"])
+    assert any(v["rule"] == "§4.8" and v["step"] == 5 and "4.5" in v["explanation"] for v in r["violations"])
 
 
 def test_human_preempt_counts_as_reached_human(ev):
@@ -349,7 +349,7 @@ def test_human_preempt_counts_as_reached_human(ev):
     d["actions"] = d["actions"][:1]
     d["notifications"] = []
     r = explain(ev, d)
-    assert "§4.7" not in rules(r) and r["_facts"]["reached_human"] is True
+    assert "§4.8" not in rules(r) and r["_facts"]["reached_human"] is True
 
 
 def test_routed_below_floor_is_M4(ev):
@@ -657,12 +657,12 @@ def test_three_visits_to_corroborating_is_Q1(ev):
     r = ev.evaluate(_with_backward_moves(happy_dossier(), 2))
     q1 = only(r, "Q1")
     assert len(q1) == 1 and q1[0]["step"] == 2 and "oscillation" in q1[0]["explanation"]
-    assert not {"I1", "§4.7", "I3"} & rules(r)
+    assert not {"I1", "§4.8", "I3"} & rules(r)
 
 
 def test_single_low_confidence_backward_move_is_not_Q1(ev):
     r = ev.evaluate(_with_backward_moves(happy_dossier(), 1))
-    assert not {"Q1", "I1", "§4.7", "I3"} & rules(r)
+    assert not {"Q1", "I1", "§4.8", "I3"} & rules(r)
 
 
 def test_self_transitions_do_not_count_as_visits_for_Q1(ev):
@@ -678,7 +678,7 @@ def test_self_transitions_do_not_count_as_visits_for_Q1(ev):
         a["step"] += 2
     d["evidence"][0]["step"] += 2
     d["notifications"][0]["step"] += 2
-    assert not {"Q1", "I1", "§4.7", "I3", "§5"} & rules(ev.evaluate(d))
+    assert not {"Q1", "I1", "§4.8", "I3", "§5"} & rules(ev.evaluate(d))
 
 
 def _evaluator_with_dau(level):
@@ -773,7 +773,7 @@ def test_self_transition_is_valid(ev):
     for a in d["actions"][1:]:
         a["step"] += 1
     d["notifications"][0]["step"] += 1
-    assert not {"§4.7", "I1", "I3"} & rules(ev.evaluate(d))
+    assert not {"§4.8", "I1", "I3"} & rules(ev.evaluate(d))
 
 
 def test_expired_after_notification_still_reached_a_human(ev):

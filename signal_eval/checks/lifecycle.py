@@ -17,7 +17,7 @@ FORWARD_EDGE_TRIGGER = {
     ("evidence_pending", "evidence_received"): "enrichment_returned",
     ("routed", "acknowledged"): "owner_acknowledged",
 }
-# spec §4.4: a human_preempt event moves a signal to acknowledged from any progression state, routed included.
+# spec §4.5: a human_preempt event moves a signal to acknowledged from any progression state, routed included.
 PREEMPT_TRIGGER = "human_preempt"
 
 # spec §3.2 Table: "Every signal is assigned exactly one of these seven classes."
@@ -59,45 +59,45 @@ def check_transitions(d, ctx, cx):
         if edge == ("idle", "candidate"):
             # spec §4.1: a signal opens when a detector fires
             if detector and trig != f"detector:{detector}":
-                out.append(violation(s, "§4.7", f"opened by trigger {trig!r}, expected detector:{detector}", certain=False))
+                out.append(violation(s, "§4.8", f"opened by trigger {trig!r}, expected detector:{detector}", certain=False))
         elif edge in FORWARD_EDGES:
-            # spec §4.1 Table: the two system-event edges must carry their event (preempt also lands on acknowledged, §4.4)
+            # spec §4.1 Table: the two system-event edges must carry their event (preempt also lands on acknowledged, §4.5)
             need = FORWARD_EDGE_TRIGGER.get(edge)
             if need and trig != need and not (t == "acknowledged" and trig == PREEMPT_TRIGGER):
-                out.append(violation(s, "§4.7", f"{f}→{t} on trigger {trig!r}, spec §4.1 requires {need}", certain=False))
+                out.append(violation(s, "§4.8", f"{f}→{t} on trigger {trig!r}, spec §4.1 requires {need}", certain=False))
         elif edge in BACKWARD_LOW_ONLY:
             backward += 1
             if conf != "low":
                 out.append(violation(s, "I1", f"backward {f}→{t} while hypothesis held at {conf} confidence"))
         elif edge == TIMEOUT_EDGE:
             if trig != "enrichment_timeout":
-                out.append(violation(s, "§4.7", f"{f}→{t} without enrichment_timeout (trigger={trig})"))
+                out.append(violation(s, "§4.8", f"{f}→{t} without enrichment_timeout (trigger={trig})"))
             else:
                 timed_out = True
         elif t == "acknowledged":
             if trig != "human_preempt":
-                out.append(violation(s, "§4.7", f"{f}→acknowledged without human_preempt (trigger={trig})"))
+                out.append(violation(s, "§4.8", f"{f}→acknowledged without human_preempt (trigger={trig})"))
         elif t == "suppressed":
             if f in SUPPRESS_FORBIDDEN_FROM:
-                out.append(violation(s, "§4.7", f"{f}→suppressed is not an allowed edge"))
+                out.append(violation(s, "§4.8", f"{f}→suppressed is not an allowed edge"))
             if not (e.get("reason") or "").strip():
-                out.append(violation(s, "§4.7", "suppression without a stated reason", certain=False))
+                out.append(violation(s, "§4.8", "suppression without a stated reason", certain=False))
             if timed_out:
                 # spec §4.5: a signal that timed out waiting for data must still reach a human
-                out.append(violation(s, "§4.7", "suppressed after enrichment_timeout; §4.5 requires the signal to be routed"))
+                out.append(violation(s, "§4.8", "suppressed after enrichment_timeout; §4.5 requires the signal to be routed"))
         elif t == "expired":
             # spec §3.3 / §6.4: expiry is the staleness_timeout system event
             if trig != "staleness_timeout":
-                out.append(violation(s, "§4.7", f"{f}→expired without staleness_timeout (trigger={trig})", certain=False))
+                out.append(violation(s, "§4.8", f"{f}→expired without staleness_timeout (trigger={trig})", certain=False))
             if timed_out and not reached_human(d):
                 # spec §4.5: "a signal that timed out waiting for data must still reach a human" — letting it
                 # expire un-routed and un-notified is the same failure as suppressing it
-                out.append(violation(s, "§4.7", "expired after enrichment_timeout without reaching a human; §4.5 requires the signal to be routed"))
+                out.append(violation(s, "§4.8", "expired after enrichment_timeout without reaching a human; §4.5 requires the signal to be routed"))
         elif f in RANK and t in RANK and RANK[t] < RANK[f]:
             backward += 1
             out.append(violation(s, "I1", f"backward transition {f}→{t}"))
         else:
-            out.append(violation(s, "§4.7", f"{f}→{t} is not in the transition matrix"))
+            out.append(violation(s, "§4.8", f"{f}→{t} is not in the transition matrix"))
         if t in EXIT_STATES:
             closed, exit_at = True, ts(e.get("at"))
         cur = t

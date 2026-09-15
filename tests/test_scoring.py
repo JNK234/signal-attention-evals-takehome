@@ -536,3 +536,22 @@ def test_every_emitted_rule_id_is_one_the_spec_names():
             f"{rid!r} is neither a spec-numbered rule nor a section spec.tex defines"
     assert not (SPEC_NUMBERED | {r.lstrip('§') for r in sections}) & META_RULES, \
         "a meta rule must not shadow a spec id"
+
+
+def test_rule_ids_that_are_sections_point_at_the_right_subsection():
+    """The §4.x citations were all one subsection off and the number-only guard passed them. Each rule id that
+    is a section must name a section whose title matches what the rule is about."""
+    from conftest import spec_section_titles
+    from signal_eval.spec import RULES
+    titles = spec_section_titles()
+    # the word each section-id rule must find in its spec section's own title
+    EXPECT = {"§4.8": "matrix", "§5": "action", "§6.1": "notification", "§6.2": "notification",
+              "§6.3": "attention", "§6.4": "staleness", "§8.1": "mandatory", "§8.2": "contact",
+              "§8.3": "restricted", "§8.4": "cross-tenant", "§8.5": "confidence", "§8.6": "notification",
+              "§8.7": "contact"}
+    for rid, ref, _, _ in RULES:
+        if not rid.startswith("§"):
+            continue
+        title = titles[rid.lstrip("§")].lower()
+        assert rid in EXPECT, f"{rid} is a section id with no expected subject; add it"
+        assert EXPECT[rid] in title, f"{rid} is titled {title!r}, which is not about {EXPECT[rid]!r}"

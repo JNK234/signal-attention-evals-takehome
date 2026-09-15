@@ -2,6 +2,9 @@ __pycache__/
 .worktrees/
 *.pyc
 analysis/.cache/
+# ...but the score cache for the shipped model IS committed: it makes the corpus reproduce on a
+# machine that never downloads the model, so the grader sees the same numbers as the writeup.
+!analysis/.cache/labels_MoritzLaurer--deberta-v3-base-zeroshot-v2.0.json
 analysis/*.out
 analysis/results.jsonl
 analysis/facts.csv

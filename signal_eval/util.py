@@ -212,7 +212,7 @@ def first_hypothesis(d):
 
 
 def reached_human(d):
-    """Did a human get this signal? Notified, routed, or a human pre-empted it (spec §4.4: a person
+    """Did a human get this signal? Notified, routed, or a human pre-empted it (spec §4.5: a person
     got there first). Independent of how the signal ended — routed→expired still reached one."""
     if d.get("notifications"):
         return True

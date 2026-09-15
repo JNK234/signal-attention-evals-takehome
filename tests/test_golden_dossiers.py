@@ -67,8 +67,8 @@ def test_sig_0001_fabricated_quote_skipped_enrichment_artifact_claim(corpus):
     text (the only evidence is the fabricated quote) → Q2 (§10 Q2); notify 00:28Z = 16:28 Los Angeles, 29.1h after
     open (P2 target 72h); email/en-US matches owner; 20,000 within [18,000, 75,000]; acknowledged by owner."""
     r = run(corpus, "sig_0001")
-    assert rules(r) == {"§4.7", "§5", "I6", "M6", "Q2"}
-    assert only(r, "§4.7")[0]["step"] == 3 and "hypothesis_formed→scored" in only(r, "§4.7")[0]["explanation"]
+    assert rules(r) == {"§4.8", "§5", "I6", "M6", "Q2"}
+    assert only(r, "§4.8")[0]["step"] == 3 and "hypothesis_formed→scored" in only(r, "§4.8")[0]["explanation"]
     assert only(r, "§5")[0]["step"] == 3 and "score_signal" in only(r, "§5")[0]["explanation"]
     i6 = only(r, "I6")[0]
     assert i6["step"] == 2 and i6["severity"] == 1.0 and "art_00620" in i6["explanation"]
@@ -94,7 +94,7 @@ def test_sig_0005_restricted_quote_quoted_history_missing_day_artifact(corpus):
     → no P2; confidence low → no P5; routed with the owner notified → no P1 whatever the triggers say (§8.1 asks
     for a human, and one was put on it). The trigger expectation itself lives in the companion test below."""
     r = run(corpus, "sig_0005")
-    assert {"§4.7", "§5", "§8.6", "M4", "§8.3", "M6"} <= rules(r)
+    assert {"§4.8", "§5", "§8.6", "M4", "§8.3", "M6"} <= rules(r)
     assert not {"§8.2", "§8.5", "§8.7", "I6", "§8.1"} & rules(r)
     assert len(only(r, "§8.6")) == 2
     assert only(r, "§8.3")[0]["severity"] == 1.0 and "art_02564" in only(r, "§8.3")[0]["explanation"]
@@ -155,7 +155,7 @@ def test_sig_0009_human_preempt_high_confidence_single_source(corpus):
     hypothesis champion_departure, evidence 'usage steady, champion happy' → unsupported."""
     r = run(corpus, "sig_0009")
     assert {"§8.5", "Q4"} <= rules(r)
-    assert not {"§4.7", "I1", "I2", "I3", "§5", "§6.3", "§8.1"} & rules(r)
+    assert not {"§4.8", "I1", "I2", "I3", "§5", "§6.3", "§8.1"} & rules(r)
     assert "art_03493" in only(r, "Q4")[0]["explanation"] and "2 times" in only(r, "Q4")[0]["explanation"]
     f = r["_facts"]
     assert f["reached_human"] is True and f["final_state"] == "acknowledged" and f["triggers"] == []
@@ -200,8 +200,8 @@ def test_sig_0278_legacy_double_count_artifact_and_backward_move(corpus):
     uncorrected sum −66.5% → artifact named 'legacy', inflating a real decline; customer chat 'team is on holiday'
     is real text."""
     r = run(corpus, "sig_0278")
-    assert rules(r) == {"I1", "§4.7", "§6.3", "M4", "M6"}
-    assert only(r, "I1")[0]["step"] == 3 and only(r, "§4.7")[0]["step"] == 4
+    assert rules(r) == {"I1", "§4.8", "§6.3", "M4", "M6"}
+    assert only(r, "I1")[0]["step"] == 3 and only(r, "§4.8")[0]["step"] == 4
     assert only(r, "§6.3")[0]["severity"] == 0.6 and "91.3h" in only(r, "§6.3")[0]["explanation"]
     assert "2,500" in only(r, "M4")[0]["explanation"]
     assert "legacy" in only(r, "M6")[0]["explanation"] and "inflated real decline" in only(r, "M6")[0]["explanation"]
@@ -248,9 +248,9 @@ def test_sig_0058_departure_notice_suppressed_after_timeout(corpus):
         assert "§8.1" not in rules(r) and any(v["rule"] == "UNEVALUATED" for v in r["violations"])
     else:
         assert per.get("confirmed") == ["buyer_or_champion_departure"] and "§8.1" in rules(r)
-    assert {"I6", "§4.7"} <= rules(r)
+    assert {"I6", "§4.8"} <= rules(r)
     assert "art_93328" in only(r, "I6")[0]["explanation"] and only(r, "I6")[0]["severity"] == 1.0
-    assert any("4.5" in v["explanation"] for v in only(r, "§4.7"))
+    assert any("4.5" in v["explanation"] for v in only(r, "§4.8"))
     f = r["_facts"]
     assert f["reached_human"] is False and f["days_to_renewal"] == 60
     assert "M4" not in rules(r)
@@ -304,7 +304,7 @@ def test_sig_0208_out_of_window_renotify_altered_quote(corpus):
     dau_seats paired-day change Σ35.7 vs Σ39.8 = −10.3% on 6 clean pairs (2026-04-28 missing), raw zero-filled
     −30.4% → artifact inflating a real decline; hypothesis no_hypothesis resting only on that artefact claim → Q2."""
     r = run(corpus, "sig_0208")
-    assert rules(r) == {"§4.7", "§5", "§6.1", "§6.2", "M4", "M5", "I6", "M6", "Q2"}
+    assert rules(r) == {"§4.8", "§5", "§6.1", "§6.2", "M4", "M5", "I6", "M6", "Q2"}
     assert only(r, "§6.1")[0]["step"] == 4 and "05:41" in only(r, "§6.1")[0]["explanation"]
     assert "5.7h" in only(r, "§6.2")[0]["explanation"]
     assert "12×" in only(r, "M5")[0]["explanation"]

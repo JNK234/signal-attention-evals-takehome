@@ -242,5 +242,5 @@ def test_lifecycle_entries_with_unparseable_timestamps_do_not_crash_and_actions_
     for e in d["lifecycle"]:
         e["at"] = "not a time"
     r = explain(ev, d)
-    assert r["_facts"]["errors"] == [] and "§4.7" not in rules(r)
+    assert r["_facts"]["errors"] == [] and "§4.8" not in rules(r)
     assert {v["step"] for v in only(r, "§5")} >= {3, 5, 6}

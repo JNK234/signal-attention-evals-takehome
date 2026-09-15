@@ -139,3 +139,26 @@ def spec_sections():
             minor += 1
             out.add(f"{major}.{minor}")
     return out
+
+
+def spec_section_titles():
+    """{"4.8": "Transition Matrix", "8.4": "Cross-Tenant Isolation", ...} — the number AND what it is about.
+
+    Resolving only the number let every §4.x citation sit one subsection off for months: the code called the
+    transition matrix §4.7 (it is §4.8) and human pre-empt §4.4 (it is §4.5), and the guard passed because
+    §4.7 and §4.4 both exist. A citation has to point at the right place, not just a real one.
+    """
+    import re
+    from pathlib import Path
+    out, major, minor = {}, 0, 0
+    for line in (Path(__file__).resolve().parents[1] / "spec.tex").read_text().splitlines():
+        m = re.match(r"\s*\\(sub)?section\{(.+?)\}", line)
+        if not m:
+            continue
+        if m.group(1):
+            minor += 1
+            out[f"{major}.{minor}"] = m.group(2)
+        else:
+            major, minor = major + 1, 0
+            out[str(major)] = m.group(2)
+    return out

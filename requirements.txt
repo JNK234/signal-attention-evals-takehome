@@ -1,0 +1,19 @@
+# ABOUTME: Pinned dependencies for the evaluator. Only the classifier needs anything beyond the stdlib;
+# ABOUTME: without these installed evaluate() still returns the four contract keys, with text rules abstaining.
+#
+# The evaluator runs offline. signal_eval/labellers sets HF_HUB_OFFLINE=1 before transformers is imported,
+# so nothing here reaches the network at evaluation time.
+#
+# The committed score cache (analysis/.cache/labels_MoritzLaurer--deberta-v3-base-zeroshot-v2.0.json) covers
+# every artefact in data/, so the corpus reproduces on a machine that has never downloaded the model. For
+# dossiers outside this corpus the model itself is needed:
+#
+#   python -c "from transformers import pipeline; pipeline('zero-shot-classification', \
+#     model='MoritzLaurer/deberta-v3-base-zeroshot-v2.0')"
+#
+# With neither model nor cache the evaluator degrades honestly rather than failing: one severity-0
+# UNEVALUATED entry names the rules that went unevaluated (§8.1 text triggers, Q2/I5 hypothesis fit, Q4).
+
+transformers==4.49.0
+torch==2.6.0
+pytest==8.3.4

@@ -9,10 +9,10 @@ from datetime import date
 # Rule table  (id, spec reference, severity class, check module that owns it)
 # ──────────────────────────────────────────────────────────────────────────────
 RULES = [
-    ("I1", "spec §4.6 / §7 I1  no backward transition (except low-conf → corroborating)", "critical", "lifecycle"),
+    ("I1", "spec §4.7 / §7 I1  no backward transition (except low-conf → corroborating)", "critical", "lifecycle"),
     ("I2", "spec §7 I2  exit states are final",                                            "critical", "lifecycle"),
     ("I3", "spec §7 I3  one state at a time (lifecycle continuity)",                       "critical", "lifecycle"),
-    ("§4.7", "spec §4.7 Table 6  transition matrix edge / trigger",                          "high",     "lifecycle"),
+    ("§4.8", "spec §4.8 Table 6  transition matrix edge / trigger",                          "high",     "lifecycle"),
     ("§5", "spec §5 Table 7  action must ride its allowed transition",                     "high",     "lifecycle"),
     ("I5", "spec §7 I5  exactly one hypothesis; not no_hypothesis when evidence is clear", "critical", "lifecycle"),
     ("I6", "spec §7 I6  evidence must be real (exists, same account, verbatim)",           "critical", "evidence"),
@@ -49,7 +49,7 @@ RULE_OWNER = {rid: owner for rid, _, _, owner in RULES}
 #   Fabricated evidence → Critical            I6
 #   Policy or containment failure → Critical  §8.1–§8.7
 #   Missed mandatory route → Critical         §8.1
-#   Invalid state transition → High           §4.7, I4
+#   Invalid state transition → High           §4.8, I4
 #   Materiality or grounding error → High     M1–M6
 #   Timing violation → Medium–High            T1–T4
 #   Quality issue → Variable                  Q1–Q5
