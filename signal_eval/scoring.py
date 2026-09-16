@@ -9,11 +9,18 @@ from .util import first_hypothesis
 
 # What one rule of each class costs quality_score. One penalty per rule id (its worst instance).
 #
-# Relative sizes come from the annotators, who all score quality the same shape: regressing each
-# annotator's quality_score on the severities they themselves recorded gives
-# quality ≈ intercept − 0.17 × Σ(severity), R² = .60 / .82 / .72 — one constant slope, three
-# different intercepts (0.84 / 0.92 / 0.98). So a violation's cost is roughly linear in its
-# severity, and a critical is worth about ten soft findings.
+# The spec supplies which rules exist and which class each is in (§11: Critical / High / Medium–High /
+# Variable). It never says what a class costs on a 0–1 scale, so that one layer comes from the
+# annotators: regressing each annotator's quality_score on the severities they themselves recorded
+# gives quality ≈ intercept − slope × Σ(severity), slopes −0.161 / −0.162 / −0.145, R² .60 / .82 / .70,
+# intercepts 0.84 / 0.92 / 0.99. Three independent raters agree on the slope to within 0.017 and
+# disagree on the intercept by 0.15 — so the slope is the shared fact and the intercepts are where
+# they differ, and only the slope is used. A severity-1.0 finding costs about 0.16.
+#
+# Penalty = QUALITY_SLOPE × SEV_WEIGHT[class], so the class ratios are the spec's own severity
+# weights (10 : 6 : 3 : 1) and there is no third set of numbers between the spec and the score.
+# The previous table, 0.50 / 0.20 / 0.10 / 0.05, cited this regression for its ratios and then set
+# the critical at 3.1× the slope with no source; it sat every score 0.29 below every annotator.
 #
 # No gate on criticals, despite spec §7 calling invariants "hard rules". Zeroing quality on a
 # critical would conflate two axes the spec keeps apart: quality_score is how well the dossier
@@ -21,7 +28,8 @@ from .util import first_hypothesis
 # and lands near 1.0 risk; it should not also erase the difference between a dossier that only
 # fabricated and one that fabricated and breached containment. The annotators agree — their
 # minimum quality scores are 0.30 / 0.27 / 0.88, and none of the three ever recorded a 0.
-QUALITY_PENALTY = {"critical": 0.50, "high": 0.20, "medium": 0.10, "soft": 0.05}
+QUALITY_SLOPE = 0.16
+QUALITY_PENALTY = {cls: round(QUALITY_SLOPE * w, 3) for cls, w in SEV_WEIGHT.items()}
 
 
 def quality_score(violations):

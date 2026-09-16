@@ -137,7 +137,8 @@ def test_many_criticals_approach_zero_without_reaching_it():
     """The product has no floor to pile up on: five criticals stay rankable against six."""
     five = [violation(0, r, "x") for r in ("I2", "I6", "§8.1", "§8.2", "§8.3")]
     six = five + [violation(1, "§8.4", "x")]
-    assert 0.0 < quality_score(six) < quality_score(five) < 0.05
+    assert 0.0 < quality_score(six) < quality_score(five) < 1.0
+    assert quality_score(five) == round((1 - QUALITY_PENALTY["critical"]) ** 5, 3)
 
 
 def test_the_unevaluated_meta_rule_is_not_a_penalty():
@@ -165,7 +166,8 @@ def test_the_order_of_violations_does_not_change_the_score():
 def test_no_number_of_violations_reaches_the_floor():
     """Every rule broken at once still leaves a positive, distinguishable score."""
     vs = [violation(0, rid, "x") for rid in RULE_SEVERITY]
-    assert 0.0 < quality_score(vs) < 0.01
+    all_but_one = vs[:-1]
+    assert 0.0 < quality_score(vs) < quality_score(all_but_one) < 1.0
 
 
 def test_Q5_keeps_its_count_scaling_inside_the_penalty():
