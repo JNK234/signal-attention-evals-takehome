@@ -172,7 +172,7 @@ class SignalEvaluator:
             # reason is auditable in _facts and groupable in the analysis scripts
             fired = scoring.fired_risk_conditions(d, ctx, violations, deserved)
             ctx["risk_conditions"] = fired
-            risk = scoring._compose_risk(fired)
+            risk = scoring._compose_risk(fired, violations)
         except Exception as exc:
             risk = 0.0
             errors.append({"check": "risk_score", "error": repr(exc)})

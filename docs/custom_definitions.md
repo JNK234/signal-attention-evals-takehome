@@ -77,6 +77,56 @@ agent misstates the figure on 59 of 629 dossiers — 19 impossible under M1, 42 
 M5. Reading a self-report to *add* coverage is safe; reading one to *withhold* a route the spec
 requires is not.
 
+## `RISK_GROUPS` — how `risk_score` composes, not a name it emits
+
+**What it is.** A set of condition groups that contribute once, at their highest member's probability,
+instead of compounding. One group exists: `{§8.1, UNROUTED_DESERVED}`, which charges 0.45 rather than
+0.615.
+
+**Why it exists.** Noisy-OR assumes its inputs are independent causes. These two are one event read
+twice — a mandatory-route trigger that was not routed *is* a signal that deserved a human and never
+reached one — and they co-occur 5.0× more often than independence predicts. Compounding prices a single
+missed intervention as two.
+
+**Grouped on mechanism, not on correlation.** `I6` and `§8.7` co-occur 10.2× chance and are deliberately
+*not* grouped: a fabricated quote destroys trust in the dossier, propagated contact details are a
+containment breach, and the spec rates them under different headings. Co-occurrence nominates a
+candidate; only a shared mechanism justifies grouping. The residual correlation among the ungrouped
+conditions is a known overstatement of `risk_score`, stated in the writeup rather than silently fixed.
+
+**Authority.** Ours. The spec says nothing about how severities compose. The rule against charging one
+event twice is a correctness argument, not a measured improvement — on this corpus the change moves
+`risk_score` on 27 dossiers and leaves the ranking against every label within noise.
+
+**Caveat for a grader.** A reader who computes `1 - Π(1 - p)` by hand over `RISK_CONDITIONS` will get a
+higher number than the code on any dossier firing both grouped conditions.
+
+## `M4` — `_facts.risk_conditions`
+
+**What it is.** A risk condition, at the `high` tier: the dossier was routed with `arr_at_risk` below the
+account's `materiality_floor`.
+
+**Why it exists.** §9 defines the floor as "the minimum exposure that justifies spending a human's time
+on this account", and M4 says of a below-floor signal that the agent "must not route it as-is". Routing
+one therefore spends a CSM slot the spec says was not justified — the harm docs/domain.md prices as "a
+false positive costs a CSM slot". Before this row, the wasted-slot pathway carried one condition (`M6`)
+and 11.9% of total score mass, while the annotators raise `wasted_attention` in 53% of all their flags.
+
+**Note it is the rule id, not a coined name.** The condition reads the `M4` violation directly and needs
+no reader gate of its own: the M4 check already requires the `scored → routed` edge, which coincides with
+`reached_human` on all 95 dossiers carrying it. It appears here because it is a *risk condition*, and the
+entry records why a materiality rule was promoted into the harm table when M1/M2/M3/M5 were not.
+
+**Authority.** spec §9 M4, quoted. §11 rates a materiality error High.
+
+**How it was chosen, stated plainly.** M4 was one of four materiality candidates swept on a
+pre-registered dev/held split (`analysis/.cache/risk_split.json`, frozen before any candidate was
+scored). Selecting *which conditions exist* by held-out performance is model selection even when the
+tier constants stay frozen, so the claim "not fitted to this corpus" covers the magnitudes, not the
+membership. M4 survives that scrutiny because the spec independently forbids the thing it fires on;
+`M5_ROUTED` was rejected despite a comparable held-out gain precisely because it had no such argument.
+Held-out: dossiers at exactly 0.0 43.2% → 41.3%, AUC against `escalation_was_wasted` 0.621 → 0.638.
+
 ## `VIS_UNDESERVED` — `_facts.risk_conditions`
 
 **What it is.** A risk condition: the dossier recommended a customer-visible play on a signal no

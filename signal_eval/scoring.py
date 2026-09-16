@@ -154,14 +154,30 @@ def deserved_attention(d, ctx, loaded):
     return False, "no spec condition requires a human"
 
 
-# Per-condition probability of harm. Magnitudes are the spec's own §11 severity ordering, the same
-# source quality_score uses — NOT fitted to this corpus. Fitting would encode one sample's accidents
-# into an evaluator that runs on dossiers we have never seen, and the 16 complaint events here cannot
-# support a weight per condition. The corpus is kept for validation instead, as the annotators are.
+# Per-condition probability of harm. The spec's §11 table supplies the ORDERING only — it rates each
+# kind of failure Critical / High / Medium-High / Variable and gives no numbers. The magnitudes below
+# are calibrated by analogy to CVSS v3.1, which scores impact with this same noisy-OR form
+# (1 − (1−C)(1−I)(1−A), §7.4) and assigns High 0.56 / Low 0.22 — a 2.55× step between adjacent levels.
+# Ours is 0.45 / 0.20, a 2.25× step, inside that precedent. They are NOT fitted to this corpus: fitting
+# would encode one sample's accidents into an evaluator that runs on dossiers we have never seen, and
+# the 16 complaint events here cannot support a weight per condition. The corpus validates, as the
+# annotators do.
+#
+# `judgment` sits BELOW `high`, and that ordering is the sourced part. These two rows are inferred from
+# docs/domain.md rather than rated by the spec, which is indirectness in GRADE's sense — evidence that
+# does not directly address the question. GRADE treats indirectness only as a reason to rate certainty
+# DOWN (one to three levels) and offers no path by which indirect evidence outranks direct evidence.
+# So a condition the spec never rates cannot outweigh one the spec explicitly calls High. It previously
+# sat at 0.30, above `high`, which no framework surveyed supports.
+#
+# Honest limit: no standard derives severity-tier constants from theory. CVSS fitted its own to expert
+# orderings; IEC 31010 §B.8.6 says outright that "the choice of the ordinal scale used is, to some
+# extent, arbitrary" and that the remedy is validating the index against known cases, not better
+# constants. That validation is what analysis/ does.
 RISK_P = {
     "critical": 0.45,     # spec §11: policy/containment failure, missed mandatory route, fabricated evidence
     "high": 0.20,         # spec §11: materiality or grounding error
-    "judgment": 0.30,     # docs/domain.md names the mechanism but ranks nothing — see RISK_CONDITIONS
+    "judgment": 0.15,     # inferred from docs/domain.md, never rated by the spec — GRADE indirectness
 }
 
 
@@ -196,8 +212,7 @@ RISK_CONDITIONS = [
 
     ("I6", "spec §7 I6 fabricated evidence in a dossier a human read — 'an operator who finds one stops "
            "trusting every other dossier'",
-     "critical", lambda d, ctx, vios, deserved: _routed(ctx) and any(
-         v["rule"] == "I6" and v["severity"] >= SEV_WEIGHT["critical"] for v in vios)),
+     "critical", lambda d, ctx, vios, deserved: _routed(ctx) and "I6" in _rules(vios)),
 
     # spec §11 rates "Policy or containment failure" Critical. §8.4 and §8.7 are both containment, and both
     # put data in front of someone not entitled to it — the same harm §8.3 above already carries, which is
@@ -220,6 +235,16 @@ RISK_CONDITIONS = [
      "high", lambda d, ctx, vios, deserved: _routed(ctx) and (
          "artifact" in (ctx.get("claim_status") or []) or bool(ctx.get("cohort_match")))),
 
+    # spec §9 M4 "Below the floor, re-scope or suppress ... It must not route it as-is", and §9 defines the
+    # floor as "the minimum exposure that justifies spending a human's time on this account". So routing
+    # below it spends a slot the spec says was not justified — a wasted slot by the spec's own definition,
+    # which is the harm docs/domain.md prices as "a false positive costs a CSM slot". Needs no reader gate:
+    # the M4 check already requires the scored→routed edge, which coincides with reached_human on all 95
+    # dossiers that carry it. §11 rates a materiality error High.
+    ("M4", "spec §9 M4 routed below the materiality floor — the spec's own 'minimum exposure that "
+           "justifies spending a human's time'; it 'must not route it as-is'",
+     "high", lambda d, ctx, vios, deserved: "M4" in _rules(vios)),
+
     # Judgment, not a spec rule: docs/domain.md states the mechanism — "complaints in this corpus
     # concentrate on customer-visible plays against accounts that were never at risk" — without ranking it.
     ("VIS_UNDESERVED", "docs/domain.md: complaints concentrate on customer-visible plays against accounts "
@@ -235,16 +260,66 @@ RISK_CONDITIONS = [
 RISK_SEVERITY = {cid: sev for cid, _, sev, _ in RISK_CONDITIONS}
 
 
-def _compose_risk(condition_ids):
+# Conditions that are two readings of ONE underlying event. Noisy-OR assumes the conditions are
+# independent causes; where they are not, compounding charges the same event twice. §8.1 fires when a
+# mandatory-route trigger was not routed, and UNROUTED_DESERVED when a signal that deserved a human never
+# reached one — on a §8.1 dossier those are the same missed intervention, and they co-occur 5.0× more
+# often than independence predicts. A group contributes its highest member's probability once (0.45 here)
+# rather than compounding to 0.615.
+#
+# Grouped on the mechanism, not on the correlation: I6 and §8.7 co-occur 10.2× chance but are different
+# harms — a fabricated quote destroys trust in the dossier, propagated contact details are a containment
+# breach — so they are deliberately NOT grouped. Co-occurrence flags a candidate; only a shared mechanism
+# justifies the grouping.
+RISK_GROUPS = [{"§8.1", "UNROUTED_DESERVED"}]
+
+
+def _certainty(cid, violations):
+    """How sure the evaluator is of the finding behind a condition, as a factor on its probability.
+
+    Checks mark a finding they cannot verify with `certain=False`, which halves its severity
+    (spec.UNCERTAIN_FACTOR) — quality_score already honours that. Risk must too, or an unconfirmed
+    mandatory-route trigger is charged the same 0.45 as a confirmed one; 35 of the 62 §8.1 findings in
+    this corpus are uncertain. Conditions that read facts rather than a violation (VIS_UNDESERVED,
+    UNROUTED_DESERVED) have no finding to be unsure of and count in full. Where a rule fired more than
+    once, the most certain instance sets the factor."""
+    cls = RULE_SEVERITY.get(cid)
+    if cls is None:
+        return 1.0
+    inst = [v["severity"] for v in violations if v["rule"] == cid]
+    if not inst:
+        return 1.0
+    return max(inst) / SEV_WEIGHT[cls]
+
+
+def _compose_risk(condition_ids, violations=()):
     """Noisy-OR: the probability that at least one fired condition causes harm.
 
-    The conditions overlap heavily — 111 of 629 dossiers fire two or more, and 15 of 16 complaints fire
-    two at once — so summing would count one underlying event several times. A product of complements
-    composes them without double-counting, is bounded by construction so there is no clip to pile up on,
-    and is the form Signal Labs' own materials name for combining independent signals."""
+    A product of complements is bounded by construction, so there is no clip for scores to pile up on,
+    and it is the form Signal Labs' own materials name for combining independent signals. It is also
+    CVSS v3.1's impact sub-score, 1 − (1−C)(1−I)(1−A), whose per-metric constants (High 0.56 / Low 0.22)
+    set the 2.55× step this rubric's 0.45 / 0.20 follows at 2.25×.
+
+    What it does NOT do is remove double-counting. The form assumes the conditions are independent
+    causes; two duplicate conditions at 0.45 compound to 0.6975, higher than either alone. The
+    conditions here are measurably not independent — 111 of 629 dossiers fire two or more, 15 of 16
+    complaints fire two at once, and §8.1 with UNROUTED_DESERVED co-occur 5.0× more often than chance.
+    RISK_GROUPS handles the one pair that is a single mechanism; the residual correlation between the
+    rest is a known overstatement, not a solved problem.
+
+    Each condition's probability is scaled by the certainty of its finding (see _certainty), so a
+    confirmed breach outranks a suspected one on the same rule."""
+    remaining = set(condition_ids)
+    ps = []
+    for group in RISK_GROUPS:
+        hit = remaining & group
+        if hit:
+            ps.append(max(RISK_P[RISK_SEVERITY[c]] * _certainty(c, violations) for c in hit))
+            remaining -= group
+    ps.extend(RISK_P[RISK_SEVERITY[c]] * _certainty(c, violations) for c in remaining)
     q = 1.0
-    for cid in condition_ids:
-        q *= 1.0 - RISK_P[RISK_SEVERITY[cid]]
+    for p in ps:
+        q *= 1.0 - p
     return round(1.0 - q, 3)
 
 
@@ -255,7 +330,7 @@ def risk_score(d, ctx, violations, deserved):
     deliberately absent: tier changes how expensive a missed churn is (docs/domain.md, "worth hundreds of
     CSM-hours"), not how likely one is. Cost weighting belongs to the attention-budget ranking.
     """
-    return _compose_risk(fired_risk_conditions(d, ctx, violations, deserved))
+    return _compose_risk(fired_risk_conditions(d, ctx, violations, deserved), violations)
 
 
 def fired_risk_conditions(d, ctx, violations, deserved):

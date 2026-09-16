@@ -433,10 +433,43 @@ def test_conditions_compose_as_a_noisy_or_not_a_sum(ev):
 
 
 def test_risk_never_reaches_one_however_many_conditions_fire(ev):
-    """A bounded score with no ceiling to pile up on: every extra condition still moves it."""
-    from signal_eval.scoring import _compose_risk
-    ids = [c[0] for c in RISK_CONDITIONS]
+    """A bounded score with no ceiling to pile up on: every extra ungrouped condition still moves it."""
+    from signal_eval.scoring import _compose_risk, RISK_GROUPS
+    grouped = set().union(*RISK_GROUPS)
+    ids = [c[0] for c in RISK_CONDITIONS if c[0] not in grouped]
     assert 0.0 < _compose_risk(ids[:-1]) < _compose_risk(ids) < 1.0
+
+
+def test_grouped_conditions_charge_one_event_once():
+    """§8.1 and UNROUTED_DESERVED are one missed intervention read twice: the pair contributes the max of
+    the two (0.45), not the noisy-OR of both (0.615). An ungrouped pair still compounds."""
+    from signal_eval.scoring import _compose_risk
+    assert _compose_risk(["§8.1", "UNROUTED_DESERVED"]) == _compose_risk(["§8.1"]) == RISK_P["critical"]
+    assert _compose_risk(["§8.2", "§8.3"]) == round(1 - (1 - RISK_P["critical"]) ** 2, 3)
+
+
+def test_an_uncertain_finding_is_charged_at_half():
+    """A condition scales by the certainty of the violation behind it (spec.UNCERTAIN_FACTOR), the same
+    way quality_score already does. A rule that fired both certain and uncertain counts at its most certain."""
+    from signal_eval.scoring import _compose_risk
+    sure = [{"rule": "§8.2", "severity": 1.0}]
+    maybe = [{"rule": "§8.2", "severity": 0.5}]
+    both = sure + maybe
+    assert _compose_risk(["§8.2"], sure) == RISK_P["critical"]
+    assert _compose_risk(["§8.2"], maybe) == round(RISK_P["critical"] * 0.5, 3)
+    assert _compose_risk(["§8.2"], both) == RISK_P["critical"]
+    # fact-based conditions carry no violation and are never discounted
+    assert _compose_risk(["VIS_UNDESERVED"], maybe) == RISK_P["judgment"]
+
+
+def test_routed_below_the_materiality_floor_is_a_risk(ev):
+    """spec §9 M4 "must not route it as-is": the floor is the spec's own 'minimum exposure that justifies
+    spending a human's time', so routing below it spends a slot the spec says was not justified."""
+    with_labels(ev, {})
+    d = happy_dossier()
+    d["scoring"]["arr_at_risk"] = ACCOUNT["materiality_floor"] - 1
+    risk, fired = _risk(ev, d)
+    assert "M4" in fired and risk >= RISK_P["high"]
 
 
 def test_the_order_conditions_fire_in_does_not_change_the_score():
