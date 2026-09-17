@@ -84,7 +84,8 @@ def fig_wasted(rows):
     ax.scatter([p[3] for p in pts], list(ys), s=70, color=BLUE, zorder=2)
     ax.scatter([p[2] for p in pts], list(ys), s=70, color=RED, zorder=2)
     ax.axvline(base, ls="--", lw=1, color="#888888")
-    ax.text(base + 0.006, -0.75, f"corpus base rate {base:.0%}", fontsize=8, color="#666666")
+    ax.set_ylim(-0.9, len(pts) - 0.4)
+    ax.text(base + 0.006, -0.7, f"corpus base rate {base:.0%}", fontsize=8, color="#666666")
     for y, (name, n, w, wo) in zip(ys, pts):
         ax.text(w + 0.012, y, f"{w:.0%}", va="center", fontsize=9, color=RED)
         ax.text(wo - 0.012, y, f"{wo:.0%}", va="center", ha="right", fontsize=9, color=BLUE)
@@ -122,7 +123,7 @@ def fig_weeks():
         ax.scatter(w, wk[w], s=60, color=col[kind], zorder=3)
         dx, dy = (0, 22) if kind == "artefact" else (0, 14)
         if w == 22:
-            dx, dy = (34, 18)
+            dx, dy = (-4, -30)
         ax.annotate(note, (w, wk[w]), xytext=(dx, dy), textcoords="offset points", ha="center", fontsize=8,
                     color=col[kind], arrowprops=dict(arrowstyle="-", color="#AAAAAA", lw=0.8))
     ax.set_xticks(weeks)
