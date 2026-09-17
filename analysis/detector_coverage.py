@@ -42,7 +42,7 @@ def raw_wow(rows_raw, end, metric):
 def main():
     D = E._load("signal_dossiers.jsonl")
     tel_raw = E._load("telemetry.jsonl")
-    ev = SignalEvaluator(label_cache_path=E.LABEL_CACHE if E.LABEL_CACHE.exists() else None, label_scope="all")
+    ev = SignalEvaluator(label_cache_path=E.LABEL_CACHE, label_scope="all")
     ev.load_context(E._load("accounts.jsonl"), E._load("owners.jsonl"), tel_raw, E._load("artifacts.jsonl"), D)
     cx = ev.cx
     outcomes = {o["signal_id"]: o for o in E._load("outcomes.jsonl")}
