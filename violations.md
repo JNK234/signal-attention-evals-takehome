@@ -55,7 +55,7 @@ The table lists the ten rules the agent breaks most often. "Share" is the share 
 
 - M6 fires on 259 dossiers.
 - In 197 the claimed change reproduces on raw telemetry only: before deduplication, before the legacy double-count fix, or before the June ingest-gap exclusion.
-- In 60 the claimed change reproduces on neither raw nor corrected data.
+- In 80 the claimed change reproduces on neither raw nor corrected data.
 - `attention_budget.md`, section 1, describes the telemetry corrections.
 
 **Ten critical rules fire. Seven of them concern evidence and containment.**
