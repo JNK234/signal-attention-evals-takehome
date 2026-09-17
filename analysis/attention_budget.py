@@ -28,6 +28,9 @@ def jl(path):
 
 def latest_run():
     runs = sorted(p for p in RUNS.glob("*.jsonl") if p.name != "manifest.jsonl")
+    if not runs:
+        sys.exit("no evaluator run found under analysis/runs/. Run `python analysis/run_all.py` first (about two minutes, "
+                 "uses the committed label cache), then `python analysis/facts.py`.")
     rows = jl(runs[-1])
     return runs[-1].name, {r["signal_id"]: r for r in rows if "signal_id" in r}
 

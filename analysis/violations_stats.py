@@ -22,12 +22,17 @@ RULE_IDS = [r[0] for r in RULES]
 
 def latest_run():
     runs = sorted(p for p in RUNS.glob("*.jsonl") if p.name != "manifest.jsonl")
+    if not runs:
+        sys.exit("no evaluator run found under analysis/runs/. Run `python analysis/run_all.py` first (about two minutes, "
+                 "uses the committed label cache), then `python analysis/facts.py`.")
     with open(runs[-1]) as f:
         rows = [json.loads(l) for l in f]
     return runs[-1].name, rows[0]["_meta"]["git_sha"], {r["signal_id"]: r for r in rows[1:]}
 
 
 def load_facts():
+    if not FACTS.exists():
+        sys.exit("analysis/facts.csv not found. Run `python analysis/run_all.py` then `python analysis/facts.py` first.")
     with open(FACTS) as f:
         rows = list(csv.DictReader(f))
     for r in rows:

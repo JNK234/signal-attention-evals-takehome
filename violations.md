@@ -22,7 +22,7 @@
 
 **How the numbers are computed.**
 
-- `analysis/violations_stats.py` prints every number in this report. The detector precision figures come from `analysis/detector_coverage.py`.
+- `analysis/violations_stats.py` prints every number in this report. The detector precision figures come from `analysis/detector_coverage.py`. On a fresh clone run `python analysis/run_all.py` and then `python analysis/facts.py` first.
 - Each rule reads the dossier plus the files it needs. `artifacts.jsonl` shows whether quoted evidence is real. Corrected `telemetry.jsonl` tests numeric claims. `accounts.jsonl` and `owners.jsonl` supply account flags and the owner's time zone. The other dossiers reveal duplicates.
 - Outcomes come from `outcomes.jsonl`. Churn rates exclude the 158 signals whose renewal is still pending, so their denominator is 471.
 - Complaint and wasted-escalation fields exist only for routed signals. Rates for those two outcomes are always computed among routed signals.

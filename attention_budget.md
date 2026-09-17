@@ -4,7 +4,7 @@
 
 **A policy that routes spec obligations plus verified declines trades coverage for precision.** It routes 189 signals instead of 294. Among routed signals, the share that later churned or downgraded rises from 30% to 39%. On the 108 signals both the agent and the policy route, complaints are 3.7% against the agent's 5.4% overall, and wasted escalations 27% against 39%. The policy reaches accounts carrying 74% of realised loss. The agent reached 97%. Section 4 prices that gap.
 
-**Sources.** `analysis/attention_budget.py` prints every number in sections 2 to 4 and the telemetry and artefact figures in section 1. Two figures come from other analyses and are cited as such: the 48 undetected triggers (`analysis/detector_coverage.py`) and the definition-development figures (`analysis/deserved_split.py`, recorded 2026-09-16).
+**Sources.** `analysis/attention_budget.py` prints every number in sections 2 to 4 and the telemetry and artefact figures in section 1. It reads the latest evaluator run, so on a fresh clone run `python analysis/run_all.py` first (about two minutes, from the committed label cache). Two figures come from other analyses and are cited as such: the 48 undetected triggers (`analysis/detector_coverage.py`) and the definition-development figures (`analysis/deserved_split.py`, recorded 2026-09-16).
 
 ## Why is the load so bursty? Name the cause of each burst week, with evidence.
 

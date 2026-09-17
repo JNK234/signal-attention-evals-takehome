@@ -33,6 +33,8 @@ sns.set_theme(style="ticks", context="paper", font_scale=1.1,
 
 
 def load_facts():
+    if not (ROOT / "analysis" / "facts.csv").exists():
+        sys.exit("analysis/facts.csv not found. Run `python analysis/run_all.py` then `python analysis/facts.py` first.")
     with open(ROOT / "analysis" / "facts.csv") as f:
         rows = list(csv.DictReader(f))
     for r in rows:
