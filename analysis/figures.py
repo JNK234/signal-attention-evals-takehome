@@ -66,41 +66,48 @@ def fig_complaints(rows):
     fig.savefig(OUT / "complaints.png")
 
 
-def fig_wasted(rows):
-    """Dumbbell: wasted-escalation rate with the rule vs without, for the rules that move it."""
-    base = sum(r["_wasted"] for r in rows) / len(rows)
-    label = {"§6.1": "§6.1 paged outside 08:00–19:00", "M4": "M4 routed below the materiality floor",
-             "§8.6": "§8.6 wrong channel or locale", "§8.3": "§8.3 restricted artefact quoted",
-             "§6.3": "§6.3 notified later than target", "§8.2": "§8.2 play on a restricted account"}
-    pts = []
-    for rid in label:
-        w = [r for r in rows if rid in r["_rules"]]
-        wo = [r for r in rows if rid not in r["_rules"]]
-        pts.append((label[rid], len(w), sum(r["_wasted"] for r in w) / len(w), sum(r["_wasted"] for r in wo) / len(wo)))
-    pts.sort(key=lambda p: p[2])
-    fig, ax = plt.subplots(figsize=(7.5, 3.8))
-    ys = range(len(pts))
-    ax.hlines(list(ys), [p[3] for p in pts], [p[2] for p in pts], color="#BBBBBB", lw=2, zorder=1)
-    ax.scatter([p[3] for p in pts], list(ys), s=70, color=BLUE, zorder=2)
-    ax.scatter([p[2] for p in pts], list(ys), s=70, color=RED, zorder=2)
-    ax.axvline(base, ls="--", lw=1, color="#888888")
-    ax.set_ylim(-0.9, len(pts) - 0.4)
-    ax.text(base + 0.006, -0.7, f"corpus base rate {base:.0%}", fontsize=8, color="#666666")
-    for y, (name, n, w, wo) in zip(ys, pts):
-        ax.text(w + 0.012, y, f"{w:.0%}", va="center", fontsize=9, color=RED)
-        ax.text(wo - 0.012, y, f"{wo:.0%}", va="center", ha="right", fontsize=9, color=BLUE)
-    ax.set_yticks(list(ys))
-    ax.set_yticklabels([f"{p[0]}  (n={p[1]})" for p in pts])
+def fig_m6_split(rows):
+    """M6 findings split by what the corrected telemetry shows, with churn among routed dossiers."""
+    import json
+    from collections import defaultdict
+    runs = sorted(p for p in (ROOT / "analysis" / "runs").glob("*.jsonl") if p.name != "manifest.jsonl")
+    with open(runs[-1]) as f:
+        run = {r["signal_id"]: r for r in (json.loads(l) for l in f) if "signal_id" in r}
+    kinds = defaultdict(list)
+    for r in rows:
+        if "M6" not in r["_rules"]:
+            continue
+        ex = [v["explanation"] for v in run[r["signal_id"]]["result"]["violations"] if v["rule"] == "M6"]
+        k = ("real decline, exaggerated" if any("inflated" in e for e in ex) else
+             "no decline, pipeline made it" if any("manufactured" in e for e in ex) else "wrong on both series")
+        kinds[k].append(r)
+    order = ["real decline, exaggerated", "wrong on both series", "no decline, pipeline made it"]
+    vals, ns, tot = [], [], []
+    for k in order:
+        rr = [r for r in kinds[k] if r["disposition"] in ("routed", "acknowledged") and r["renewal_outcome"] not in ("", "pending", "None")]
+        vals.append(sum(r["renewal_outcome"] in ("churned", "downgraded") for r in rr) / len(rr))
+        ns.append(len(rr)); tot.append(len(kinds[k]))
+    fig, ax = plt.subplots(figsize=(7.5, 3.4))
+    cols = [RED, DARK, GREY]
+    ax.barh(range(3), vals, color=cols, height=0.6)
+    for i, (v, n, t) in enumerate(zip(vals, ns, tot)):
+        ax.text(v + 0.012, i, f"{v:.0%}", va="center", fontsize=10, weight="bold", color=cols[i] if i == 0 else "#444444")
+    ax.set_yticks(range(3))
+    ax.set_yticklabels([f"{k}\n{t} dossiers, {n} routed with a known outcome" for k, n, t in zip(order, ns, tot)], fontsize=9)
+    ax.invert_yaxis()
+    ax.axvline(0.28, ls="--", lw=1, color="#888888")
+    ax.text(0.285, 2.55, "corpus rate 28%", fontsize=8, color="#666666")
     ax.xaxis.set_major_formatter(PercentFormatter(1.0))
-    ax.set_xlim(0, 0.56)
-    ax.text(0, 1.14, "Wasted escalations roughly double when a paging or materiality rule breaks",
+    ax.set_xlim(0, 0.7)
+    ax.set_ylim(2.9, -0.6)
+    ax.text(0, 1.14, "An ungrounded number usually hides a real decline, and those accounts churn most",
             transform=ax.transAxes, fontsize=12, weight="bold")
-    ax.text(0, 1.06, "Share of dossiers the owner later marked as a wasted escalation, with the rule (red) vs without it (blue)",
+    ax.text(0, 1.06, "M6 findings split by what corrected telemetry shows. Bars: share of routed dossiers that later churned or downgraded.",
             transform=ax.transAxes, fontsize=9, color="#555555")
     sns.despine(ax=ax, left=True)
     ax.tick_params(left=False)
-    source(fig, "Source: outcomes.jsonl, escalation_was_wasted, all 629 dossiers; rule findings from analysis/violations_stats.py")
-    fig.savefig(OUT / "wasted_dumbbell.png")
+    source(fig, "Source: M6 explanations in the evaluator run; outcomes.jsonl; analysis/violations_stats.py section 6f")
+    fig.savefig(OUT / "m6_split.png")
 
 
 def fig_weeks():
@@ -143,6 +150,6 @@ def fig_weeks():
 if __name__ == "__main__":
     rows = load_facts()
     fig_complaints(rows)
-    fig_wasted(rows)
+    fig_m6_split(rows)
     fig_weeks()
     print("wrote", sorted(p.name for p in OUT.glob("*.png")))

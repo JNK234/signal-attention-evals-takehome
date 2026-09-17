@@ -173,6 +173,80 @@ def main():
     cm = [r for r in rows if r["_complained"]]
     print("  ", {rid: sum(rid in r["_rules"] for r in cm) for rid in ("§8.2", "§6.3", "M4", "M6", "I6", "§8.5", "Q2")}, " customer-visible play:", sum(r["customer_visible"] == "True" for r in cm))
 
+    # ── 6d. the outcome comparisons on their correct denominators ─
+    print("\n== 6d. wasted-escalation rate among ROUTED dossiers only (the field exists only there) ==")
+    routed = [r for r in rows if r["_routed"]]
+    print(f"  routed {len(routed)}, wasted {sum(r['_wasted'] for r in routed)} = {sum(r['_wasted'] for r in routed)/len(routed):.0%}")
+    for rid in ("§6.1", "M4", "§8.6", "§8.3", "§8.2", "§6.3", "I6", "§8.5", "M6", "Q2"):
+        w = [r for r in routed if rid in r["_rules"]]; wo = [r for r in routed if rid not in r["_rules"]]
+        if w:
+            print(f"  {rid:<6} with n={len(w):>3} wasted {sum(r['_wasted'] for r in w)/len(w):>4.0%} | without n={len(wo):>3} wasted {sum(r['_wasted'] for r in wo)/len(wo):>4.0%}")
+    print("\n== 6e. complaint rate among ROUTED, CUSTOMER-VISIBLE dossiers only (the only place a complaint can occur) ==")
+    cv = [r for r in routed if r["customer_visible"] == "True"]
+    print(f"  routed customer-visible {len(cv)}, complaints {sum(r['_complained'] for r in cv)}")
+    for rid in ("§8.2", "§6.3", "M4", "M6", "I6", "Q2"):
+        w = [r for r in cv if rid in r["_rules"]]; wo = [r for r in cv if rid not in r["_rules"]]
+        print(f"  {rid:<6} with n={len(w):>3} complaints {sum(r['_complained'] for r in w):>2} = {sum(r['_complained'] for r in w)/len(w):>4.0%} | without n={len(wo):>3} {sum(r['_complained'] for r in wo):>2} = {sum(r['_complained'] for r in wo)/len(wo):>4.0%}")
+    print("\n== 6f. M6 split by the evaluator's own reading of the claim (routed dossiers, churn/downgrade) ==")
+    kinds = defaultdict(list)
+    for r in rows:
+        if "M6" not in r["_rules"]:
+            continue
+        ex = [v["explanation"] for v in run[r["signal_id"]]["result"]["violations"] if v["rule"] == "M6"]
+        k = "inflated real decline" if any("inflated" in e for e in ex) else "manufactured decline" if any("manufactured" in e for e in ex) else "wrong on both series"
+        kinds[k].append(r)
+    for k, rs in kinds.items():
+        rr = [r for r in rs if r["_routed"]]
+        cb, n = rate(rr, lambda r: r["_bad"], lambda r: r["_known"])
+        print(f"  {k:<24} dossiers {len(rs):>3}, routed {len(rr):>3}, churn/dg among routed with known outcome {cb:.0%} (n={n})")
+    print("\n== 6g. §6.3 late notification: churn within severity (routed dossiers) ==")
+    for sev in ("P1", "P2"):
+        w = [r for r in routed if r["severity"] == sev and "§6.3" in r["_rules"]]; wo = [r for r in routed if r["severity"] == sev and "§6.3" not in r["_rules"]]
+        cb, n1 = rate(w, lambda r: r["_bad"], lambda r: r["_known"]); cb0, n0 = rate(wo, lambda r: r["_bad"], lambda r: r["_known"])
+        print(f"  {sev}: late {cb:.0%} (n={n1}) vs on time {cb0:.0%} (n={n0})")
+    print("  §6.3 dossiers by severity:", dict(Counter(r["severity"] for r in rows if "§6.3" in r["_rules"])))
+    print("\n== 6h. owner spread: chi-square across the 14 CSMs on critical share; restricted-account share vs §8.2 ==")
+    csm = defaultdict(list)
+    for r in rows:
+        if r["owner_id"].startswith("u_0"):
+            csm[r["owner_id"]].append(r)
+    tot = sum(len(v) for v in csm.values()); crit = sum(r["_critical"] for v in csm.values() for r in v)
+    chi = sum((sum(r["_critical"] for r in v) - len(v) * crit / tot) ** 2 / (len(v) * crit / tot) +
+              ((len(v) - sum(r["_critical"] for r in v)) - len(v) * (1 - crit / tot)) ** 2 / (len(v) * (1 - crit / tot)) for v in csm.values())
+    print(f"  chi-square {chi:.1f} on {len(csm)-1} df (critical value at p=0.05 is 22.4)")
+    for o, v in sorted(csm.items(), key=lambda kv: -sum("§8.2" in r["_rules"] for r in kv[1]))[:6]:
+        flagged = sum(r["restricted_account"] == "True" for r in v) / len(v)
+        print(f"  {o}: restricted accounts {flagged:.0%}, §8.2 findings {sum('§8.2' in r['_rules'] for r in v)}")
+    print("\n== 6i. Q2 validity checks ==")
+    def ann_flag(r, cat):
+        return any(cat in (r.get(f"ann{i}_cats") or "") for i in (1, 2, 3))
+    def ann_n(r):
+        return sum(1 for i in (1, 2, 3) if r.get(f"ann{i}_quality"))
+    q2 = [r for r in rows if "Q2" in r["_rules"] and ann_n(r)]; nq2 = [r for r in rows if "Q2" not in r["_rules"] and ann_n(r)]
+    print(f"  annotator wrong_hypothesis flag: Q2 dossiers {sum(ann_flag(r,'wrong_hypothesis') for r in q2)}/{len(q2)} = {sum(ann_flag(r,'wrong_hypothesis') for r in q2)/len(q2):.0%}; "
+          f"non-Q2 {sum(ann_flag(r,'wrong_hypothesis') for r in nq2)}/{len(nq2)} = {sum(ann_flag(r,'wrong_hypothesis') for r in nq2)/len(nq2):.0%}")
+    sup = [r for r in rows if not r["_routed"]]
+    cb, n1 = rate([r for r in sup if "Q2" in r["_rules"]], lambda r: r["_bad"], lambda r: r["_known"]); cb0, n0 = rate([r for r in sup if "Q2" not in r["_rules"]], lambda r: r["_bad"], lambda r: r["_known"])
+    print(f"  unrouted dossiers: churn with Q2 {cb:.0%} (n={n1}) vs without {cb0:.0%} (n={n0})")
+    import statistics
+    def annq(rs):
+        v = [float(r[f"ann{i}_quality"]) for r in rs for i in (1, 2, 3) if r.get(f"ann{i}_quality")]
+        return statistics.median(v) if v else float("nan"), len(v)
+    print(f"  annotator quality median: M1∪M5 dossiers {annq([r for r in rows if r['_rules'] & {'M1','M5'}])}; rest {annq([r for r in rows if not (r['_rules'] & {'M1','M5'})])}")
+    print("\n== 6j. I6 ∩ §8.7: is the appended email in the artefact? ==")
+    arts = {a["artifact_id"]: a for a in map(json.loads, open(ROOT / "data" / "artifacts.jsonl"))}
+    import re
+    both = [r for r in rows if {"I6", "§8.7"} <= r["_rules"]]
+    inart = 0
+    for r in both:
+        d = next(v for v in run[r["signal_id"]]["result"]["violations"] if v["rule"] == "§8.7")
+        aid = re.search(r"art_\d+", d["explanation"]); 
+        quote = next((v["explanation"] for v in run[r["signal_id"]]["result"]["violations"] if v["rule"] == "I6"), "")
+        em = re.search(r"[\w.]+@[\w.]+", quote)
+        if aid and em and em.group(0) in (arts.get(aid.group(0), {}).get("text") or ""):
+            inart += 1
+    print(f"  {len(both)} dossiers; appended address present in the artefact text: {inart}")
+
     # ── 7. quality score vs arr_at_risk trustworthiness ─
     print("\n== 7. quality_score by whether arr_at_risk is provably wrong (M1 or M5) ==")
     import statistics
