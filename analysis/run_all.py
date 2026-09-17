@@ -65,7 +65,7 @@ def main():
     n_unev = sum(1 for r in results.values() if any(v["rule"] == "UNEVALUATED" for v in r["violations"]))
     print(f"UNEVALUATED {n_unev:>5}  [meta: text rules not evaluated — labeller {ev.cx.classifier_reason}]")
     print("\n=== sub-reasons for the big ones ===")
-    for rid in ("I4", "T3", "M4", "M6", "I6", "P1", "I2", "Q2"):
+    for rid in ("§5", "§6.3", "M4", "M6", "I6", "§8.1", "I2", "Q2"):
         c = Counter()
         for r in results.values():
             for v in r["violations"]:

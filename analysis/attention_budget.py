@@ -133,7 +133,8 @@ def summarize(name, recs, routed):
     # credit a policy with the account if it routed at least one of that account's signals.
     lost_by_acct = worst_loss(recs)
     lost_all = sum(lost_by_acct.values())
-    lost_in = sum(v for a, v in lost_by_acct.items() if any(r["account_id"] == a for r in bad))
+    reached = {r["account_id"] for r in R}
+    lost_in = sum(v for a, v in lost_by_acct.items() if a in reached)
     des = {r["signal_id"] for r in recs if r["deserved"]}
     ann_pos = {r["signal_id"] for r in recs if r["annot"] is True}
     ann_uni = {r["signal_id"] for r in recs if r["annot"] is not None}
@@ -299,6 +300,114 @@ def main():
     # attribution == certain anywhere
     cert = [r for r in recs if r["attribution"] == "certain"]
     print(f"  attribution=certain: {len(cert)} outcomes; policy routed {sum(r['signal_id'] in policy for r in cert)}, agent routed {sum(r['agent_routed'] for r in cert)}")
+
+    # ── review checks (2026-09-17): numbers the two reviews asked for, computed as they specified ──
+    print("\n== review checks ==")
+    both = policy & agent
+    only_policy = policy - agent
+    print(f"routed by both agent and policy: {len(both)}; by policy only: {len(only_policy)} (complaint/wasted fields unobservable there: "
+          f"{sum(r['complained'] or r['wasted'] for r in recs if r['signal_id'] in only_policy)} carry either)")
+    def cw(ids):
+        xs = [r for r in recs if r["signal_id"] in ids]
+        return f"complaints {sum(r['complained'] for r in xs)}/{len(xs)} = {sum(r['complained'] for r in xs)/len(xs):.1%}, wasted {sum(r['wasted'] for r in xs)}/{len(xs)} = {sum(r['wasted'] for r in xs)/len(xs):.1%}"
+    print(f"  on the {len(both)} overlap signals: {cw(both)}")
+    print(f"  agent's 294: {cw(agent)}")
+    print(f"  agent-routed signals the policy drops ({len(agent - policy)}): {cw(agent - policy)}")
+    # spec-only yardstick (§8.1 + §4.6), no §6.3
+    spec_only = {r["signal_id"] for r in recs if r["deserved"] and not str(r["deserved_reason"]).startswith("§6.3")}
+    tp = len(agent & spec_only)
+    print(f"  agent vs §8.1+§4.6 only ({len(spec_only)} signals): precision {tp}/{len(agent)} = {tp/len(agent):.0%}, recall {tp}/{len(spec_only)} = {tp/len(spec_only):.0%}")
+    by_reason = Counter(str(r["deserved_reason"]).split(" ")[0] for r in recs if r["deserved"])
+    for k in ("§8.1", "§4.6", "§6.3"):
+        ids = {r["signal_id"] for r in recs if r["deserved"] and str(r["deserved_reason"]).startswith(k)}
+        print(f"  agent routed {len(ids & agent)} of {len(ids)} {k}-deserved signals")
+    # agent-score ordering at top-189: recall vs tier 1
+    top_as = {r["signal_id"] for r in sorted(recs, key=KEYS["agent-score"])[:len(policy)]}
+    t1 = {r["signal_id"] for r in recs if r["tier"] == 1}
+    print(f"  agent-score top-{len(policy)} contains {len(top_as & t1)} of {len(t1)} tier-1 signals ({len(top_as & t1)/len(t1):.0%})")
+    # §8.1 trigger kinds
+    kinds = Counter()
+    multi = 0
+    for r in recs:
+        if r["deserved"] and str(r["deserved_reason"]).startswith("§8.1"):
+            ks = run[r["signal_id"]]["facts"]["trigger_source"]["confirmed"]
+            if len(ks) > 1: multi += 1
+            else: kinds[ks[0]] += 1
+    print(f"  §8.1 single-trigger kinds: {dict(kinds)}; more than one trigger: {multi}")
+    # arr_at_risk wrong: M1 ∪ M5 dossiers
+    m15 = {r["signal_id"] for r in recs if {v["rule"] for v in run[r["signal_id"]]["result"]["violations"]} & {"M1", "M5"}}
+    print(f"  arr_at_risk provably wrong (M1 ∪ M5): {len(m15)} dossiers")
+    # below floor among routed
+    below = [r for r in recs if r["signal_id"] in policy and run[r["signal_id"]]["facts"].get("acct_tier") is not None
+             and (d0 := next(d for d in dossiers if d["signal_id"] == r["signal_id"])) and
+             ((d0.get("scoring") or {}).get("arr_at_risk") or 0) < (d0["metadata"].get("materiality_floor") or 0)]
+    print(f"  policy-routed signals with arr_at_risk below the materiality floor: {len(below)} of {len(policy)}; "
+          f"agent-routed below floor: {sum(1 for d in dossiers if (d.get('decision') or {}).get('disposition') in ('routed','acknowledged') and ((d.get('scoring') or {}).get('arr_at_risk') or 0) < (d['metadata'].get('materiality_floor') or 0))}")
+    # unattached-trigger dossiers already deserved
+    print(f"  unattached-trigger dossiers already deserved by another condition: {sum(r['deserved'] for r in unatt)} of {len(unatt)}")
+    # owner-weeks by role
+    print(f"  owner-weeks: CSM {sum(1 for k in by if owners[k[0]]['role']=='csm')}, AE {sum(1 for k in by if owners[k[0]]['role']=='ae')}; "
+          f"policy routes CSM-owned {sum(1 for r in recs if r['signal_id'] in policy and owners[r['owner_id']]['role']=='csm')}, AE-owned {sum(1 for r in recs if r['signal_id'] in policy and owners[r['owner_id']]['role']=='ae')}")
+    # policy routes inside burst weeks
+    bw = {wk for wk, ds in byweek.items() if len(ds) >= BURST_MIN}
+    print(f"  policy routes {sum(1 for r in recs if r['signal_id'] in policy and r['week'] in bw)} signals inside the {len(bw)} burst weeks: "
+          f"{ {wk: sum(1 for r in recs if r['signal_id'] in policy and r['week']==wk) for wk in sorted(bw)} }")
+    print(f"  tier-2 signals inside burst weeks: {sum(1 for r in recs if r['tier']==2 and r['week'] in bw)} of {sum(1 for r in recs if r['tier']==2)}")
+    # W18: benign-labelled and routed; M6 breakdown; artefact reasons for W21/W24
+    for wk in ("2026-W18", "2026-W21", "2026-W24"):
+        ds = byweek[wk]
+        ben = [d for d in ds if (d.get("hypotheses") or [{}])[0].get("hypothesis") == "benign_variation"]
+        cs = Counter(st for d in ds for st in (run[d["signal_id"]]["facts"].get("claim_status") or []))
+        expl = [v["explanation"] for d in ds for v in run[d["signal_id"]]["result"]["violations"] if v["rule"] == "M6" and "only on uncorrected" in v["explanation"]]
+        print(f"  {wk}: benign-labelled {len(ben)}, of which routed {sum((d.get('decision') or {}).get('disposition') in ('routed','acknowledged') for d in ben)}; "
+              f"claim_status {dict(cs)}; artefact explanations citing 'legacy' {sum('legacy' in e for e in expl)}, citing 'ingest' {sum('ingest' in e for e in expl)}, "
+              f"metrics {dict(Counter(m.get('metric') for d in ds for m in d.get('metrics_claimed') or []))}")
+    # duplicate artefacts among routed pairs in one owner-week
+    dup = 0
+    for (oid, wk), rs in by.items():
+        routed_here = [r for r in rs if r["signal_id"] in policy]
+        arts = Counter(a for r in routed_here for a in {e.get("artifact_id") for e in next(d for d in dossiers if d["signal_id"] == r["signal_id"]).get("evidence") or []})
+        dup += sum(1 for a, c in arts.items() if c > 1)
+    print(f"  owner-weeks where two policy-routed signals share an evidence artefact: {dup} shared artefacts")
+
+    # ── Q1 telemetry evidence, same weekday one week earlier, dedupe latest ingested_at, ingest_status ok ──
+    print("\n== Q1 telemetry: regional median dau_seats, holiday vs same weekday one week earlier ==")
+    tel = jl(DATA / "telemetry.jsonl")
+    best = {}
+    for t in tel:
+        k = (t["account_id"], t["date"])
+        if k not in best or t["ingested_at"] > best[k]["ingested_at"]:
+            best[k] = t
+    def regmed(region, day, metric="dau_seats"):
+        v = [t[metric] for (a, dd), t in best.items() if dd == day and accounts[a]["region"] == region
+             and t.get("ingest_status") == "ok" and t.get(metric) is not None]
+        return statistics.median(v) if v else float("nan")
+    HOL = [("Good Friday Apr 3", "2026-04-03", "2026-03-27"), ("Easter Monday Apr 6", "2026-04-06", "2026-03-30"),
+           ("Labour Day May 1", "2026-05-01", "2026-04-24"), ("Memorial Day May 25", "2026-05-25", "2026-05-18"),
+           ("Jul 3 (Independence Day observed)", "2026-07-03", "2026-06-26")]
+    print(f"{'holiday':<36}{'namer':>16}{'emea':>16}{'latam':>16}   {'namer err%':>12}{'namer p95':>14}")
+    for name, d1, d0 in HOL:
+        cells = "".join(f"{regmed(rg, d0):>7.1f}→{regmed(rg, d1):<7.1f}" for rg in ("namer", "emea", "latam"))
+        print(f"{name:<36}{cells}   {regmed('namer', d0, 'error_rate_pct'):>5.2f}→{regmed('namer', d1, 'error_rate_pct'):<5.2f}"
+              f"{regmed('namer', d0, 'query_p95_ms'):>6.0f}→{regmed('namer', d1, 'query_p95_ms'):<6.0f}")
+    print("  namer weekly weekday medians (Mon–Fri pooled), weeks of Jun 15 → Jul 20:",
+          [round(statistics.median([t["dau_seats"] for (a, dd), t in best.items() if accounts[a]["region"] == "namer" and t.get("ingest_status") == "ok"
+                                     and date.fromisoformat(dd).weekday() < 5 and 0 <= (date.fromisoformat(dd) - date(2026, 6, 15) - __import__("datetime").timedelta(days=7 * i)).days < 7]), 1)
+           for i in range(6)])
+    # holiday / OOO artefacts on the burst-week accounts within ±14 days of the sweep
+    import re
+    arts = jl(DATA / "artifacts.jsonl")
+    pat = re.compile(r"holiday|out of office|\booo\b|public holiday|bank holiday|long weekend", re.I)
+    hol_arts = [a for a in arts if pat.search(a.get("text") or "")]
+    print(f"  holiday/OOO artefacts corpus-wide: {len(hol_arts)}")
+    for wk in ("2026-W14", "2026-W18", "2026-W22", "2026-W27"):
+        ds = byweek[wk]
+        sweep = max(date.fromisoformat(d["opened_at"][:10]) for d in ds)
+        accts_wk = {d["account_id"] for d in ds}
+        hit = {a["account_id"] for a in hol_arts if a["account_id"] in accts_wk and abs((date.fromisoformat(a["timestamp"][:10]) - sweep).days) <= 14}
+        ex = next((a for a in hol_arts if a["account_id"] in accts_wk and abs((date.fromisoformat(a["timestamp"][:10]) - sweep).days) <= 14 and a.get("author_type") == "customer"), None)
+        print(f"  {wk}: {len(hit)} of {len(accts_wk)} accounts have a holiday/OOO artefact within ±14 days"
+              + (f"; e.g. {ex['artifact_id']} ({ex['timestamp'][:10]}): \"{(ex['text'] or '')[:90]}\"" if ex else ""))
 
     # ── write the ranking ─────────────────────────────────────────────────────
     rank, _ = apply_policy(recs, KEYS["tiered"], FLOOR["tiered"])
