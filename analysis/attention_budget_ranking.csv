@@ -1,0 +1,630 @@
+owner_id,week,rank,routed,signal_id,account_id,detector,tier,deserved_reason,severity,days_to_renewal,arr_annual,agent_routed,outcome,arr_delta,attribution
+u_001,2026-W14,1,False,sig_0087,acct_0047,security_review_opened,3,no spec condition requires a human,P2,9,21000,False,renewed_expansion,3300,none
+u_001,2026-W14,2,False,sig_0099,acct_0114,usage_cliff,3,no spec condition requires a human,P2,136,230000,False,renewed_late,0,uncertain
+u_001,2026-W14,3,False,sig_0098,acct_0114,seat_decay,4,no spec condition requires a human,P2,136,230000,True,renewed_flat,0,uncertain
+u_001,2026-W16,1,False,sig_0157,acct_0061,exec_churn_language,3,no spec condition requires a human,P2,110,75000,False,churned,-75000,uncertain
+u_001,2026-W16,2,False,sig_0145,acct_0025,exec_churn_language,3,no spec condition requires a human,P3,77,272500,False,renewed_flat,0,none
+u_001,2026-W18,1,True,sig_0189,acct_0112,exec_churn_language,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P1,12,49000,False,renewed_flat,0,none
+u_001,2026-W18,2,False,sig_0220,acct_0114,seat_decay,3,no spec condition requires a human,P2,108,230000,True,downgraded,-53900,uncertain
+u_001,2026-W20,1,True,sig_0258,acct_0042,billing_dispute,1,§8.1 mandatory-route trigger: ['billing_dispute'],P1,20,115000,True,downgraded,-62800,uncertain
+u_001,2026-W20,2,False,sig_0257,acct_0042,exec_churn_language,3,no spec condition requires a human,P2,21,115000,True,renewed_flat,0,uncertain
+u_001,2026-W21,1,False,sig_0295,acct_0053,usage_cliff,4,no spec condition requires a human,P3,-53,197500,True,renewed_flat,0,uncertain
+u_001,2026-W23,1,True,sig_0397,acct_0061,exec_churn_language,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P1,62,75000,False,downgraded,-22200,none
+u_001,2026-W23,2,False,sig_0392,acct_0025,sentiment_drop,3,no spec condition requires a human,P1,27,272500,True,renewed_flat,0,uncertain
+u_001,2026-W24,1,True,sig_0435,acct_0030,seat_decay,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P3,97,815000,False,pending,0,
+u_001,2026-W24,2,False,sig_0408,acct_0042,exec_churn_language,3,no spec condition requires a human,P1,-6,115000,True,downgraded,-25500,uncertain
+u_001,2026-W24,3,False,sig_0450,acct_0061,seat_decay,4,no spec condition requires a human,P1,54,75000,False,renewed_late,0,none
+u_001,2026-W24,4,False,sig_0447,acct_0053,usage_cliff,4,no spec condition requires a human,P2,-74,197500,False,downgraded,-30700,uncertain
+u_001,2026-W24,5,False,sig_0469,acct_0112,usage_cliff,4,no spec condition requires a human,P3,-36,49000,False,renewed_expansion,16500,uncertain
+u_001,2026-W25,1,True,sig_0517,acct_0061,ticket_storm,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P1,51,75000,True,downgraded,-22400,uncertain
+u_001,2026-W25,2,True,sig_0514,acct_0053,exec_churn_language,1,§8.1 mandatory-route trigger: ['legal_reference'],P1,-76,197500,False,churned,-197500,none
+u_001,2026-W25,3,True,sig_0521,acct_0167,renewal_silence,1,§8.1 mandatory-route trigger: ['billing_dispute'],P2,56,56000,True,renewed_flat,0,uncertain
+u_001,2026-W25,4,True,sig_0522,acct_0053,security_review_opened,1,§8.1 mandatory-route trigger: ['legal_reference'],P2,-79,197500,False,downgraded,-43100,uncertain
+u_001,2026-W25,5,False,sig_0523,acct_0061,sentiment_drop,3,no spec condition requires a human,P1,49,75000,True,churned,-75000,uncertain
+u_001,2026-W25,6,False,sig_0528,acct_0025,usage_cliff,4,no spec condition requires a human,P2,10,272500,False,renewed_flat,0,none
+u_001,2026-W26,1,True,sig_0541,acct_0053,sentiment_drop,1,§8.1 mandatory-route trigger: ['legal_reference'],P1,-85,197500,True,renewed_flat,0,certain
+u_001,2026-W28,1,True,sig_0613,acct_0053,ticket_storm,1,§8.1 mandatory-route trigger: ['legal_reference'],P1,-98,197500,True,downgraded,-104200,none
+u_001,2026-W28,2,True,sig_0615,acct_0047,billing_dispute,1,§8.1 mandatory-route trigger: ['billing_dispute'],P2,-93,21000,False,renewed_flat,0,none
+u_001,2026-W29,1,True,sig_0623,acct_0061,exec_churn_language,1,§8.1 mandatory-route trigger: ['cancel_intent'],P0,25,75000,True,churned,-75000,uncertain
+u_001,2026-W29,2,False,sig_0624,acct_0114,renewal_silence,3,no spec condition requires a human,P2,37,230000,True,renewed_flat,0,uncertain
+u_002,2026-W10,1,True,sig_0015,acct_0010,exec_churn_language,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P2,34,287500,True,renewed_flat,0,none
+u_002,2026-W10,2,False,sig_0012,acct_0065,exec_churn_language,3,no spec condition requires a human,P1,305,1940000,True,pending,0,
+u_002,2026-W10,3,False,sig_0030,acct_0094,seat_decay,4,no spec condition requires a human,P2,52,75000,False,renewed_late,0,uncertain
+u_002,2026-W11,1,False,sig_0036,acct_0103,exec_churn_language,3,no spec condition requires a human,P1,157,1795000,False,renewed_flat,0,none
+u_002,2026-W11,2,False,sig_0039,acct_0130,exec_churn_language,3,no spec condition requires a human,P1,291,192500,False,pending,0,
+u_002,2026-W11,3,False,sig_0053,acct_0162,exec_churn_language,3,no spec condition requires a human,P2,15,177500,False,renewed_flat,0,none
+u_002,2026-W13,1,False,sig_0083,acct_0103,seat_decay,3,no spec condition requires a human,P3,139,1795000,True,renewed_flat,0,uncertain
+u_002,2026-W14,1,True,sig_0113,acct_0162,usage_cliff,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P2,-6,177500,False,renewed_flat,0,uncertain
+u_002,2026-W15,1,False,sig_0135,acct_0007,usage_cliff,4,no spec condition requires a human,P3,81,262500,False,renewed_flat,0,none
+u_002,2026-W16,1,False,sig_0149,acct_0143,exec_churn_language,3,no spec condition requires a human,P1,170,180000,True,pending,0,
+u_002,2026-W17,1,True,sig_0173,acct_0070,sentiment_drop,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,96,2125000,False,renewed_late,0,none
+u_002,2026-W17,2,False,sig_0182,acct_0110,usage_cliff,4,no spec condition requires a human,P1,-1,207500,True,churned,-207500,certain
+u_002,2026-W18,1,True,sig_0198,acct_0010,seat_decay,1,§8.1 mandatory-route trigger: ['legal_reference'],P2,-23,287500,True,renewed_late,0,uncertain
+u_002,2026-W18,2,False,sig_0199,acct_0010,usage_cliff,3,no spec condition requires a human,P0,-23,287500,False,downgraded,-87700,uncertain
+u_002,2026-W18,3,False,sig_0188,acct_0103,exec_churn_language,3,no spec condition requires a human,P2,110,1795000,False,renewed_flat,0,none
+u_002,2026-W18,4,False,sig_0224,acct_0130,sentiment_drop,3,no spec condition requires a human,P2,239,192500,True,pending,0,
+u_002,2026-W19,1,False,sig_0244,acct_0143,exec_churn_language,3,no spec condition requires a human,P2,150,180000,False,pending,0,
+u_002,2026-W20,1,True,sig_0260,acct_0065,exec_churn_language,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P1,233,1940000,False,pending,0,
+u_002,2026-W21,1,False,sig_0273,acct_0103,billing_dispute,3,no spec condition requires a human,P2,88,1795000,False,renewed_flat,0,none
+u_002,2026-W21,2,False,sig_0279,acct_0010,usage_cliff,3,no spec condition requires a human,P2,-44,287500,True,renewed_late,0,uncertain
+u_002,2026-W21,3,False,sig_0309,acct_0103,seat_decay,4,no spec condition requires a human,P1,83,1795000,True,renewed_flat,0,uncertain
+u_002,2026-W21,4,False,sig_0324,acct_0143,usage_cliff,4,no spec condition requires a human,P1,132,180000,False,pending,0,
+u_002,2026-W22,1,True,sig_0358,acct_0062,usage_cliff,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,-1,2165000,True,renewed_flat,0,uncertain
+u_002,2026-W22,2,True,sig_0369,acct_0110,seat_decay,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,-36,207500,True,renewed_flat,0,none
+u_002,2026-W22,3,True,sig_0355,acct_0049,seat_decay,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P2,45,132500,False,renewed_flat,0,none
+u_002,2026-W22,4,True,sig_0346,acct_0162,exec_churn_language,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P2,-59,177500,False,renewed_flat,0,none
+u_002,2026-W22,5,False,sig_0339,acct_0070,billing_dispute,3,no spec condition requires a human,P2,63,2125000,False,renewed_expansion,590000,none
+u_002,2026-W22,6,False,sig_0344,acct_0010,exec_churn_language,3,no spec condition requires a human,P2,-48,287500,False,renewed_flat,0,uncertain
+u_002,2026-W22,7,False,sig_0356,acct_0049,usage_cliff,3,no spec condition requires a human,P3,45,132500,False,renewed_flat,0,none
+u_002,2026-W22,8,False,sig_0342,acct_0041,ticket_storm,3,no spec condition requires a human,P3,-56,970000,True,renewed_flat,0,uncertain
+u_002,2026-W22,9,False,sig_0357,acct_0062,seat_decay,4,no spec condition requires a human,P3,-1,2165000,False,renewed_flat,0,none
+u_002,2026-W23,1,False,sig_0388,acct_0049,exec_churn_language,3,no spec condition requires a human,P2,42,132500,True,renewed_flat,0,uncertain
+u_002,2026-W23,2,False,sig_0389,acct_0049,security_review_opened,3,no spec condition requires a human,P2,42,132500,True,renewed_flat,0,uncertain
+u_002,2026-W24,1,True,sig_0412,acct_0143,sentiment_drop,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P1,114,180000,False,pending,0,
+u_002,2026-W24,2,False,sig_0419,acct_0007,exec_churn_language,3,no spec condition requires a human,P2,18,262500,True,renewed_flat,0,uncertain
+u_002,2026-W24,3,False,sig_0423,acct_0010,seat_decay,4,no spec condition requires a human,P1,-65,287500,False,renewed_flat,0,none
+u_002,2026-W24,4,False,sig_0420,acct_0007,seat_decay,4,no spec condition requires a human,P2,18,262500,True,renewed_flat,0,uncertain
+u_002,2026-W24,5,False,sig_0487,acct_0143,seat_decay,4,no spec condition requires a human,P2,111,180000,False,pending,0,
+u_002,2026-W24,6,False,sig_0421,acct_0007,usage_cliff,4,no spec condition requires a human,P3,18,262500,True,renewed_flat,0,none
+u_002,2026-W24,7,False,sig_0461,acct_0094,usage_cliff,4,no spec condition requires a human,P3,-46,75000,False,renewed_flat,0,none
+u_002,2026-W25,1,False,sig_0532,acct_0070,exec_churn_language,3,no spec condition requires a human,P1,37,2125000,False,renewed_flat,0,uncertain
+u_002,2026-W25,2,False,sig_0518,acct_0062,exec_churn_language,3,no spec condition requires a human,P2,-18,2165000,True,renewed_late,0,uncertain
+u_002,2026-W25,3,False,sig_0519,acct_0070,renewal_silence,3,no spec condition requires a human,P3,41,2125000,True,renewed_expansion,628600,uncertain
+u_002,2026-W26,1,True,sig_0539,acct_0065,ticket_storm,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P1,192,1940000,True,pending,0,
+u_002,2026-W27,1,True,sig_0602,acct_0130,seat_decay,2,no spec condition requires a human,P2,176,192500,True,pending,0,
+u_002,2026-W27,2,False,sig_0603,acct_0130,usage_cliff,3,no spec condition requires a human,P1,176,192500,False,pending,0,
+u_002,2026-W27,3,False,sig_0575,acct_0070,billing_dispute,3,no spec condition requires a human,P3,27,2125000,False,renewed_expansion,736200,uncertain
+u_002,2026-W29,1,False,sig_0627,acct_0162,exec_churn_language,3,no spec condition requires a human,P1,-106,177500,False,renewed_late,0,none
+u_003,2026-W10,1,False,sig_0011,acct_0043,exec_churn_language,3,no spec condition requires a human,P1,77,225000,False,renewed_flat,0,none
+u_003,2026-W11,1,False,sig_0049,acct_0071,seat_decay,3,no spec condition requires a human,P2,16,1910000,False,renewed_flat,0,none
+u_003,2026-W11,2,False,sig_0050,acct_0071,usage_cliff,3,no spec condition requires a human,P2,16,1910000,True,renewed_expansion,391600,uncertain
+u_003,2026-W11,3,False,sig_0044,acct_0117,renewal_silence,3,no spec condition requires a human,P2,35,147500,False,renewed_flat,0,none
+u_003,2026-W11,4,False,sig_0052,acct_0116,exec_churn_language,3,no spec condition requires a human,P3,106,39000,True,renewed_flat,0,uncertain
+u_003,2026-W14,1,True,sig_0121,acct_0174,seat_decay,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P3,178,102500,True,pending,0,
+u_003,2026-W14,2,True,sig_0122,acct_0174,usage_cliff,2,no spec condition requires a human,P3,178,102500,False,pending,0,
+u_003,2026-W14,3,False,sig_0119,acct_0169,usage_cliff,3,no spec condition requires a human,P1,-6,51000,False,renewed_flat,0,none
+u_003,2026-W14,4,False,sig_0090,acct_0169,security_review_opened,3,no spec condition requires a human,P3,-4,51000,False,renewed_flat,0,uncertain
+u_003,2026-W14,5,False,sig_0105,acct_0140,usage_cliff,4,no spec condition requires a human,P1,138,177500,False,renewed_expansion,42700,uncertain
+u_003,2026-W14,6,False,sig_0102,acct_0121,seat_decay,4,no spec condition requires a human,P2,62,110000,True,renewed_flat,0,none
+u_003,2026-W14,7,False,sig_0104,acct_0140,seat_decay,4,no spec condition requires a human,P3,138,177500,False,renewed_flat,0,none
+u_003,2026-W14,8,False,sig_0118,acct_0169,seat_decay,4,no spec condition requires a human,P3,-6,51000,True,renewed_flat,0,certain
+u_003,2026-W16,1,False,sig_0144,acct_0161,sentiment_drop,3,no spec condition requires a human,P1,10,245000,False,renewed_flat,0,none
+u_003,2026-W16,2,False,sig_0151,acct_0043,exec_churn_language,3,no spec condition requires a human,P3,32,225000,False,renewed_flat,0,uncertain
+u_003,2026-W17,1,False,sig_0167,acct_0067,exec_churn_language,3,no spec condition requires a human,P2,30,45000,True,renewed_flat,0,uncertain
+u_003,2026-W17,2,False,sig_0184,acct_0148,usage_cliff,3,no spec condition requires a human,P2,158,29000,False,pending,0,
+u_003,2026-W17,3,False,sig_0183,acct_0148,seat_decay,3,no spec condition requires a human,P3,158,29000,False,pending,0,
+u_003,2026-W18,1,True,sig_0194,acct_0169,billing_dispute,1,§8.1 mandatory-route trigger: ['billing_dispute'],P1,-31,51000,False,renewed_flat,0,none
+u_003,2026-W18,2,True,sig_0211,acct_0071,usage_cliff,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P2,-33,1910000,True,renewed_flat,0,certain
+u_003,2026-W18,3,False,sig_0221,acct_0121,seat_decay,3,no spec condition requires a human,P1,34,110000,False,renewed_expansion,26300,uncertain
+u_003,2026-W18,4,False,sig_0206,acct_0043,usage_cliff,3,no spec condition requires a human,P2,16,225000,True,renewed_flat,0,none
+u_003,2026-W18,5,False,sig_0227,acct_0140,seat_decay,3,no spec condition requires a human,P2,110,177500,False,renewed_flat,0,uncertain
+u_003,2026-W18,6,False,sig_0231,acct_0148,seat_decay,3,no spec condition requires a human,P2,151,29000,False,pending,0,
+u_003,2026-W18,7,False,sig_0237,acct_0169,seat_decay,3,no spec condition requires a human,P2,-34,51000,False,renewed_late,0,none
+u_003,2026-W18,8,False,sig_0238,acct_0169,usage_cliff,3,no spec condition requires a human,P2,-34,51000,False,renewed_flat,0,none
+u_003,2026-W18,9,False,sig_0210,acct_0071,seat_decay,4,no spec condition requires a human,P2,-33,1910000,False,renewed_flat,0,uncertain
+u_003,2026-W19,1,True,sig_0243,acct_0117,sentiment_drop,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,-16,147500,True,renewed_flat,0,uncertain
+u_003,2026-W19,2,False,sig_0250,acct_0066,renewal_silence,3,no spec condition requires a human,P3,50,277500,True,renewed_flat,0,uncertain
+u_003,2026-W19,3,False,sig_0253,acct_0140,usage_cliff,3,no spec condition requires a human,P3,103,177500,True,renewed_late,0,uncertain
+u_003,2026-W20,1,True,sig_0271,acct_0174,seat_decay,2,no spec condition requires a human,P2,136,102500,True,pending,0,
+u_003,2026-W20,2,True,sig_0265,acct_0043,seat_decay,2,no spec condition requires a human,P3,2,225000,True,renewed_flat,0,uncertain
+u_003,2026-W20,3,False,sig_0269,acct_0116,seat_decay,3,no spec condition requires a human,P2,43,39000,True,renewed_flat,0,certain
+u_003,2026-W20,4,False,sig_0270,acct_0116,usage_cliff,4,no spec condition requires a human,P2,43,39000,False,renewed_flat,0,none
+u_003,2026-W21,1,True,sig_0332,acct_0161,usage_cliff,1,§8.1 mandatory-route trigger: ['legal_reference'],P2,-31,245000,True,renewed_flat,0,certain
+u_003,2026-W21,2,True,sig_0312,acct_0116,usage_cliff,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P3,36,39000,True,renewed_flat,0,none
+u_003,2026-W21,3,False,sig_0320,acct_0134,usage_cliff,4,no spec condition requires a human,P1,38,127500,True,downgraded,-39700,uncertain
+u_003,2026-W21,4,False,sig_0296,acct_0066,usage_cliff,4,no spec condition requires a human,P3,35,277500,False,renewed_flat,0,uncertain
+u_003,2026-W21,5,False,sig_0298,acct_0071,usage_cliff,4,no spec condition requires a human,P3,-54,1910000,True,renewed_late,0,uncertain
+u_003,2026-W21,6,False,sig_0313,acct_0117,usage_cliff,4,no spec condition requires a human,P3,-36,147500,True,renewed_flat,0,certain
+u_003,2026-W22,1,False,sig_0383,acct_0174,seat_decay,3,no spec condition requires a human,P2,122,102500,False,pending,0,
+u_003,2026-W22,2,False,sig_0384,acct_0174,usage_cliff,3,no spec condition requires a human,P2,122,102500,True,pending,0,
+u_003,2026-W22,3,False,sig_0337,acct_0116,renewal_silence,3,no spec condition requires a human,P3,35,39000,True,renewed_flat,0,certain
+u_003,2026-W22,4,False,sig_0375,acct_0140,seat_decay,4,no spec condition requires a human,P2,82,177500,False,renewed_flat,0,none
+u_003,2026-W24,1,False,sig_0483,acct_0134,seat_decay,3,no spec condition requires a human,P3,17,127500,True,downgraded,-36800,uncertain
+u_003,2026-W24,2,False,sig_0440,acct_0043,usage_cliff,4,no spec condition requires a human,P1,-26,225000,True,renewed_expansion,35700,uncertain
+u_003,2026-W24,3,False,sig_0470,acct_0117,seat_decay,4,no spec condition requires a human,P1,-57,147500,False,renewed_flat,0,none
+u_003,2026-W24,4,False,sig_0471,acct_0117,usage_cliff,4,no spec condition requires a human,P2,-57,147500,True,renewed_flat,0,none
+u_003,2026-W24,5,False,sig_0499,acct_0155,seat_decay,4,no spec condition requires a human,P3,94,1510000,False,pending,0,
+u_003,2026-W25,1,False,sig_0537,acct_0169,exec_churn_language,3,no spec condition requires a human,P2,-83,51000,True,renewed_flat,0,uncertain
+u_003,2026-W25,2,False,sig_0529,acct_0058,seat_decay,4,no spec condition requires a human,P2,-40,2195000,True,renewed_late,0,uncertain
+u_003,2026-W25,3,False,sig_0530,acct_0058,usage_cliff,4,no spec condition requires a human,P2,-40,2195000,False,renewed_flat,0,none
+u_003,2026-W26,1,True,sig_0553,acct_0067,usage_cliff,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,-39,45000,True,renewed_flat,0,uncertain
+u_003,2026-W26,2,False,sig_0540,acct_0140,renewal_silence,3,no spec condition requires a human,P2,58,177500,False,renewed_flat,0,uncertain
+u_003,2026-W27,1,True,sig_0582,acct_0028,seat_decay,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,-96,60000,True,renewed_flat,0,uncertain
+u_003,2026-W27,2,True,sig_0578,acct_0071,exec_churn_language,1,§8.1 mandatory-route trigger: ['billing_dispute'],P2,-95,1910000,False,renewed_flat,0,none
+u_003,2026-W28,1,False,sig_0622,acct_0140,seat_decay,4,no spec condition requires a human,P3,40,177500,False,renewed_expansion,57300,uncertain
+u_004,2026-W11,1,True,sig_0046,acct_0001,seat_decay,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,26,270000,True,renewed_flat,0,uncertain
+u_004,2026-W11,2,True,sig_0047,acct_0001,usage_cliff,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,26,270000,True,downgraded,-50000,uncertain
+u_004,2026-W12,1,False,sig_0063,acct_0001,seat_decay,3,no spec condition requires a human,P3,19,270000,True,downgraded,-104200,uncertain
+u_004,2026-W13,1,False,sig_0079,acct_0056,seat_decay,3,no spec condition requires a human,P3,91,18000,False,renewed_expansion,2300,none
+u_004,2026-W14,1,False,sig_0095,acct_0059,seat_decay,3,no spec condition requires a human,P2,-7,37000,False,renewed_expansion,10800,uncertain
+u_004,2026-W14,2,False,sig_0094,acct_0055,usage_cliff,4,no spec condition requires a human,P2,19,670000,True,renewed_flat,0,uncertain
+u_004,2026-W17,1,True,sig_0170,acct_0074,billing_dispute,1,§8.1 mandatory-route trigger: ['billing_dispute'],P2,66,270000,False,downgraded,-115700,uncertain
+u_004,2026-W18,1,False,sig_0230,acct_0144,usage_cliff,3,no spec condition requires a human,P1,14,197500,False,renewed_flat,0,none
+u_004,2026-W18,2,False,sig_0196,acct_0056,renewal_silence,3,no spec condition requires a human,P3,57,18000,True,renewed_flat,0,uncertain
+u_004,2026-W18,3,False,sig_0229,acct_0144,seat_decay,4,no spec condition requires a human,P2,14,197500,True,renewed_expansion,61800,certain
+u_004,2026-W19,1,False,sig_0252,acct_0056,seat_decay,3,no spec condition requires a human,P1,49,18000,True,renewed_late,0,none
+u_004,2026-W20,1,True,sig_0268,acct_0055,usage_cliff,2,no spec condition requires a human,P1,-23,670000,True,renewed_flat,0,uncertain
+u_004,2026-W24,1,True,sig_0426,acct_0016,seat_decay,1,§8.1 mandatory-route trigger: ['legal_reference'],P0,81,227500,False,pending,0,
+u_004,2026-W24,2,True,sig_0406,acct_0016,exec_churn_language,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,87,227500,False,pending,0,
+u_004,2026-W24,3,False,sig_0413,acct_0055,exec_churn_language,3,no spec condition requires a human,P2,-49,670000,True,renewed_flat,0,uncertain
+u_004,2026-W24,4,False,sig_0410,acct_0055,exec_churn_language,3,no spec condition requires a human,P3,-48,670000,False,renewed_late,0,uncertain
+u_004,2026-W24,5,False,sig_0427,acct_0016,usage_cliff,4,no spec condition requires a human,P2,81,227500,True,pending,0,
+u_004,2026-W24,6,False,sig_0488,acct_0144,usage_cliff,4,no spec condition requires a human,P2,-28,197500,False,renewed_flat,0,uncertain
+u_004,2026-W25,1,False,sig_0531,acct_0059,seat_decay,4,no spec condition requires a human,P2,-84,37000,False,renewed_flat,0,none
+u_004,2026-W26,1,True,sig_0549,acct_0016,exec_churn_language,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,67,227500,True,pending,0,
+u_004,2026-W26,2,True,sig_0554,acct_0074,billing_dispute,1,§8.1 mandatory-route trigger: ['billing_dispute'],P1,-1,270000,False,downgraded,-96300,none
+u_004,2026-W26,3,False,sig_0552,acct_0059,usage_cliff,3,no spec condition requires a human,P1,-91,37000,False,renewed_flat,0,none
+u_004,2026-W27,1,True,sig_0589,acct_0056,usage_cliff,2,no spec condition requires a human,P2,-7,18000,False,renewed_flat,0,uncertain
+u_004,2026-W27,2,False,sig_0599,acct_0119,usage_cliff,4,no spec condition requires a human,P2,-101,40000,False,renewed_flat,0,none
+u_005,2026-W10,1,True,sig_0017,acct_0011,exec_churn_language,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P2,102,297500,False,renewed_flat,0,none
+u_005,2026-W10,2,False,sig_0032,acct_0123,usage_cliff,3,no spec condition requires a human,P3,112,33000,True,renewed_flat,0,none
+u_005,2026-W11,1,False,sig_0045,acct_0124,exec_churn_language,3,no spec condition requires a human,P2,65,140000,False,renewed_flat,0,uncertain
+u_005,2026-W14,1,False,sig_0112,acct_0154,usage_cliff,3,no spec condition requires a human,P2,178,217500,True,pending,0,
+u_005,2026-W14,2,False,sig_0111,acct_0154,seat_decay,4,no spec condition requires a human,P2,178,217500,True,pending,0,
+u_005,2026-W15,1,False,sig_0143,acct_0177,usage_cliff,3,no spec condition requires a human,P3,11,222500,False,renewed_flat,0,none
+u_005,2026-W18,1,False,sig_0239,acct_0177,usage_cliff,3,no spec condition requires a human,P3,-10,222500,False,renewed_expansion,41500,none
+u_005,2026-W20,1,True,sig_0254,acct_0011,renewal_silence,1,§8.1 mandatory-route trigger: ['buyer_or_champion_departure'],P2,38,297500,False,downgraded,-117200,none
+u_005,2026-W21,1,True,sig_0315,acct_0123,exec_churn_language,1,"§8.1 mandatory-route trigger: ['legal_reference', 'security_incident']",P1,35,33000,False,churned,-33000,none
+u_005,2026-W21,2,True,sig_0330,acct_0154,usage_cliff,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P2,129,217500,False,pending,0,
+u_005,2026-W21,3,False,sig_0321,acct_0135,usage_cliff,4,no spec condition requires a human,P0,60,1680000,False,downgraded,-823900,uncertain
+u_005,2026-W22,1,True,sig_0341,acct_0124,sentiment_drop,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,-8,140000,False,downgraded,-54000,uncertain
+u_005,2026-W22,2,True,sig_0352,acct_0011,exec_churn_language,1,§8.1 mandatory-route trigger: ['buyer_or_champion_departure'],P2,18,297500,True,renewed_late,0,none
+u_005,2026-W22,3,False,sig_0385,acct_0177,seat_decay,3,no spec condition requires a human,P3,-38,222500,True,renewed_flat,0,uncertain
+u_005,2026-W22,4,False,sig_0386,acct_0177,usage_cliff,4,no spec condition requires a human,P2,-38,222500,False,renewed_late,0,none
+u_005,2026-W23,1,False,sig_0402,acct_0135,seat_decay,4,no spec condition requires a human,P0,46,1680000,True,renewed_flat,0,uncertain
+u_005,2026-W24,1,True,sig_0424,acct_0011,seat_decay,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,4,297500,True,renewed_expansion,87700,uncertain
+u_005,2026-W24,2,True,sig_0474,acct_0123,seat_decay,1,"§8.1 mandatory-route trigger: ['legal_reference', 'security_incident']",P2,14,33000,True,renewed_flat,0,uncertain
+u_005,2026-W24,3,False,sig_0498,acct_0154,usage_cliff,4,no spec condition requires a human,P2,108,217500,True,pending,0,
+u_005,2026-W24,4,False,sig_0510,acct_0177,usage_cliff,4,no spec condition requires a human,P3,-52,222500,False,renewed_flat,0,none
+u_005,2026-W25,1,False,sig_0527,acct_0011,seat_decay,4,no spec condition requires a human,P1,-3,297500,True,downgraded,-157500,uncertain
+u_005,2026-W28,1,False,sig_0621,acct_0135,exec_churn_language,3,no spec condition requires a human,P1,11,1680000,False,downgraded,-574700,uncertain
+u_005,2026-W29,1,False,sig_0629,acct_0011,exec_churn_language,3,no spec condition requires a human,P1,-27,297500,True,renewed_flat,0,uncertain
+u_006,2026-W09,1,False,sig_0008,acct_0164,exec_churn_language,3,no spec condition requires a human,P2,180,55000,True,renewed_late,0,uncertain
+u_006,2026-W11,1,True,sig_0038,acct_0107,exec_churn_language,1,§8.1 mandatory-route trigger: ['legal_reference'],P0,155,720000,True,churned,-720000,certain
+u_006,2026-W12,1,False,sig_0059,acct_0111,exec_churn_language,3,no spec condition requires a human,P1,197,2245000,False,pending,0,
+u_006,2026-W12,2,False,sig_0056,acct_0115,renewal_silence,3,no spec condition requires a human,P3,50,31000,True,downgraded,-10300,uncertain
+u_006,2026-W14,1,False,sig_0093,acct_0045,seat_decay,4,no spec condition requires a human,P1,1,170000,True,churned,-170000,uncertain
+u_006,2026-W16,1,True,sig_0159,acct_0078,billing_dispute,1,§8.1 mandatory-route trigger: ['billing_dispute'],P1,-17,292500,False,churned,-292500,uncertain
+u_006,2026-W17,1,False,sig_0171,acct_0078,exec_churn_language,3,no spec condition requires a human,P1,-20,292500,False,downgraded,-79100,uncertain
+u_006,2026-W18,1,False,sig_0191,acct_0171,exec_churn_language,3,no spec condition requires a human,P2,70,69000,True,renewed_flat,0,none
+u_006,2026-W18,2,False,sig_0207,acct_0045,seat_decay,3,no spec condition requires a human,P2,-27,170000,False,downgraded,-67000,none
+u_006,2026-W20,1,False,sig_0263,acct_0003,ticket_storm,3,no spec condition requires a human,P2,-29,480000,True,churned,-480000,uncertain
+u_006,2026-W20,2,False,sig_0261,acct_0088,sentiment_drop,3,no spec condition requires a human,P3,229,45000,True,pending,0,
+u_006,2026-W21,1,False,sig_0272,acct_0107,exec_churn_language,3,no spec condition requires a human,P1,88,720000,False,renewed_flat,0,uncertain
+u_006,2026-W21,2,False,sig_0292,acct_0045,usage_cliff,4,no spec condition requires a human,P2,-48,170000,True,downgraded,-64300,uncertain
+u_006,2026-W21,3,False,sig_0317,acct_0127,usage_cliff,4,no spec condition requires a human,P3,128,1350000,True,pending,0,
+u_006,2026-W22,1,True,sig_0348,acct_0078,exec_churn_language,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,-57,292500,False,downgraded,-99200,none
+u_006,2026-W22,2,True,sig_0371,acct_0127,usage_cliff,2,no spec condition requires a human,P2,121,1350000,False,pending,0,
+u_006,2026-W22,3,False,sig_0370,acct_0127,seat_decay,3,no spec condition requires a human,P2,121,1350000,False,pending,0,
+u_006,2026-W22,4,False,sig_0379,acct_0164,usage_cliff,4,no spec condition requires a human,P2,89,55000,False,churned,-55000,none
+u_006,2026-W24,1,True,sig_0443,acct_0045,usage_cliff,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P0,-69,170000,True,downgraded,-90100,none
+u_006,2026-W24,2,True,sig_0505,acct_0164,usage_cliff,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,75,55000,True,downgraded,-24800,uncertain
+u_006,2026-W24,3,True,sig_0477,acct_0127,seat_decay,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P1,107,1350000,False,pending,0,
+u_006,2026-W24,4,True,sig_0458,acct_0088,seat_decay,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,198,45000,False,pending,0,
+u_006,2026-W24,5,False,sig_0478,acct_0127,usage_cliff,3,no spec condition requires a human,P3,107,1350000,True,pending,0,
+u_006,2026-W24,6,False,sig_0504,acct_0164,seat_decay,4,no spec condition requires a human,P2,75,55000,False,renewed_late,0,uncertain
+u_006,2026-W24,7,False,sig_0459,acct_0088,usage_cliff,4,no spec condition requires a human,P2,198,45000,True,pending,0,
+u_006,2026-W24,8,False,sig_0442,acct_0045,seat_decay,4,no spec condition requires a human,P2,-69,170000,True,downgraded,-62600,certain
+u_006,2026-W25,1,False,sig_0520,acct_0003,exec_churn_language,3,no spec condition requires a human,P0,-63,480000,False,downgraded,-194500,none
+u_006,2026-W25,2,False,sig_0515,acct_0107,exec_churn_language,3,no spec condition requires a human,P2,59,720000,False,renewed_flat,0,uncertain
+u_006,2026-W27,1,True,sig_0590,acct_0078,seat_decay,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P1,-94,292500,True,churned,-292500,uncertain
+u_006,2026-W27,2,False,sig_0608,acct_0164,usage_cliff,3,no spec condition requires a human,P1,54,55000,False,churned,-55000,uncertain
+u_006,2026-W27,3,False,sig_0566,acct_0115,exec_churn_language,3,no spec condition requires a human,P1,-55,31000,False,churned,-31000,none
+u_006,2026-W27,4,False,sig_0598,acct_0111,usage_cliff,3,no spec condition requires a human,P2,88,2245000,True,pending,0,
+u_006,2026-W27,5,False,sig_0600,acct_0127,usage_cliff,3,no spec condition requires a human,P3,86,1350000,False,pending,0,
+u_006,2026-W27,6,False,sig_0597,acct_0111,seat_decay,3,no spec condition requires a human,P3,88,2245000,False,pending,0,
+u_006,2026-W27,7,False,sig_0596,acct_0107,usage_cliff,4,no spec condition requires a human,P2,40,720000,False,renewed_flat,0,uncertain
+u_007,2026-W09,1,False,sig_0009,acct_0166,exec_churn_language,3,no spec condition requires a human,P2,213,715000,True,pending,0,
+u_007,2026-W10,1,False,sig_0016,acct_0153,exec_churn_language,3,no spec condition requires a human,P1,152,260000,False,renewed_flat,0,none
+u_007,2026-W13,1,True,sig_0081,acct_0096,usage_cliff,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,0,80000,True,renewed_expansion,23100,uncertain
+u_007,2026-W13,2,False,sig_0080,acct_0096,seat_decay,3,no spec condition requires a human,P0,0,80000,False,churned,-80000,none
+u_007,2026-W13,3,False,sig_0086,acct_0152,exec_churn_language,3,no spec condition requires a human,P2,92,1605000,True,renewed_expansion,282800,uncertain
+u_007,2026-W14,1,False,sig_0088,acct_0173,exec_churn_language,3,no spec condition requires a human,P1,94,715000,False,renewed_flat,0,uncertain
+u_007,2026-W14,2,False,sig_0091,acct_0166,exec_churn_language,3,no spec condition requires a human,P2,179,715000,False,pending,0,
+u_007,2026-W14,3,False,sig_0092,acct_0004,seat_decay,4,no spec condition requires a human,P2,-5,2010000,False,renewed_flat,0,none
+u_007,2026-W18,1,True,sig_0202,acct_0023,seat_decay,1,§8.1 mandatory-route trigger: ['billing_dispute'],P2,242,295000,True,pending,0,
+u_007,2026-W18,2,True,sig_0203,acct_0023,usage_cliff,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P2,242,295000,True,pending,0,
+u_007,2026-W18,3,False,sig_0236,acct_0166,seat_decay,4,no spec condition requires a human,P2,150,715000,False,pending,0,
+u_007,2026-W19,1,True,sig_0249,acct_0023,billing_dispute,1,§8.1 mandatory-route trigger: ['billing_dispute'],P1,236,295000,False,pending,0,
+u_007,2026-W20,1,False,sig_0256,acct_0004,exec_churn_language,3,no spec condition requires a human,P1,-42,2010000,False,renewed_late,0,none
+u_007,2026-W21,1,False,sig_0305,acct_0096,usage_cliff,4,no spec condition requires a human,P1,-56,80000,False,renewed_flat,0,none
+u_007,2026-W21,2,False,sig_0336,acct_0179,usage_cliff,4,no spec condition requires a human,P2,36,292500,True,renewed_flat,0,uncertain
+u_007,2026-W21,3,False,sig_0329,acct_0153,usage_cliff,4,no spec condition requires a human,P2,74,260000,True,renewed_flat,0,uncertain
+u_007,2026-W21,4,False,sig_0291,acct_0044,usage_cliff,4,no spec condition requires a human,P2,130,112500,False,pending,0,
+u_007,2026-W21,5,False,sig_0283,acct_0023,seat_decay,4,no spec condition requires a human,P2,221,295000,False,pending,0,
+u_007,2026-W22,1,True,sig_0350,acct_0173,exec_churn_language,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P3,35,715000,False,renewed_flat,0,none
+u_007,2026-W22,2,False,sig_0349,acct_0153,exec_churn_language,3,no spec condition requires a human,P3,69,260000,False,renewed_expansion,23600,none
+u_007,2026-W23,1,True,sig_0399,acct_0083,security_review_opened,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,23,1225000,True,renewed_flat,0,certain
+u_007,2026-W23,2,False,sig_0387,acct_0179,exec_churn_language,3,no spec condition requires a human,P2,27,292500,True,renewed_flat,0,uncertain
+u_007,2026-W24,1,True,sig_0472,acct_0118,usage_cliff,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,-86,302500,True,renewed_flat,0,none
+u_007,2026-W24,2,False,sig_0507,acct_0173,usage_cliff,3,no spec condition requires a human,P1,19,715000,False,renewed_flat,0,none
+u_007,2026-W24,3,False,sig_0418,acct_0004,usage_cliff,3,no spec condition requires a human,P2,-75,2010000,True,downgraded,-315300,uncertain
+u_007,2026-W24,4,False,sig_0496,acct_0152,seat_decay,3,no spec condition requires a human,P3,15,1605000,True,renewed_expansion,276200,none
+u_007,2026-W24,5,False,sig_0501,acct_0156,usage_cliff,3,no spec condition requires a human,P3,48,147500,True,renewed_flat,0,uncertain
+u_007,2026-W24,6,False,sig_0441,acct_0044,usage_cliff,4,no spec condition requires a human,P1,109,112500,True,pending,0,
+u_007,2026-W24,7,False,sig_0432,acct_0023,usage_cliff,4,no spec condition requires a human,P1,200,295000,False,pending,0,
+u_007,2026-W24,8,False,sig_0497,acct_0152,usage_cliff,4,no spec condition requires a human,P2,15,1605000,True,renewed_flat,0,uncertain
+u_007,2026-W24,9,False,sig_0457,acct_0083,usage_cliff,4,no spec condition requires a human,P2,15,1225000,False,renewed_flat,0,none
+u_007,2026-W24,10,False,sig_0506,acct_0173,seat_decay,4,no spec condition requires a human,P2,19,715000,True,renewed_flat,0,certain
+u_007,2026-W24,11,False,sig_0500,acct_0156,seat_decay,4,no spec condition requires a human,P2,48,147500,False,renewed_expansion,48600,uncertain
+u_007,2026-W24,12,False,sig_0464,acct_0096,usage_cliff,4,no spec condition requires a human,P2,-77,80000,False,renewed_flat,0,none
+u_007,2026-W25,1,False,sig_0525,acct_0173,exec_churn_language,3,no spec condition requires a human,P1,14,715000,True,renewed_flat,0,none
+u_007,2026-W25,2,False,sig_0516,acct_0166,exec_churn_language,3,no spec condition requires a human,P2,106,715000,True,pending,0,
+u_007,2026-W26,1,True,sig_0538,acct_0052,billing_dispute,1,§8.1 mandatory-route trigger: ['billing_dispute'],P3,66,575000,False,renewed_expansion,109900,none
+u_007,2026-W26,2,False,sig_0547,acct_0118,exec_churn_language,3,no spec condition requires a human,P1,-98,302500,True,churned,-302500,uncertain
+u_007,2026-W27,1,False,sig_0606,acct_0156,seat_decay,3,no spec condition requires a human,P2,27,147500,True,downgraded,-65500,uncertain
+u_007,2026-W27,2,False,sig_0609,acct_0173,seat_decay,3,no spec condition requires a human,P2,-2,715000,False,renewed_flat,0,uncertain
+u_007,2026-W27,3,False,sig_0607,acct_0156,usage_cliff,3,no spec condition requires a human,P3,27,147500,False,downgraded,-61200,uncertain
+u_007,2026-W27,4,False,sig_0605,acct_0153,usage_cliff,3,no spec condition requires a human,P3,32,260000,True,renewed_flat,0,uncertain
+u_007,2026-W27,5,False,sig_0604,acct_0153,seat_decay,4,no spec condition requires a human,P2,32,260000,True,renewed_expansion,77000,uncertain
+u_007,2026-W28,1,False,sig_0612,acct_0173,exec_churn_language,3,no spec condition requires a human,P3,-3,715000,False,renewed_flat,0,uncertain
+u_007,2026-W29,1,False,sig_0625,acct_0023,sentiment_drop,3,no spec condition requires a human,P2,170,295000,False,pending,0,
+u_008,2026-W10,1,False,sig_0013,acct_0021,renewal_silence,3,no spec condition requires a human,P2,49,42000,True,renewed_flat,0,none
+u_008,2026-W11,1,False,sig_0048,acct_0015,exec_churn_language,3,no spec condition requires a human,P1,108,365000,False,renewed_flat,0,none
+u_008,2026-W13,1,True,sig_0078,acct_0021,usage_cliff,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P2,26,42000,True,churned,-42000,uncertain
+u_008,2026-W13,2,True,sig_0077,acct_0021,seat_decay,2,no spec condition requires a human,P3,26,42000,True,downgraded,-12600,uncertain
+u_008,2026-W13,3,False,sig_0076,acct_0015,seat_decay,3,no spec condition requires a human,P2,94,365000,True,renewed_flat,0,uncertain
+u_008,2026-W15,1,False,sig_0141,acct_0136,usage_cliff,3,no spec condition requires a human,P3,77,600000,False,renewed_flat,0,uncertain
+u_008,2026-W15,2,False,sig_0132,acct_0090,security_review_opened,3,no spec condition requires a human,P3,113,66000,True,renewed_flat,0,uncertain
+u_008,2026-W16,1,False,sig_0163,acct_0113,security_review_opened,3,no spec condition requires a human,P2,-20,217500,True,renewed_flat,0,uncertain
+u_008,2026-W16,2,False,sig_0162,acct_0090,usage_cliff,4,no spec condition requires a human,P2,103,66000,True,renewed_flat,0,uncertain
+u_008,2026-W17,1,False,sig_0168,acct_0136,billing_dispute,3,no spec condition requires a human,P3,69,600000,False,renewed_flat,0,none
+u_008,2026-W18,1,True,sig_0228,acct_0141,seat_decay,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P1,40,102500,False,renewed_flat,0,uncertain
+u_008,2026-W18,2,True,sig_0226,acct_0136,usage_cliff,2,no spec condition requires a human,P2,56,600000,True,downgraded,-112500,uncertain
+u_008,2026-W18,3,False,sig_0216,acct_0099,seat_decay,3,no spec condition requires a human,P1,127,51000,False,pending,0,
+u_008,2026-W18,4,False,sig_0190,acct_0113,exec_churn_language,3,no spec condition requires a human,P1,-28,217500,True,renewed_flat,0,none
+u_008,2026-W18,5,False,sig_0217,acct_0099,usage_cliff,3,no spec condition requires a human,P2,127,51000,True,pending,0,
+u_008,2026-W18,6,False,sig_0219,acct_0113,seat_decay,4,no spec condition requires a human,P2,-34,217500,False,renewed_flat,0,none
+u_008,2026-W20,1,True,sig_0264,acct_0021,seat_decay,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,-23,42000,True,renewed_late,0,uncertain
+u_008,2026-W20,2,False,sig_0262,acct_0141,exec_churn_language,3,no spec condition requires a human,P1,29,102500,True,renewed_flat,0,uncertain
+u_008,2026-W21,1,True,sig_0288,acct_0038,usage_cliff,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P1,-40,145000,False,renewed_expansion,49100,none
+u_008,2026-W21,2,False,sig_0277,acct_0141,exec_churn_language,3,no spec condition requires a human,P1,20,102500,False,renewed_flat,0,uncertain
+u_008,2026-W21,3,False,sig_0284,acct_0024,usage_cliff,3,no spec condition requires a human,P2,34,580000,False,renewed_flat,0,none
+u_008,2026-W21,4,False,sig_0307,acct_0099,usage_cliff,3,no spec condition requires a human,P2,106,51000,False,pending,0,
+u_008,2026-W21,5,False,sig_0274,acct_0178,exec_churn_language,3,no spec condition requires a human,P2,-12,1540000,False,renewed_flat,0,none
+u_008,2026-W21,6,False,sig_0331,acct_0159,usage_cliff,4,no spec condition requires a human,P1,40,270000,False,downgraded,-66900,uncertain
+u_008,2026-W21,7,False,sig_0302,acct_0081,usage_cliff,4,no spec condition requires a human,P1,111,232500,True,pending,0,
+u_008,2026-W21,8,False,sig_0287,acct_0034,usage_cliff,4,no spec condition requires a human,P2,35,285000,True,renewed_flat,0,uncertain
+u_008,2026-W22,1,False,sig_0340,acct_0081,exec_churn_language,3,no spec condition requires a human,P2,109,232500,True,pending,0,
+u_008,2026-W22,2,False,sig_0366,acct_0099,seat_decay,4,no spec condition requires a human,P2,99,51000,False,pending,0,
+u_008,2026-W23,1,False,sig_0393,acct_0099,exec_churn_language,3,no spec condition requires a human,P2,95,51000,False,pending,0,
+u_008,2026-W23,2,False,sig_0404,acct_0136,usage_cliff,3,no spec condition requires a human,P3,21,600000,True,renewed_flat,0,none
+u_008,2026-W23,3,False,sig_0403,acct_0136,seat_decay,4,no spec condition requires a human,P2,21,600000,True,renewed_flat,0,none
+u_008,2026-W24,1,True,sig_0436,acct_0034,seat_decay,1,§8.1 mandatory-route trigger: ['billing_dispute'],P2,14,285000,False,renewed_flat,0,uncertain
+u_008,2026-W24,2,True,sig_0484,acct_0141,seat_decay,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P3,-2,102500,False,renewed_flat,0,uncertain
+u_008,2026-W24,3,False,sig_0429,acct_0020,usage_cliff,4,no spec condition requires a human,P1,-57,1970000,True,renewed_flat,0,uncertain
+u_008,2026-W24,4,False,sig_0425,acct_0015,seat_decay,4,no spec condition requires a human,P2,17,365000,False,churned,-365000,none
+u_008,2026-W24,5,False,sig_0428,acct_0020,seat_decay,4,no spec condition requires a human,P2,-57,1970000,True,renewed_expansion,564900,uncertain
+u_008,2026-W24,6,False,sig_0485,acct_0141,usage_cliff,4,no spec condition requires a human,P2,-2,102500,False,renewed_late,0,none
+u_008,2026-W24,7,False,sig_0431,acct_0021,usage_cliff,4,no spec condition requires a human,P2,-51,42000,False,churned,-42000,uncertain
+u_008,2026-W24,8,False,sig_0430,acct_0021,seat_decay,4,no spec condition requires a human,P3,-51,42000,False,churned,-42000,none
+u_008,2026-W26,1,True,sig_0543,acct_0081,billing_dispute,1,§8.1 mandatory-route trigger: ['billing_dispute'],P1,79,232500,False,pending,0,
+u_008,2026-W27,1,True,sig_0610,acct_0178,seat_decay,2,no spec condition requires a human,P2,-59,1540000,True,renewed_late,0,none
+u_008,2026-W28,1,False,sig_0617,acct_0090,ticket_storm,3,no spec condition requires a human,P2,21,66000,True,renewed_flat,0,uncertain
+u_008,2026-W28,2,False,sig_0611,acct_0113,exec_churn_language,3,no spec condition requires a human,P3,-98,217500,False,renewed_expansion,46000,uncertain
+u_009,2026-W10,1,False,sig_0026,acct_0084,seat_decay,3,no spec condition requires a human,P1,59,300000,True,renewed_flat,0,none
+u_009,2026-W10,2,False,sig_0027,acct_0084,usage_cliff,3,no spec condition requires a human,P1,59,300000,False,renewed_flat,0,none
+u_009,2026-W12,1,False,sig_0057,acct_0149,exec_churn_language,3,no spec condition requires a human,P1,36,112500,True,renewed_flat,0,uncertain
+u_009,2026-W12,2,False,sig_0070,acct_0084,seat_decay,3,no spec condition requires a human,P2,45,300000,True,renewed_flat,0,uncertain
+u_009,2026-W12,3,False,sig_0071,acct_0084,usage_cliff,3,no spec condition requires a human,P2,45,300000,False,renewed_flat,0,uncertain
+u_009,2026-W12,4,False,sig_0066,acct_0012,usage_cliff,3,no spec condition requires a human,P3,74,68000,False,churned,-68000,uncertain
+u_009,2026-W12,5,False,sig_0065,acct_0012,seat_decay,4,no spec condition requires a human,P2,74,68000,False,renewed_flat,0,uncertain
+u_009,2026-W14,1,False,sig_0103,acct_0139,seat_decay,3,no spec condition requires a human,P1,60,120000,False,renewed_flat,0,none
+u_009,2026-W14,2,False,sig_0116,acct_0168,seat_decay,3,no spec condition requires a human,P1,181,105000,False,pending,0,
+u_009,2026-W14,3,False,sig_0117,acct_0168,usage_cliff,3,no spec condition requires a human,P1,181,105000,False,pending,0,
+u_009,2026-W14,4,False,sig_0106,acct_0142,usage_cliff,4,no spec condition requires a human,P1,136,865000,False,renewed_flat,0,uncertain
+u_009,2026-W15,1,False,sig_0133,acct_0098,ticket_storm,3,no spec condition requires a human,P2,-20,245000,True,downgraded,-76900,none
+u_009,2026-W15,2,False,sig_0137,acct_0048,usage_cliff,4,no spec condition requires a human,P3,152,155000,False,pending,0,
+u_009,2026-W16,1,False,sig_0164,acct_0165,billing_dispute,3,no spec condition requires a human,P2,2,43000,False,renewed_flat,0,none
+u_009,2026-W17,1,True,sig_0179,acct_0051,usage_cliff,1,§8.1 mandatory-route trigger: ['billing_dispute'],P1,150,32000,True,pending,0,
+u_009,2026-W17,2,True,sig_0172,acct_0051,billing_dispute,1,§8.1 mandatory-route trigger: ['billing_dispute'],P1,153,32000,True,pending,0,
+u_009,2026-W17,3,True,sig_0166,acct_0048,billing_dispute,1,§8.1 mandatory-route trigger: ['billing_dispute'],P2,144,155000,True,pending,0,
+u_009,2026-W18,1,True,sig_0213,acct_0084,usage_cliff,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P3,3,300000,False,renewed_flat,0,none
+u_009,2026-W18,2,False,sig_0212,acct_0084,seat_decay,3,no spec condition requires a human,P3,3,300000,True,renewed_late,0,uncertain
+u_009,2026-W20,1,True,sig_0266,acct_0050,seat_decay,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,43,252500,True,renewed_expansion,78600,uncertain
+u_009,2026-W20,2,True,sig_0267,acct_0050,usage_cliff,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,43,252500,True,renewed_flat,0,uncertain
+u_009,2026-W20,3,False,sig_0259,acct_0048,sentiment_drop,3,no spec condition requires a human,P3,120,155000,False,pending,0,
+u_009,2026-W21,1,False,sig_0333,acct_0165,usage_cliff,3,no spec condition requires a human,P3,-33,43000,True,renewed_flat,0,uncertain
+u_009,2026-W21,2,False,sig_0322,acct_0139,usage_cliff,4,no spec condition requires a human,P1,11,120000,False,renewed_late,0,uncertain
+u_009,2026-W21,3,False,sig_0323,acct_0142,usage_cliff,4,no spec condition requires a human,P1,87,865000,True,renewed_flat,0,uncertain
+u_009,2026-W21,4,False,sig_0280,acct_0012,seat_decay,4,no spec condition requires a human,P3,11,68000,False,renewed_flat,0,none
+u_009,2026-W21,5,False,sig_0294,acct_0050,usage_cliff,4,no spec condition requires a human,P3,36,252500,True,churned,-252500,uncertain
+u_009,2026-W22,1,True,sig_0381,acct_0168,seat_decay,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P1,125,105000,False,pending,0,
+u_009,2026-W22,2,True,sig_0361,acct_0084,seat_decay,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,-25,300000,False,renewed_flat,0,none
+u_009,2026-W22,3,True,sig_0364,acct_0098,seat_decay,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P1,-71,245000,True,downgraded,-76400,uncertain
+u_009,2026-W22,4,True,sig_0368,acct_0104,usage_cliff,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P3,123,25000,True,pending,0,
+u_009,2026-W22,5,False,sig_0367,acct_0104,seat_decay,3,no spec condition requires a human,P1,123,25000,False,pending,0,
+u_009,2026-W22,6,False,sig_0343,acct_0104,exec_churn_language,3,no spec condition requires a human,P2,127,25000,True,pending,0,
+u_009,2026-W22,7,False,sig_0362,acct_0084,usage_cliff,3,no spec condition requires a human,P2,-25,300000,False,renewed_flat,0,none
+u_009,2026-W22,8,False,sig_0380,acct_0165,seat_decay,3,no spec condition requires a human,P2,-40,43000,False,renewed_flat,0,none
+u_009,2026-W22,9,False,sig_0382,acct_0168,usage_cliff,4,no spec condition requires a human,P1,125,105000,False,pending,0,
+u_009,2026-W22,10,False,sig_0365,acct_0098,usage_cliff,4,no spec condition requires a human,P2,-71,245000,False,downgraded,-38800,none
+u_009,2026-W23,1,False,sig_0401,acct_0051,usage_cliff,3,no spec condition requires a human,P2,108,32000,False,pending,0,
+u_009,2026-W24,1,True,sig_0409,acct_0050,billing_dispute,1,§8.1 mandatory-route trigger: ['billing_dispute'],P1,19,252500,False,downgraded,-98000,none
+u_009,2026-W24,2,False,sig_0407,acct_0012,exec_churn_language,3,no spec condition requires a human,P1,-5,68000,True,renewed_flat,0,uncertain
+u_009,2026-W24,3,False,sig_0486,acct_0142,usage_cliff,3,no spec condition requires a human,P3,66,865000,False,renewed_expansion,136800,uncertain
+u_009,2026-W24,4,False,sig_0467,acct_0098,usage_cliff,4,no spec condition requires a human,P2,-85,245000,True,renewed_late,0,certain
+u_009,2026-W24,5,False,sig_0446,acct_0048,usage_cliff,4,no spec condition requires a human,P3,89,155000,False,pending,0,
+u_009,2026-W24,6,False,sig_0466,acct_0098,seat_decay,4,no spec condition requires a human,P3,-85,245000,False,renewed_flat,0,none
+u_009,2026-W25,1,False,sig_0535,acct_0104,seat_decay,3,no spec condition requires a human,P3,102,25000,True,pending,0,
+u_009,2026-W26,1,False,sig_0546,acct_0084,exec_churn_language,3,no spec condition requires a human,P2,-51,300000,True,renewed_flat,0,uncertain
+u_009,2026-W27,1,True,sig_0588,acct_0051,usage_cliff,2,no spec condition requires a human,P2,80,32000,True,pending,0,
+u_009,2026-W27,2,False,sig_0587,acct_0051,seat_decay,3,no spec condition requires a human,P1,80,32000,True,pending,0,
+u_009,2026-W27,3,False,sig_0576,acct_0084,sentiment_drop,3,no spec condition requires a human,P2,-56,300000,False,renewed_late,0,none
+u_009,2026-W29,1,True,sig_0626,acct_0098,billing_dispute,1,§8.1 mandatory-route trigger: ['billing_dispute'],P3,-115,245000,False,churned,-245000,uncertain
+u_010,2026-W09,1,True,sig_0005,acct_0120,seat_decay,1,§8.1 mandatory-route trigger: ['legal_reference'],P2,209,70000,True,pending,0,
+u_010,2026-W10,1,True,sig_0019,acct_0014,seat_decay,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,113,575000,True,downgraded,-291000,certain
+u_010,2026-W10,2,True,sig_0025,acct_0076,seat_decay,1,§8.1 mandatory-route trigger: ['buyer_or_champion_departure'],P2,70,42000,False,renewed_flat,0,none
+u_010,2026-W10,3,False,sig_0020,acct_0019,usage_cliff,3,no spec condition requires a human,P1,133,540000,False,renewed_flat,0,uncertain
+u_010,2026-W10,4,False,sig_0010,acct_0019,billing_dispute,3,no spec condition requires a human,P2,139,540000,True,renewed_flat,0,uncertain
+u_010,2026-W11,1,True,sig_0042,acct_0120,billing_dispute,1,§8.1 mandatory-route trigger: ['billing_dispute'],P2,197,70000,False,pending,0,
+u_010,2026-W11,2,True,sig_0051,acct_0108,seat_decay,2,no spec condition requires a human,P2,15,560000,False,downgraded,-252300,none
+u_010,2026-W12,1,True,sig_0058,acct_0076,exec_churn_language,1,§8.1 mandatory-route trigger: ['buyer_or_champion_departure'],P1,60,42000,False,downgraded,-17400,none
+u_010,2026-W12,2,True,sig_0069,acct_0076,seat_decay,1,§8.1 mandatory-route trigger: ['buyer_or_champion_departure'],P2,56,42000,False,renewed_flat,0,none
+u_010,2026-W12,3,False,sig_0064,acct_0008,seat_decay,4,no spec condition requires a human,P2,72,47000,True,churned,-47000,uncertain
+u_010,2026-W13,1,True,sig_0075,acct_0120,security_review_opened,1,§8.1 mandatory-route trigger: ['legal_reference'],P1,182,70000,True,pending,0,
+u_010,2026-W14,1,True,sig_0101,acct_0120,usage_cliff,1,§8.1 mandatory-route trigger: ['billing_dispute'],P2,174,70000,True,pending,0,
+u_010,2026-W14,2,True,sig_0100,acct_0120,seat_decay,2,no spec condition requires a human,P3,174,70000,True,pending,0,
+u_010,2026-W15,1,False,sig_0131,acct_0068,exec_churn_language,3,no spec condition requires a human,P2,63,270000,True,renewed_late,0,certain
+u_010,2026-W16,1,False,sig_0146,acct_0008,sentiment_drop,3,no spec condition requires a human,P1,47,47000,False,downgraded,-12900,none
+u_010,2026-W16,2,False,sig_0158,acct_0076,usage_cliff,4,no spec condition requires a human,P1,28,42000,False,renewed_late,0,uncertain
+u_010,2026-W17,1,False,sig_0174,acct_0076,exec_churn_language,3,no spec condition requires a human,P1,24,42000,False,renewed_flat,0,none
+u_010,2026-W21,1,True,sig_0314,acct_0120,usage_cliff,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P2,125,70000,False,pending,0,
+u_010,2026-W21,2,True,sig_0311,acct_0108,usage_cliff,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P2,-55,560000,True,renewed_flat,0,uncertain
+u_010,2026-W21,3,False,sig_0278,acct_0008,usage_cliff,4,no spec condition requires a human,P2,9,47000,True,churned,-47000,uncertain
+u_010,2026-W21,4,False,sig_0300,acct_0076,usage_cliff,4,no spec condition requires a human,P2,-7,42000,False,renewed_flat,0,none
+u_010,2026-W22,1,True,sig_0347,acct_0014,exec_churn_language,1,§8.1 mandatory-route trigger: ['buyer_or_champion_departure'],P3,31,575000,False,churned,-575000,uncertain
+u_010,2026-W22,2,False,sig_0360,acct_0076,usage_cliff,3,no spec condition requires a human,P2,-14,42000,False,renewed_flat,0,none
+u_010,2026-W22,3,False,sig_0353,acct_0014,seat_decay,4,no spec condition requires a human,P1,29,575000,False,churned,-575000,uncertain
+u_010,2026-W22,4,False,sig_0354,acct_0014,usage_cliff,4,no spec condition requires a human,P3,29,575000,True,churned,-575000,uncertain
+u_010,2026-W23,1,False,sig_0400,acct_0018,seat_decay,3,no spec condition requires a human,P3,114,195000,False,pending,0,
+u_010,2026-W24,1,False,sig_0473,acct_0120,seat_decay,4,no spec condition requires a human,P1,104,70000,False,pending,0,
+u_010,2026-W24,2,False,sig_0452,acct_0068,usage_cliff,4,no spec condition requires a human,P1,-4,270000,False,churned,-270000,none
+u_010,2026-W24,3,False,sig_0454,acct_0076,usage_cliff,4,no spec condition requires a human,P1,-28,42000,False,renewed_flat,0,none
+u_010,2026-W24,4,False,sig_0453,acct_0076,seat_decay,4,no spec condition requires a human,P2,-28,42000,False,downgraded,-16000,uncertain
+u_010,2026-W24,5,False,sig_0451,acct_0068,seat_decay,4,no spec condition requires a human,P3,-4,270000,False,downgraded,-131100,uncertain
+u_010,2026-W25,1,False,sig_0526,acct_0158,exec_churn_language,3,no spec condition requires a human,P1,99,1665000,False,pending,0,
+u_010,2026-W26,1,False,sig_0548,acct_0005,seat_decay,3,no spec condition requires a human,P2,-21,95000,False,downgraded,-26800,none
+u_010,2026-W26,2,False,sig_0555,acct_0076,exec_churn_language,3,no spec condition requires a human,P2,-42,42000,True,renewed_flat,0,none
+u_010,2026-W27,1,True,sig_0567,acct_0120,billing_dispute,1,§8.1 mandatory-route trigger: ['billing_dispute'],P2,89,70000,False,pending,0,
+u_010,2026-W27,2,False,sig_0571,acct_0108,exec_churn_language,3,no spec condition requires a human,P1,-92,560000,True,renewed_flat,0,certain
+u_010,2026-W27,3,False,sig_0568,acct_0008,exec_churn_language,3,no spec condition requires a human,P1,-28,47000,True,renewed_flat,0,uncertain
+u_010,2026-W27,4,False,sig_0581,acct_0018,usage_cliff,3,no spec condition requires a human,P2,86,195000,True,pending,0,
+u_010,2026-W27,5,False,sig_0580,acct_0018,seat_decay,4,no spec condition requires a human,P3,86,195000,True,pending,0,
+u_010,2026-W28,1,False,sig_0619,acct_0108,exec_churn_language,3,no spec condition requires a human,P2,-103,560000,False,renewed_flat,0,uncertain
+u_010,2026-W28,2,False,sig_0618,acct_0014,exec_churn_language,3,no spec condition requires a human,P3,-12,575000,False,downgraded,-109200,none
+u_011,2026-W10,1,True,sig_0028,acct_0086,seat_decay,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,89,21000,True,renewed_flat,0,none
+u_011,2026-W11,1,True,sig_0040,acct_0172,billing_dispute,1,"§8.1 mandatory-route trigger: ['billing_dispute', 'buyer_or_champion_departure']",P1,17,61000,True,renewed_flat,0,none
+u_011,2026-W11,2,False,sig_0041,acct_0082,exec_churn_language,3,no spec condition requires a human,P2,81,190000,True,renewed_flat,0,uncertain
+u_011,2026-W11,3,False,sig_0043,acct_0131,exec_churn_language,3,no spec condition requires a human,P2,107,38000,True,renewed_late,0,uncertain
+u_011,2026-W11,4,False,sig_0033,acct_0033,exec_churn_language,3,no spec condition requires a human,P2,110,160000,False,churned,-160000,uncertain
+u_011,2026-W11,5,False,sig_0034,acct_0063,exec_churn_language,3,no spec condition requires a human,P3,207,355000,False,pending,0,
+u_011,2026-W13,1,False,sig_0072,acct_0137,ticket_storm,3,no spec condition requires a human,P3,5,252500,True,renewed_late,0,uncertain
+u_011,2026-W14,1,True,sig_0110,acct_0151,usage_cliff,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P2,268,24000,True,pending,0,
+u_011,2026-W14,2,True,sig_0120,acct_0172,seat_decay,1,§8.1 mandatory-route trigger: ['billing_dispute'],P2,-7,61000,False,renewed_expansion,19100,none
+u_011,2026-W14,3,False,sig_0109,acct_0151,seat_decay,4,no spec condition requires a human,P2,268,24000,True,pending,0,
+u_011,2026-W15,1,True,sig_0138,acct_0086,usage_cliff,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,54,21000,True,renewed_flat,0,uncertain
+u_011,2026-W16,1,True,sig_0165,acct_0170,usage_cliff,2,no spec condition requires a human,P3,149,287500,False,pending,0,
+u_011,2026-W16,2,False,sig_0150,acct_0036,exec_churn_language,3,no spec condition requires a human,P1,164,237500,True,pending,0,
+u_011,2026-W16,3,False,sig_0152,acct_0105,exec_churn_language,3,no spec condition requires a human,P2,73,1665000,False,downgraded,-395100,none
+u_011,2026-W16,4,False,sig_0147,acct_0086,renewal_silence,3,no spec condition requires a human,P3,50,21000,True,renewed_flat,0,none
+u_011,2026-W17,1,False,sig_0169,acct_0151,exec_churn_language,3,no spec condition requires a human,P2,252,24000,False,pending,0,
+u_011,2026-W18,1,True,sig_0225,acct_0131,seat_decay,2,no spec condition requires a human,P3,56,38000,True,downgraded,-7800,uncertain
+u_011,2026-W18,2,False,sig_0233,acct_0151,usage_cliff,3,no spec condition requires a human,P2,240,24000,True,pending,0,
+u_011,2026-W19,1,True,sig_0251,acct_0105,billing_dispute,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,52,1665000,True,churned,-1665000,uncertain
+u_011,2026-W21,1,False,sig_0276,acct_0137,exec_churn_language,3,no spec condition requires a human,P1,-53,252500,True,renewed_flat,0,uncertain
+u_011,2026-W21,2,False,sig_0318,acct_0131,usage_cliff,3,no spec condition requires a human,P2,35,38000,False,renewed_expansion,9300,uncertain
+u_011,2026-W21,3,False,sig_0328,acct_0151,usage_cliff,3,no spec condition requires a human,P2,219,24000,True,pending,0,
+u_011,2026-W21,4,False,sig_0303,acct_0082,usage_cliff,4,no spec condition requires a human,P2,9,190000,False,renewed_late,0,none
+u_011,2026-W21,5,False,sig_0327,acct_0151,seat_decay,4,no spec condition requires a human,P2,219,24000,False,pending,0,
+u_011,2026-W21,6,False,sig_0334,acct_0172,usage_cliff,4,no spec condition requires a human,P3,-56,61000,False,renewed_flat,0,uncertain
+u_011,2026-W22,1,True,sig_0374,acct_0137,usage_cliff,2,no spec condition requires a human,P2,-63,252500,False,renewed_late,0,uncertain
+u_011,2026-W22,2,False,sig_0377,acct_0151,usage_cliff,3,no spec condition requires a human,P1,212,24000,True,pending,0,
+u_011,2026-W22,3,False,sig_0373,acct_0137,seat_decay,3,no spec condition requires a human,P2,-63,252500,False,downgraded,-85300,none
+u_011,2026-W22,4,False,sig_0372,acct_0131,seat_decay,4,no spec condition requires a human,P2,28,38000,False,churned,-38000,none
+u_011,2026-W22,5,False,sig_0376,acct_0151,seat_decay,4,no spec condition requires a human,P2,212,24000,False,pending,0,
+u_011,2026-W23,1,False,sig_0390,acct_0082,sentiment_drop,3,no spec condition requires a human,P1,-1,190000,True,churned,-190000,uncertain
+u_011,2026-W23,2,False,sig_0405,acct_0170,ticket_storm,3,no spec condition requires a human,P3,100,287500,True,pending,0,
+u_011,2026-W24,1,True,sig_0468,acct_0105,usage_cliff,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,16,1665000,True,renewed_flat,0,none
+u_011,2026-W24,2,True,sig_0439,acct_0036,usage_cliff,1,§8.1 mandatory-route trigger: ['legal_reference'],P1,106,237500,False,pending,0,
+u_011,2026-W24,3,True,sig_0414,acct_0172,billing_dispute,1,§8.1 mandatory-route trigger: ['billing_dispute'],P1,-75,61000,True,renewed_flat,0,certain
+u_011,2026-W24,4,True,sig_0438,acct_0036,security_review_opened,1,§8.1 mandatory-route trigger: ['legal_reference'],P3,106,237500,False,pending,0,
+u_011,2026-W24,5,True,sig_0455,acct_0082,seat_decay,2,no spec condition requires a human,P3,-12,190000,True,downgraded,-40500,none
+u_011,2026-W24,6,False,sig_0456,acct_0082,usage_cliff,3,no spec condition requires a human,P2,-12,190000,False,downgraded,-43600,none
+u_011,2026-W24,7,False,sig_0494,acct_0151,seat_decay,4,no spec condition requires a human,P2,198,24000,False,pending,0,
+u_011,2026-W24,8,False,sig_0495,acct_0151,usage_cliff,4,no spec condition requires a human,P2,198,24000,False,pending,0,
+u_011,2026-W25,1,True,sig_0533,acct_0082,usage_cliff,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,-19,190000,True,renewed_flat,0,none
+u_011,2026-W25,2,False,sig_0513,acct_0036,exec_churn_language,3,no spec condition requires a human,P2,105,237500,False,pending,0,
+u_011,2026-W25,3,False,sig_0524,acct_0063,sentiment_drop,3,no spec condition requires a human,P3,106,355000,True,pending,0,
+u_011,2026-W26,1,True,sig_0559,acct_0105,seat_decay,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,2,1665000,True,churned,-1665000,uncertain
+u_011,2026-W26,2,True,sig_0560,acct_0105,usage_cliff,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,2,1665000,True,downgraded,-718300,uncertain
+u_011,2026-W27,1,True,sig_0594,acct_0105,seat_decay,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,-5,1665000,True,downgraded,-810000,certain
+u_011,2026-W27,2,True,sig_0595,acct_0105,usage_cliff,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,-5,1665000,True,churned,-1665000,uncertain
+u_011,2026-W27,3,True,sig_0569,acct_0033,exec_churn_language,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,-3,160000,True,churned,-160000,uncertain
+u_011,2026-W27,4,True,sig_0592,acct_0082,seat_decay,2,no spec condition requires a human,P1,-33,190000,False,downgraded,-39200,uncertain
+u_011,2026-W27,5,False,sig_0570,acct_0082,exec_churn_language,3,no spec condition requires a human,P1,-28,190000,True,renewed_flat,0,uncertain
+u_012,2026-W09,1,False,sig_0002,acct_0027,usage_cliff,3,no spec condition requires a human,P1,165,75000,False,churned,-75000,none
+u_012,2026-W09,2,False,sig_0003,acct_0037,seat_decay,3,no spec condition requires a human,P2,214,90000,False,pending,0,
+u_012,2026-W09,3,False,sig_0001,acct_0027,seat_decay,4,no spec condition requires a human,P2,165,75000,True,churned,-75000,none
+u_012,2026-W10,1,False,sig_0029,acct_0087,usage_cliff,3,no spec condition requires a human,P2,14,180000,False,renewed_flat,0,none
+u_012,2026-W11,1,False,sig_0037,acct_0029,exec_churn_language,3,no spec condition requires a human,P2,144,41000,False,downgraded,-20700,none
+u_012,2026-W12,1,False,sig_0060,acct_0126,exec_churn_language,3,no spec condition requires a human,P1,56,490000,False,churned,-490000,uncertain
+u_012,2026-W14,1,False,sig_0126,acct_0180,usage_cliff,4,no spec condition requires a human,P3,70,117500,False,renewed_flat,0,none
+u_012,2026-W15,1,False,sig_0139,acct_0087,seat_decay,3,no spec condition requires a human,P3,-21,180000,True,renewed_flat,0,uncertain
+u_012,2026-W16,1,False,sig_0156,acct_0037,security_review_opened,3,no spec condition requires a human,P2,165,90000,True,pending,0,
+u_012,2026-W17,1,True,sig_0180,acct_0079,seat_decay,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,20,1665000,True,renewed_flat,0,uncertain
+u_012,2026-W17,2,False,sig_0175,acct_0180,exec_churn_language,3,no spec condition requires a human,P2,52,117500,False,renewed_flat,0,none
+u_012,2026-W17,3,False,sig_0181,acct_0079,usage_cliff,4,no spec condition requires a human,P2,20,1665000,False,renewed_flat,0,uncertain
+u_012,2026-W17,4,False,sig_0185,acct_0160,seat_decay,4,no spec condition requires a human,P3,65,44000,False,renewed_late,0,none
+u_012,2026-W18,1,True,sig_0234,acct_0160,seat_decay,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,58,44000,True,renewed_flat,0,uncertain
+u_012,2026-W18,2,True,sig_0204,acct_0027,seat_decay,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P1,102,75000,True,churned,-75000,certain
+u_012,2026-W18,3,True,sig_0197,acct_0002,seat_decay,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P1,-28,257500,False,renewed_flat,0,none
+u_012,2026-W18,4,True,sig_0240,acct_0180,seat_decay,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P2,42,117500,False,renewed_expansion,27700,none
+u_012,2026-W18,5,False,sig_0235,acct_0160,usage_cliff,4,no spec condition requires a human,P2,58,44000,False,renewed_flat,0,uncertain
+u_012,2026-W18,6,False,sig_0214,acct_0087,seat_decay,4,no spec condition requires a human,P2,-42,180000,False,renewed_flat,0,none
+u_012,2026-W18,7,False,sig_0215,acct_0087,usage_cliff,4,no spec condition requires a human,P3,-42,180000,False,renewed_flat,0,uncertain
+u_012,2026-W19,1,True,sig_0248,acct_0126,exec_churn_language,1,§8.1 mandatory-route trigger: ['cancel_intent'],P1,7,490000,True,renewed_expansion,106600,uncertain
+u_012,2026-W19,2,True,sig_0246,acct_0002,ticket_storm,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P2,-32,257500,True,renewed_flat,0,uncertain
+u_012,2026-W21,1,True,sig_0293,acct_0046,usage_cliff,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,-36,31000,True,renewed_late,0,uncertain
+u_012,2026-W21,2,True,sig_0286,acct_0031,usage_cliff,1,§8.1 mandatory-route trigger: ['billing_dispute'],P2,14,60000,False,renewed_flat,0,none
+u_012,2026-W21,3,True,sig_0316,acct_0126,usage_cliff,1,§8.1 mandatory-route trigger: ['cancel_intent'],P2,-10,490000,True,churned,-490000,uncertain
+u_012,2026-W21,4,False,sig_0304,acct_0087,usage_cliff,4,no spec condition requires a human,P2,-63,180000,False,churned,-180000,none
+u_012,2026-W22,1,False,sig_0351,acct_0002,usage_cliff,3,no spec condition requires a human,P2,-56,257500,False,renewed_flat,0,none
+u_012,2026-W22,2,False,sig_0363,acct_0093,usage_cliff,4,no spec condition requires a human,P2,47,1170000,True,renewed_flat,0,certain
+u_012,2026-W23,1,False,sig_0394,acct_0002,exec_churn_language,3,no spec condition requires a human,P1,-61,257500,True,renewed_flat,0,uncertain
+u_012,2026-W23,2,False,sig_0391,acct_0002,exec_churn_language,3,no spec condition requires a human,P2,-60,257500,False,renewed_flat,0,none
+u_012,2026-W23,3,False,sig_0396,acct_0126,exec_churn_language,3,no spec condition requires a human,P3,-22,490000,True,renewed_late,0,uncertain
+u_012,2026-W24,1,True,sig_0511,acct_0180,seat_decay,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,0,117500,True,renewed_flat,0,none
+u_012,2026-W24,2,True,sig_0434,acct_0027,usage_cliff,1,§8.1 mandatory-route trigger: ['buyer_or_champion_departure'],P1,60,75000,True,downgraded,-33600,uncertain
+u_012,2026-W24,3,True,sig_0475,acct_0126,seat_decay,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,-31,490000,True,churned,-490000,none
+u_012,2026-W24,4,True,sig_0444,acct_0046,seat_decay,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P2,-57,31000,False,renewed_flat,0,none
+u_012,2026-W24,5,False,sig_0512,acct_0180,usage_cliff,3,no spec condition requires a human,P2,0,117500,True,downgraded,-33800,uncertain
+u_012,2026-W24,6,False,sig_0503,acct_0160,usage_cliff,3,no spec condition requires a human,P2,16,44000,True,renewed_flat,0,uncertain
+u_012,2026-W24,7,False,sig_0462,acct_0095,seat_decay,3,no spec condition requires a human,P2,19,1465000,False,renewed_expansion,443600,uncertain
+u_012,2026-W24,8,False,sig_0480,acct_0132,usage_cliff,4,no spec condition requires a human,P1,14,122500,False,renewed_flat,0,none
+u_012,2026-W24,9,False,sig_0433,acct_0027,seat_decay,4,no spec condition requires a human,P1,60,75000,False,downgraded,-24400,none
+u_012,2026-W24,10,False,sig_0476,acct_0126,usage_cliff,4,no spec condition requires a human,P1,-31,490000,True,churned,-490000,uncertain
+u_012,2026-W24,11,False,sig_0463,acct_0095,usage_cliff,4,no spec condition requires a human,P2,19,1465000,False,renewed_flat,0,uncertain
+u_012,2026-W24,12,False,sig_0479,acct_0132,seat_decay,4,no spec condition requires a human,P3,14,122500,False,renewed_late,0,none
+u_012,2026-W24,13,False,sig_0502,acct_0160,seat_decay,4,no spec condition requires a human,P3,16,44000,True,churned,-44000,uncertain
+u_012,2026-W24,14,False,sig_0445,acct_0046,usage_cliff,4,no spec condition requires a human,P3,-57,31000,True,renewed_flat,0,certain
+u_012,2026-W25,1,False,sig_0534,acct_0093,seat_decay,3,no spec condition requires a human,P1,26,1170000,True,renewed_expansion,117400,uncertain
+u_012,2026-W26,1,False,sig_0561,acct_0132,usage_cliff,4,no spec condition requires a human,P3,0,122500,True,renewed_late,0,uncertain
+u_012,2026-W27,1,True,sig_0583,acct_0029,exec_churn_language,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P1,29,41000,True,downgraded,-10200,uncertain
+u_012,2026-W27,2,True,sig_0584,acct_0029,seat_decay,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,29,41000,False,renewed_flat,0,none
+u_012,2026-W27,3,False,sig_0564,acct_0027,renewal_silence,3,no spec condition requires a human,P2,45,75000,False,churned,-75000,none
+u_012,2026-W27,4,False,sig_0579,acct_0002,seat_decay,3,no spec condition requires a human,P2,-91,257500,False,renewed_flat,0,uncertain
+u_012,2026-W27,5,False,sig_0585,acct_0031,usage_cliff,3,no spec condition requires a human,P2,-28,60000,False,downgraded,-14200,uncertain
+u_013,2026-W09,1,False,sig_0004,acct_0106,seat_decay,3,no spec condition requires a human,P1,33,180000,False,renewed_flat,0,none
+u_013,2026-W10,1,True,sig_0023,acct_0057,usage_cliff,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P1,113,69000,False,renewed_flat,0,uncertain
+u_013,2026-W10,2,False,sig_0021,acct_0039,renewal_silence,3,no spec condition requires a human,P3,39,222500,False,renewed_flat,0,none
+u_013,2026-W10,3,False,sig_0018,acct_0013,exec_churn_language,3,no spec condition requires a human,P3,204,69000,False,pending,0,
+u_013,2026-W10,4,False,sig_0022,acct_0057,seat_decay,4,no spec condition requires a human,P2,113,69000,False,renewed_flat,0,none
+u_013,2026-W12,1,True,sig_0062,acct_0175,exec_churn_language,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P3,163,61000,True,downgraded,-16400,uncertain
+u_013,2026-W14,1,False,sig_0123,acct_0175,usage_cliff,3,no spec condition requires a human,P1,148,61000,True,renewed_expansion,15900,certain
+u_013,2026-W14,2,False,sig_0096,acct_0085,seat_decay,3,no spec condition requires a human,P1,173,765000,True,pending,0,
+u_013,2026-W14,3,False,sig_0089,acct_0145,ticket_storm,3,no spec condition requires a human,P3,119,180000,True,renewed_flat,0,uncertain
+u_013,2026-W14,4,False,sig_0097,acct_0106,usage_cliff,4,no spec condition requires a human,P2,-2,180000,True,renewed_expansion,47700,uncertain
+u_013,2026-W15,1,False,sig_0127,acct_0175,exec_churn_language,3,no spec condition requires a human,P1,147,61000,False,renewed_expansion,23500,uncertain
+u_013,2026-W18,1,False,sig_0193,acct_0128,exec_churn_language,3,no spec condition requires a human,P1,153,1740000,False,pending,0,
+u_013,2026-W18,2,False,sig_0195,acct_0039,exec_churn_language,3,no spec condition requires a human,P1,-16,222500,False,renewed_flat,0,uncertain
+u_013,2026-W18,3,False,sig_0192,acct_0106,exec_churn_language,3,no spec condition requires a human,P1,-25,180000,False,renewed_flat,0,uncertain
+u_013,2026-W18,4,False,sig_0209,acct_0057,usage_cliff,4,no spec condition requires a human,P1,57,69000,False,renewed_flat,0,uncertain
+u_013,2026-W18,5,False,sig_0200,acct_0013,usage_cliff,4,no spec condition requires a human,P1,148,69000,False,pending,0,
+u_013,2026-W18,6,False,sig_0208,acct_0057,seat_decay,4,no spec condition requires a human,P3,57,69000,True,renewed_flat,0,none
+u_013,2026-W18,7,False,sig_0218,acct_0106,usage_cliff,4,no spec condition requires a human,P3,-30,180000,False,renewed_flat,0,none
+u_013,2026-W19,1,True,sig_0242,acct_0085,ticket_storm,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P0,144,765000,False,pending,0,
+u_013,2026-W21,1,True,sig_0310,acct_0106,exec_churn_language,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,-51,180000,True,renewed_flat,0,certain
+u_013,2026-W21,2,True,sig_0289,acct_0040,seat_decay,2,no spec condition requires a human,P2,74,22000,False,renewed_expansion,5400,none
+u_013,2026-W21,3,True,sig_0290,acct_0040,usage_cliff,2,no spec condition requires a human,P2,74,22000,True,renewed_flat,0,uncertain
+u_013,2026-W21,4,False,sig_0301,acct_0077,usage_cliff,4,no spec condition requires a human,P1,131,340000,False,pending,0,
+u_013,2026-W21,5,False,sig_0281,acct_0013,usage_cliff,4,no spec condition requires a human,P2,127,69000,True,pending,0,
+u_013,2026-W23,1,False,sig_0395,acct_0077,ticket_storm,3,no spec condition requires a human,P2,119,340000,False,pending,0,
+u_013,2026-W24,1,True,sig_0449,acct_0057,usage_cliff,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,15,69000,True,renewed_flat,0,uncertain
+u_013,2026-W24,2,True,sig_0489,acct_0145,seat_decay,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,46,180000,True,churned,-180000,certain
+u_013,2026-W24,3,True,sig_0490,acct_0145,usage_cliff,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,46,180000,True,churned,-180000,uncertain
+u_013,2026-W24,4,True,sig_0417,acct_0145,exec_churn_language,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,47,180000,True,churned,-180000,uncertain
+u_013,2026-W24,5,False,sig_0448,acct_0057,seat_decay,4,no spec condition requires a human,P3,15,69000,False,renewed_flat,0,uncertain
+u_013,2026-W26,1,True,sig_0545,acct_0039,exec_churn_language,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,-71,222500,True,renewed_late,0,none
+u_013,2026-W26,2,False,sig_0557,acct_0085,seat_decay,3,no spec condition requires a human,P2,89,765000,True,pending,0,
+u_013,2026-W26,3,False,sig_0542,acct_0077,exec_churn_language,3,no spec condition requires a human,P2,99,340000,False,pending,0,
+u_013,2026-W26,4,False,sig_0556,acct_0077,seat_decay,4,no spec condition requires a human,P3,96,340000,False,pending,0,
+u_013,2026-W27,1,True,sig_0601,acct_0128,seat_decay,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P2,87,1740000,False,pending,0,
+u_013,2026-W27,2,True,sig_0577,acct_0122,exec_churn_language,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P3,-89,23000,True,renewed_expansion,4400,none
+u_013,2026-W27,3,False,sig_0572,acct_0013,exec_churn_language,3,no spec condition requires a human,P1,89,69000,False,pending,0,
+u_013,2026-W28,1,False,sig_0616,acct_0085,exec_churn_language,3,no spec condition requires a human,P2,77,765000,False,pending,0,
+u_013,2026-W29,1,False,sig_0628,acct_0175,renewal_silence,3,no spec condition requires a human,P2,48,61000,True,churned,-61000,uncertain
+u_014,2026-W09,1,True,sig_0007,acct_0163,seat_decay,2,no spec condition requires a human,P2,210,48000,True,pending,0,
+u_014,2026-W09,2,False,sig_0006,acct_0157,exec_churn_language,3,no spec condition requires a human,P2,60,535000,False,renewed_late,0,none
+u_014,2026-W12,1,True,sig_0055,acct_0109,ticket_storm,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P1,84,80000,False,renewed_expansion,22800,uncertain
+u_014,2026-W12,2,True,sig_0067,acct_0035,seat_decay,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P1,101,95000,False,renewed_expansion,24500,uncertain
+u_014,2026-W12,3,True,sig_0068,acct_0035,usage_cliff,2,no spec condition requires a human,P3,101,95000,False,renewed_flat,0,none
+u_014,2026-W13,1,False,sig_0084,acct_0129,exec_churn_language,3,no spec condition requires a human,P1,83,68000,False,renewed_flat,0,none
+u_014,2026-W13,2,False,sig_0074,acct_0101,exec_churn_language,3,no spec condition requires a human,P3,48,160000,False,churned,-160000,none
+u_014,2026-W14,1,True,sig_0107,acct_0147,seat_decay,2,no spec condition requires a human,P2,150,302500,True,pending,0,
+u_014,2026-W14,2,False,sig_0125,acct_0176,usage_cliff,3,no spec condition requires a human,P2,89,1005000,False,downgraded,-168300,uncertain
+u_014,2026-W14,3,False,sig_0114,acct_0163,seat_decay,3,no spec condition requires a human,P2,175,48000,False,pending,0,
+u_014,2026-W14,4,False,sig_0115,acct_0163,usage_cliff,3,no spec condition requires a human,P2,175,48000,False,pending,0,
+u_014,2026-W14,5,False,sig_0124,acct_0176,seat_decay,3,no spec condition requires a human,P3,89,1005000,True,churned,-1005000,certain
+u_014,2026-W14,6,False,sig_0108,acct_0147,usage_cliff,4,no spec condition requires a human,P2,150,302500,False,pending,0,
+u_014,2026-W15,1,True,sig_0136,acct_0035,usage_cliff,1,§8.1 mandatory-route trigger: ['buyer_or_champion_departure'],P2,80,95000,False,renewed_flat,0,none
+u_014,2026-W15,2,True,sig_0142,acct_0150,seat_decay,2,no spec condition requires a human,P3,175,300000,True,pending,0,
+u_014,2026-W15,3,False,sig_0134,acct_0109,exec_churn_language,3,no spec condition requires a human,P1,58,80000,True,churned,-80000,uncertain
+u_014,2026-W16,1,True,sig_0148,acct_0109,billing_dispute,1,§8.1 mandatory-route trigger: ['billing_dispute'],P1,53,80000,False,churned,-80000,none
+u_014,2026-W16,2,False,sig_0153,acct_0109,exec_churn_language,3,no spec condition requires a human,P1,51,80000,False,renewed_late,0,none
+u_014,2026-W16,3,False,sig_0154,acct_0163,exec_churn_language,3,no spec condition requires a human,P2,162,48000,False,pending,0,
+u_014,2026-W17,1,True,sig_0177,acct_0075,exec_churn_language,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P1,66,780000,False,renewed_flat,0,none
+u_014,2026-W17,2,False,sig_0178,acct_0129,renewal_silence,3,no spec condition requires a human,P2,56,68000,False,renewed_flat,0,none
+u_014,2026-W18,1,True,sig_0186,acct_0035,exec_churn_language,1,§8.1 mandatory-route trigger: ['buyer_or_champion_departure'],P1,65,95000,False,renewed_expansion,32900,none
+u_014,2026-W18,2,True,sig_0201,acct_0022,usage_cliff,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P3,134,187500,False,pending,0,
+u_014,2026-W18,3,False,sig_0205,acct_0035,seat_decay,3,no spec condition requires a human,P1,59,95000,True,churned,-95000,certain
+u_014,2026-W18,4,False,sig_0222,acct_0129,seat_decay,3,no spec condition requires a human,P2,48,68000,False,renewed_flat,0,none
+u_014,2026-W18,5,False,sig_0223,acct_0129,usage_cliff,3,no spec condition requires a human,P2,48,68000,True,renewed_flat,0,none
+u_014,2026-W18,6,False,sig_0232,acct_0150,seat_decay,3,no spec condition requires a human,P3,154,300000,False,pending,0,
+u_014,2026-W19,1,False,sig_0241,acct_0035,exec_churn_language,3,no spec condition requires a human,P3,58,95000,True,renewed_flat,0,none
+u_014,2026-W19,2,False,sig_0245,acct_0150,ticket_storm,3,no spec condition requires a human,P3,151,300000,False,pending,0,
+u_014,2026-W21,1,True,sig_0325,acct_0147,seat_decay,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,101,302500,True,pending,0,
+u_014,2026-W21,2,False,sig_0335,acct_0176,usage_cliff,3,no spec condition requires a human,P2,40,1005000,True,renewed_expansion,165600,uncertain
+u_014,2026-W21,3,False,sig_0308,acct_0101,usage_cliff,4,no spec condition requires a human,P2,-9,160000,True,renewed_expansion,60400,uncertain
+u_014,2026-W21,4,False,sig_0326,acct_0147,usage_cliff,4,no spec condition requires a human,P3,101,302500,False,pending,0,
+u_014,2026-W22,1,False,sig_0359,acct_0075,seat_decay,4,no spec condition requires a human,P2,30,780000,False,renewed_flat,0,none
+u_014,2026-W22,2,False,sig_0378,acct_0163,seat_decay,4,no spec condition requires a human,P3,119,48000,False,pending,0,
+u_014,2026-W24,1,True,sig_0509,acct_0176,usage_cliff,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P1,19,1005000,True,downgraded,-335800,none
+u_014,2026-W24,2,True,sig_0492,acct_0150,seat_decay,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P3,112,300000,True,pending,0,
+u_014,2026-W24,3,False,sig_0493,acct_0150,usage_cliff,3,no spec condition requires a human,P3,112,300000,True,pending,0,
+u_014,2026-W24,4,False,sig_0437,acct_0035,seat_decay,4,no spec condition requires a human,P2,17,95000,False,renewed_flat,0,none
+u_014,2026-W24,5,False,sig_0491,acct_0147,seat_decay,4,no spec condition requires a human,P2,80,302500,True,pending,0,
+u_014,2026-W24,6,False,sig_0508,acct_0176,seat_decay,4,no spec condition requires a human,P3,19,1005000,False,renewed_late,0,none
+u_014,2026-W27,1,False,sig_0586,acct_0035,usage_cliff,3,no spec condition requires a human,P3,-4,95000,False,renewed_flat,0,none
+u_101,2026-W12,1,False,sig_0061,acct_0100,exec_churn_language,3,no spec condition requires a human,P1,101,37000,False,renewed_late,0,uncertain
+u_101,2026-W13,1,True,sig_0085,acct_0146,seat_decay,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,277,31000,True,pending,0,
+u_101,2026-W20,1,False,sig_0255,acct_0100,renewal_silence,3,no spec condition requires a human,P1,50,37000,True,renewed_late,0,uncertain
+u_101,2026-W26,1,False,sig_0562,acct_0146,seat_decay,3,no spec condition requires a human,P1,186,31000,True,pending,0,
+u_101,2026-W26,2,False,sig_0551,acct_0054,usage_cliff,4,no spec condition requires a human,P2,184,50000,True,pending,0,
+u_101,2026-W26,3,False,sig_0550,acct_0054,seat_decay,4,no spec condition requires a human,P3,184,50000,False,pending,0,
+u_101,2026-W26,4,False,sig_0563,acct_0146,usage_cliff,4,no spec condition requires a human,P3,186,31000,False,pending,0,
+u_102,2026-W13,1,True,sig_0082,acct_0102,usage_cliff,1,§8.1 mandatory-route trigger: ['billing_dispute'],P2,90,65000,False,renewed_late,0,none
+u_102,2026-W21,1,False,sig_0299,acct_0073,seat_decay,3,no spec condition requires a human,P1,-55,55000,True,renewed_late,0,certain
+u_102,2026-W21,2,False,sig_0275,acct_0102,renewal_silence,3,no spec condition requires a human,P2,37,65000,False,renewed_flat,0,none
+u_102,2026-W22,1,False,sig_0345,acct_0080,exec_churn_language,3,no spec condition requires a human,P1,-61,64000,False,renewed_flat,0,none
+u_102,2026-W27,1,False,sig_0591,acct_0080,seat_decay,3,no spec condition requires a human,P1,-99,64000,False,renewed_flat,0,uncertain
+u_102,2026-W27,2,False,sig_0565,acct_0080,exec_churn_language,3,no spec condition requires a human,P2,-93,64000,True,renewed_flat,0,uncertain
+u_104,2026-W10,1,False,sig_0031,acct_0097,usage_cliff,3,no spec condition requires a human,P2,205,38000,True,pending,0,
+u_104,2026-W15,1,True,sig_0140,acct_0097,seat_decay,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P2,170,38000,False,pending,0,
+u_104,2026-W21,1,False,sig_0306,acct_0097,usage_cliff,4,no spec condition requires a human,P2,128,38000,False,pending,0,
+u_104,2026-W24,1,True,sig_0465,acct_0097,seat_decay,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P1,107,38000,True,pending,0,
+u_104,2026-W26,1,False,sig_0558,acct_0097,seat_decay,4,no spec condition requires a human,P2,93,38000,False,pending,0,
+u_105,2026-W10,1,False,sig_0024,acct_0064,sentiment_drop,3,no spec condition requires a human,P2,111,41000,False,downgraded,-15900,uncertain
+u_105,2026-W10,2,False,sig_0014,acct_0009,exec_churn_language,3,no spec condition requires a human,P2,114,47000,False,renewed_late,0,uncertain
+u_105,2026-W15,1,True,sig_0128,acct_0064,security_review_opened,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,81,41000,True,renewed_expansion,4500,uncertain
+u_105,2026-W18,1,True,sig_0187,acct_0092,exec_churn_language,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,159,29000,True,pending,0,
+u_105,2026-W21,1,False,sig_0282,acct_0017,exec_churn_language,3,no spec condition requires a human,P3,-46,24000,False,downgraded,-12000,none
+u_105,2026-W24,1,False,sig_0415,acct_0060,exec_churn_language,3,no spec condition requires a human,P2,17,40000,False,renewed_flat,0,none
+u_105,2026-W24,2,False,sig_0422,acct_0009,seat_decay,4,no spec condition requires a human,P2,15,47000,True,renewed_flat,0,none
+u_105,2026-W24,3,False,sig_0460,acct_0092,seat_decay,4,no spec condition requires a human,P2,111,29000,True,pending,0,
+u_105,2026-W26,1,True,sig_0544,acct_0009,exec_churn_language,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,3,47000,False,downgraded,-11400,none
+u_105,2026-W27,1,True,sig_0573,acct_0017,exec_churn_language,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,-84,24000,True,renewed_flat,0,uncertain
+u_105,2026-W27,2,True,sig_0574,acct_0017,ticket_storm,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,-84,24000,True,renewed_flat,0,uncertain
+u_105,2026-W28,1,False,sig_0614,acct_0017,ticket_storm,3,no spec condition requires a human,P2,-93,24000,True,renewed_expansion,2300,uncertain
+u_106,2026-W11,1,True,sig_0035,acct_0026,sentiment_drop,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P2,113,18000,False,renewed_expansion,1800,none
+u_106,2026-W13,1,False,sig_0073,acct_0026,exec_churn_language,3,no spec condition requires a human,P2,97,18000,True,renewed_flat,0,uncertain
+u_106,2026-W15,1,True,sig_0129,acct_0072,exec_churn_language,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,86,45000,True,downgraded,-18700,none
+u_106,2026-W15,2,True,sig_0130,acct_0072,security_review_opened,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P1,86,45000,True,churned,-45000,uncertain
+u_106,2026-W21,1,False,sig_0285,acct_0026,usage_cliff,4,no spec condition requires a human,P2,39,18000,True,churned,-18000,uncertain
+u_106,2026-W22,1,True,sig_0338,acct_0026,exec_churn_language,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,37,18000,False,downgraded,-8500,uncertain
+u_107,2026-W12,1,False,sig_0054,acct_0069,exec_churn_language,3,no spec condition requires a human,P3,200,19000,True,pending,0,
+u_107,2026-W16,1,False,sig_0160,acct_0089,seat_decay,3,no spec condition requires a human,P2,108,28000,True,churned,-28000,uncertain
+u_107,2026-W16,2,False,sig_0161,acct_0089,usage_cliff,4,no spec condition requires a human,P2,108,28000,True,downgraded,-10000,none
+u_107,2026-W19,1,False,sig_0247,acct_0069,exec_churn_language,3,no spec condition requires a human,P2,148,19000,False,pending,0,
+u_107,2026-W21,1,False,sig_0297,acct_0069,usage_cliff,4,no spec condition requires a human,P2,131,19000,False,pending,0,
+u_107,2026-W23,1,False,sig_0398,acct_0069,exec_churn_language,3,no spec condition requires a human,P3,118,19000,True,pending,0,
+u_107,2026-W24,1,True,sig_0411,acct_0069,billing_dispute,1,§8.1 mandatory-route trigger: ['billing_dispute'],P2,113,19000,True,pending,0,
+u_107,2026-W27,1,False,sig_0593,acct_0089,seat_decay,3,no spec condition requires a human,P2,31,28000,False,downgraded,-12600,uncertain
+u_108,2026-W16,1,True,sig_0155,acct_0032,seat_decay,1,§4.6 enrichment timed out; a signal that timed out waiting for data must still reach a human,P2,70,47000,False,churned,-47000,uncertain
+u_108,2026-W17,1,True,sig_0176,acct_0032,exec_churn_language,1,"§6.3 agent assigned P0/P1 with a non-benign hypothesis — §6.3 reads P0 as 'act today' and P1 as 'material risk with corroboration' (inference from the severity table, not a stated route duty)",P1,65,47000,False,renewed_late,0,none
+u_108,2026-W21,1,False,sig_0319,acct_0133,usage_cliff,3,no spec condition requires a human,P2,-19,39000,False,renewed_expansion,11600,uncertain
+u_108,2026-W24,1,True,sig_0481,acct_0133,seat_decay,2,no spec condition requires a human,P1,-40,39000,True,renewed_flat,0,none
+u_108,2026-W24,2,True,sig_0482,acct_0133,usage_cliff,2,no spec condition requires a human,P1,-40,39000,True,downgraded,-18300,none
+u_108,2026-W24,3,False,sig_0416,acct_0133,exec_churn_language,3,no spec condition requires a human,P1,-39,39000,True,renewed_flat,0,uncertain
+u_108,2026-W25,1,False,sig_0536,acct_0133,seat_decay,4,no spec condition requires a human,P1,-47,39000,False,renewed_late,0,none
+u_108,2026-W28,1,False,sig_0620,acct_0133,seat_decay,4,no spec condition requires a human,P2,-68,39000,False,churned,-39000,uncertain
