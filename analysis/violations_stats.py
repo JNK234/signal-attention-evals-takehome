@@ -252,6 +252,28 @@ def main():
             inart += 1
     print(f"  {len(both)} dossiers; appended address present in the artefact text: {inart}")
 
+    # ── 6k. risk_score AUC on the populations where each harm can occur; waste by deserved among routed ─
+    def auc(pos, neg):
+        """Mann-Whitney AUC: P(score(pos) > score(neg)), ties count half."""
+        if not pos or not neg:
+            return float("nan")
+        wins = sum(1.0 if a > b else 0.5 if a == b else 0.0 for a in pos for b in neg)
+        return wins / (len(pos) * len(neg))
+    risk = {sid: float(r["result"]["risk_score"]) for sid, r in run.items()}
+    deserved = {sid: bool(r["result"]["deserved_attention"]) for sid, r in run.items()}
+    routed = [r for r in rows if r["_routed"]]
+    cv = [r for r in routed if r["customer_visible"] == "True"]
+    print("\n== 6k. risk_score AUC where the harm can occur ==")
+    print(f"  wasted, all 629 (naive):        {auc([risk[r['signal_id']] for r in rows if r['_wasted']], [risk[r['signal_id']] for r in rows if not r['_wasted']]):.2f}")
+    print(f"  wasted, 294 routed only:        {auc([risk[r['signal_id']] for r in routed if r['_wasted']], [risk[r['signal_id']] for r in routed if not r['_wasted']]):.2f}")
+    print(f"  complaint, all 629 (naive):     {auc([risk[r['signal_id']] for r in rows if r['_complained']], [risk[r['signal_id']] for r in rows if not r['_complained']]):.2f}")
+    print(f"  complaint, 208 routed visible:  {auc([risk[r['signal_id']] for r in cv if r['_complained']], [risk[r['signal_id']] for r in cv if not r['_complained']]):.2f}")
+    kn = [r for r in rows if r["_known"]]
+    print(f"  churn/dg, 471 known outcomes:   {auc([risk[r['signal_id']] for r in kn if r['_bad']], [risk[r['signal_id']] for r in kn if not r['_bad']]):.2f}")
+    dr = [r for r in routed if deserved[r["signal_id"]]]; ur = [r for r in routed if not deserved[r["signal_id"]]]
+    print(f"  wasted among routed: deserved {sum(r['_wasted'] for r in dr)}/{len(dr)} = {sum(r['_wasted'] for r in dr)/len(dr):.0%}; "
+          f"not deserved {sum(r['_wasted'] for r in ur)}/{len(ur)} = {sum(r['_wasted'] for r in ur)/len(ur):.0%}")
+
     # ── 7. quality score vs arr_at_risk trustworthiness ─
     print("\n== 7. quality_score by whether arr_at_risk is provably wrong (M1 or M5) ==")
     import statistics
