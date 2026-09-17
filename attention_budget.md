@@ -21,6 +21,8 @@
 
 Terms in the table. `dau_seats` is the number of distinct users active on an account that day. `api_calls` is the account's daily request count. seat_decay and usage_cliff are the two telemetry detectors, firing on a 29% and a 34% week-over-week fall. `legacy` is one of two telemetry collectors. The four regions are namer (North America), emea (Europe, Middle East and Africa), apac (Asia-Pacific) and latam (Latin America).
 
+![Signals opened per ISO week, with the six burst weeks labelled by cause](figures/signals_per_week.png)
+
 **The two telemetry detectors compare each account only to its own previous week.** So a drop shared by a cohort fires on every account in it. Their signals cluster on Sundays: 427 of 629 dossiers opened on a Sunday. The dossier timestamps do not establish the schedule of the other six detectors, which read text, billing and survey events.
 
 **Weeks 21 and 24 are dominated by pipeline artefacts.** M6 marks 43 of week 21's claims and 72 of week 24's as reproducing only on uncorrected data. Real declines exist in both weeks, 3 and 4 claims, and those signals are ranked on their merits in section 2.

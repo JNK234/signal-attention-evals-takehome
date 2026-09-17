@@ -6,8 +6,6 @@
 
 ## What types of spec violations are most common
 
-![Share of dossiers with each finding, coloured by the spec's severity class](figures/violations_frequency.png)
-
 | rule | what it means | class | dossiers | share |
 |---|---|---|---|---|
 | Q2 | the hypothesis is not supported by the verified evidence | soft | 504 | 80% |
@@ -29,8 +27,6 @@
 
 ## Which violations correlate with bad outcomes
 
-![Outcome rate with each rule divided by the base rate, on a log scale; marker size is the number of dossiers](figures/violations_lift.png)
-
 The table gives the outcome rate among dossiers carrying the rule against the rate among the rest. Lift is the ratio. Base rates are 28% churn or downgrade, 18% wasted escalation, 2.5% complaint.
 
 | rule | dossiers | complaint with / without | wasted with / without | churn with / without |
@@ -44,7 +40,11 @@ The table gives the outcome rate among dossiers carrying the rule against the ra
 | §8.4 another account's artefact | 19 | 0% / 2.6% | 32% / 18% (1.8×) | 21% / 28% |
 | I6 fabricated or misquoted evidence | 93 | 3.2% / 2.4% | 19% / 18% | 36% / 27% (1.4×) |
 
+![10 of 16 complaints followed a customer-visible play on a legal-hold or M&A account](figures/complaints.png)
+
 **Complaints come from one rule.** All 16 complaints in the corpus follow a customer-visible play, and 10 of the 16 are on accounts flagged legal_hold or mna_quiet_period. The domain guide predicts exactly this: reaching out during a quiet period is "the most reliable way to generate a complaint." §8.2 is the one violation whose cost is an order of magnitude above the rest, at 24× the base complaint rate on only 41 dossiers.
+
+![Wasted escalation rate with each rule versus without it](figures/wasted_dumbbell.png)
 
 **Wasted escalations come from paging badly and paging on small money.** Off-hours pages (§6.1), pages below the materiality floor (M4), pages on the wrong channel (§8.6), and pages carrying restricted material (§8.3) each roughly double or triple the wasted rate. These are the rules that spend a CSM slot on a signal the owner then marks as not worth it.
 
@@ -70,10 +70,6 @@ The table gives the outcome rate among dossiers carrying the rule against the ra
 **A finding that follows from M1 and M5.** The 59 dossiers whose `arr_at_risk` is provably wrong, either above the contract value or restated inconsistently, have a median quality score of 0.67 against 0.80 for the rest. Quality predicts whether the agent's own numbers can be trusted.
 
 ## Violation rates by account tier, region, detector and owner
-
-![Share of dossiers with a critical finding, by tier, region and owner](figures/violations_by_group.png)
-
-![Share of each detector's dossiers carrying each rule, for the rules that vary across detectors](figures/violations_by_detector.png)
 
 The measure is the share of a group's dossiers with at least one critical finding, and the mean number of findings per dossier.
 
