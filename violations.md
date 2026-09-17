@@ -120,7 +120,8 @@ The table lists the ten rules the agent breaks most often. "Share" is the share 
 - Within detector, neither churn nor wasted rates separate beyond the test's resolution.
 - Among the 335 unrouted dossiers, where a wrong "benign" call could hide a real churn, Q2 dossiers churn at 26% and non-Q2 at 26%.
 - The annotators flagged a wrong hypothesis on 19% of Q2 dossiers and 22% of the rest.
-- So either Q2 is harmless or it fires too broadly to tell. The 80% rate makes the second reading live. Q2's text test uses an uncalibrated 0.35 threshold, and its "benign" test requires the account's region or industry to have moved with it. Both are limits of the evaluator.
+- A hand read of 20 sampled Q2 findings agreed with 17, disagreed with 2 and could not decide 1. Both misses were near-verbatim statements of the hypothesis that the text scorer put below its 0.35 threshold.
+- So Q2 is mostly right about what it measures, and what it measures is not linked to harm. Q2's text test uses an uncalibrated 0.35 threshold, and its "benign" test requires the account's region or industry to have moved with it. Both are limits of the evaluator.
 
 **M6 is common and not harmless, but its harm is not what the spec expects.** The spec calls an ungrounded number "the most common way this system wastes attention." The wasted rate does not support that: 40% with M6 against 39% without, among routed dossiers. What M6 marks depends on what the corrected data shows, and the evaluator records which case applies.
 
