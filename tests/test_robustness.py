@@ -329,3 +329,45 @@ def test_existing_facts_keys_preserved(ev):
         "evidence_topics", "hypothesis_text_support", "duplicates", "context_loss", "final_state", "routed",
         "customer_visible", "errors", "classifier_reason",
     }
+
+
+# ── review findings 2026-09-18: malformed input at load_context and in evidence, silent passes ───────
+def test_load_context_skips_a_dossier_without_account_id():
+    """README l.220: load_context receives the grader's own dossier set. One dossier with `opened_at` but
+    no `account_id` must not abort the whole call."""
+    d = happy_dossier()
+    d.pop("account_id")
+    e = SignalEvaluator(labeller=TableLabeller({}))
+    e.load_context([ACCOUNT], [OWNER], telemetry([30] * 7, [30] * 7), [ARTIFACT], [d])
+    assert e.cx.loaded
+
+
+def test_numeric_quote_does_not_lose_other_findings(ev):
+    """A non-string quote is coerced by the sanitiser, so check_evidence and check_policy still run and
+    the findings they would otherwise have made survive."""
+    d = happy_dossier()
+    d["evidence"][0]["quote"] = 12345
+    r = explain(ev, d)
+    failed = {e.get("check") for e in r["_facts"]["errors"]}
+    assert "check_evidence" not in failed and "check_policy" not in failed
+    assert any(v["rule"] == "I6" for v in r["violations"])          # 12345 is not in the artefact
+
+
+def test_claim_against_zero_baseline_is_an_uncertain_m6():
+    """A percentage change over a window whose baseline sums to zero cannot be verified; M6 must say so
+    (uncertain), never stay silent."""
+    d = happy_dossier()
+    d["metrics_claimed"] = [{"step": 5, "metric": "dau_seats", "claim": "dau_seats +50% week over week",
+                             "as_of": "2026-03-01", "window_days": 7}]
+    e = SignalEvaluator(labeller=TableLabeller({}))
+    e.load_context([ACCOUNT], [OWNER], telemetry([0] * 7, [30] * 7), [ARTIFACT], [d])
+    r = e.evaluate(d)
+    m6 = [v for v in r["violations"] if v["rule"] == "M6"]
+    assert m6 and all(v["severity"] < 0.6 for v in m6)
+
+
+def test_unknown_state_name_is_a_transition_finding(ev):
+    """§4.8: a state the spec does not define cannot be a valid stay or a valid edge."""
+    d = happy_dossier()
+    d["lifecycle"] = [{"step": 1, "from_state": "bogus", "to_state": "bogus", "trigger": "x", "at": "2026-03-01T00:00:00Z"}]
+    assert "§4.8" in rules(ev.evaluate(d))

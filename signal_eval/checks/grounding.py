@@ -121,8 +121,12 @@ def check_grounding(d, ctx, cx):
             statuses.append(rec["status"])
             continue
         if paired is None:
+            # the baseline window sums to zero, so no percentage change exists to reproduce; silence would
+            # read as a pass, so M6 records the claim as unverifiable (uncertain), as for an unparseable claim
             rec.update(status="unverifiable", why="zero baseline")
             statuses.append("unverifiable")
+            out.append(violation(m["step"], "M6", f"{metric} claimed {claimed:+.0f}% cannot be verified under M6: "
+                                 f"the baseline window sums to zero ({raw_txt}) — events: {ev_txt}", certain=False))
             continue
 
         rec["cohort"] = _cohort_match(cx, af, d, metric, end, w, paired)

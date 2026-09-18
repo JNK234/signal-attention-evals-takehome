@@ -129,7 +129,7 @@ All three scores came from one five-step loop. The loop follows EvalGen's grade-
 
 1. **Source criteria from breakage.** Write the score from the specification alone. Run it on all 629 dossiers. List where it breaks: a floor, a zero-agreement statistic, or a baseline that beats it. The checks come from observed failures.
 2. **Grade, and let the criteria move.** Score each candidate condition against the annotators' majority vote. Use an alignment measure with a false-failure ceiling fixed before scoring. Alignment is the harmonic mean of coverage and one minus the false-failure rate [6].
-3. **Version, do not freeze.** Split the labelled dossiers once, by hash, before any candidate exists. Tune only on the development half. Read the held-out half once. Treat each change as a new version. Re-grade the golden dossiers under it.
+3. **Version, do not freeze.** Split the labelled dossiers once, by hash, before any candidate exists. Tune only on the development half. Read the held-out half as few times as possible, and record every read. Treat each change as a new version. Re-grade the golden dossiers under it.
 4. **Read the disagreement per slice.** Report agreement pairwise. Never pool the evaluator into the human panel. Report PABAK beside kappa. Report each statistic per severity, per detector and per disposition. In every case the diagnosis came from a slice.
 5. **Diagnose which failure it is.** A wrong verdict can come from the reader: the text model scored a sentence below threshold. Or it can come from the rule: the rule cannot express the case. The fix differs for each, and each recorded failure names which one it was.
 
@@ -201,7 +201,7 @@ The validation uses three ground truths, and every number in this writeup says w
 - Twenty-seven golden dossiers, for correctness. I derived their expected violations and verdicts by hand from the specification and the raw records before the evaluator ran on them.
 - The renewal outcomes, for harm, with the caveat from Setup.
 
-Two pre-registered development/held-out splits guard the deserved and risk definitions. "Not fitted to this corpus" covers the magnitudes, and Limitations records the model selection in the risk score's condition set. 751 tests cover the checks, the scores, the cold path and the provenance of every constant.
+Two pre-registered development/held-out splits guard the deserved and risk definitions. "Not fitted to this corpus" covers the magnitudes, and Limitations records the model selection in the risk score's condition set. 755 tests cover the checks, the scores, the cold path and the provenance of every constant.
 
 ## The data
 
@@ -303,7 +303,7 @@ Their quality scores share one slope on severity and differ in intercept (0.84, 
 I used the annotators as a check, never as a training label:
 
 - The majority vote is the reference for agreement statistics.
-- The pre-registered split from Methodology prevents tuning on the held-out half.
+- The pre-registered split from Methodology prevents tuning directly on the held-out half. Limitations item 4 records where held-out results still shaped selection.
 - I report every agreement number per annotator and per slice. Plank's position paper on human label variation is the reason: disagreement concentrates at the decision boundary, and pooling hides where [12].
 
 The evaluator lands below the human band: kappa 0.12, 0.32 and 0.23 against the three annotators, with the first interval crossing zero. Human agreement is a reference and not a ceiling [13], so I report and explain the gap. PABAK is 0.40, 0.47 and 0.40. Severity explains the gap. The annotators say yes to 43% of P1 signals and 6% of P2, so they track the agent's severity label. The specification ignores that label.
@@ -492,7 +492,7 @@ Cartogram supplies the adjudicators and fresh traces, logs every detector firing
 1. `python analysis/run_all.py` (about two minutes, from the committed label cache).
 2. `python analysis/facts.py`.
 3. `python analysis/annotator_agreement.py`, `python analysis/violations_stats.py`, `python analysis/attention_budget.py`, `python analysis/detector_coverage.py`.
-4. `python -m pytest -q` runs the 751 tests.
+4. `python -m pytest -q` runs the 755 tests.
 
 The other scripts in `analysis/` are the exploration history behind the rubric decisions: the candidate searches for the deserved verdict (`deserved_*.py`), the risk-condition sweep, the model bake-off, the recall gate and the threshold calibration. None is needed to reproduce a number in this writeup.
 

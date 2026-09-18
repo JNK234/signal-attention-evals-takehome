@@ -16,6 +16,7 @@ LIST_FIELDS = ("lifecycle", "actions", "evidence", "notifications", "hypotheses"
 # Fields the checks group by, so they must be hashable: `{ev["artifact_id"] for ...}`, `Counter(...)`,
 # dict keys. A list or dict here is unhashable and throws deep inside a check, past the findings it had
 # already made (README l.218-222: a malformed entry must not hide findings on the valid ones).
+TEXT_FIELDS = ("quote", "excerpt")   # free text a check matches as a string
 ID_FIELDS = ("artifact_id", "signal_id", "account_id", "owner_id", "step", "metric", "action", "channel")
 # The rules that read artefact text through the labeller; named when it could not read anything (decision 7).
 TEXT_RULES = ["§8.1", "Q2", "I5", "Q4"]
@@ -48,13 +49,20 @@ def _scrub_ids(field, i, item, errors):
     handled everywhere (None is a legal group key); an unhashable one is not, and would throw past findings
     the check had already recorded."""
     bad = [k for k in ID_FIELDS if k in item and not isinstance(item[k], (str, int, float, bool, type(None)))]
-    if not bad:
+    text = [k for k in TEXT_FIELDS if k in item and not isinstance(item[k], (str, type(None)))]
+    if not bad and not text:
         return item
     out = dict(item)
     for k in bad:
         errors.append({"check": "input",
                        "error": f"{field}[{i}].{k} is {type(item[k]).__name__}, expected a scalar id; treated as absent"})
         out[k] = None
+    for k in text:
+        # a quote that is not text (a number, a list) cannot be matched against an artefact; the checks
+        # compare strings, so it is coerced here rather than letting two checks throw and lose their findings
+        errors.append({"check": "input",
+                       "error": f"{field}[{i}].{k} is {type(item[k]).__name__}, expected text; coerced with str()"})
+        out[k] = str(item[k])
     return out
 
 

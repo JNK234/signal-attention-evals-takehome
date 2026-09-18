@@ -113,7 +113,9 @@ class Context:
         self.owners = {o["owner_id"]: o for o in (owners or [])}
         self.artifacts = {a["artifact_id"]: a for a in (artifacts or [])}
         for d in dossiers or []:
-            if d.get("opened_at"):
+            # README l.220: this is the grader's own dossier set; one dossier with no account id (or no
+            # opened_at) is skipped from the duplicate index, it must not abort the whole load.
+            if isinstance(d, dict) and d.get("opened_at") and d.get("account_id"):
                 self.by_account[d["account_id"]].append((ts(d["opened_at"]), d.get("detector"), d.get("signal_id")))
         self.tel = self._clean_telemetry(telemetry or [])
         self.cohort_groups = self._cohort_groups()

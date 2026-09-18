@@ -39,6 +39,9 @@ def check_transitions(d, ctx, cx):
         if at and prev_at and at <= prev_at:
             out.append(violation(s, "I3", f"transition at {e.get('at')} is not after the previous one", certain=False))
         prev_at = at or prev_at
+        if t is not None and t not in RANK and t not in EXIT_STATES:
+            # §2 defines the states; a name outside that set is not a stay and not an edge in Table 6
+            out.append(violation(s, "§4.8", f"unknown state {t!r}: not one of the spec's states"))
         if f != t:
             visits[t] += 1        # Q1 counts arrivals in a state; staying put (§4.2) is not a visit
         if f == t:
