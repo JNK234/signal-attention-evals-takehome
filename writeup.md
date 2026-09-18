@@ -121,7 +121,7 @@ Eight checks are pure logic. Three consume model verdicts: evidence staleness, t
 
 Each violation is a record of four fields: the lifecycle step, the rule identifier, a severity, and a one-line explanation. The explanation names the offending identifiers and numbers. Example: "api_calls claimed −61% reproduces only on uncorrected data (raw −58.2%, paired +1.3% on 7 of 7 pairs), manufactured decline". Severity is the class weight, halved when the finding is uncertain. An uncertain finding is, for example, a trigger the model abstained on, or a departure the evaluator could not attribute to a named person. Magnitude lives in the explanation and never changes severity.
 
-A second entry point, `explain()`, returns the same result plus 31 recorded facts. Examples: which triggers fired and from which artefact, whether the signal reached a human, the status of each numeric claim, and the cohort match. Every analysis script reads those facts instead of re-deriving them.
+A second entry point, `explain()`, returns the same result plus 33 recorded facts. Examples: which triggers fired and from which artefact, whether the signal reached a human, the status of each numeric claim, and the cohort match. Every analysis script reads those facts instead of re-deriving them.
 
 ### How the three scores were built
 
@@ -411,8 +411,8 @@ I ranked every signal into four tiers: specification obligation, verified declin
 | ----------------------------------------------------------------------------------- | ----- | ----------------- |
 | signals routed                                                                      | 294   | 189               |
 | routed signals that later churned or downgraded                                     | 30%   | 39%               |
-| wasted, within the agent's routed set: the 186 the policy drops vs the 108 it keeps | 46%   | 27%               |
-| complaints, same two halves                                                         | 6.5%  | 3.7%              |
+| wasted: agent overall (115 of 294), and on the 186 it routes that the policy drops | 39%, 46% | 27% (29 of 108) |
+| complaints: agent overall (16 of 294), and on the 186 the policy drops              | 5.4%, 6.5% | 3.7% (4 of 108) |
 | accounts with realised loss reached                                                 | 97%   | 74%               |
 | realised loss unreached                                                             |       | $3.02M of $11.66M |
 
@@ -493,6 +493,8 @@ Cartogram supplies the adjudicators and fresh traces, logs every detector firing
 2. `python analysis/facts.py`.
 3. `python analysis/annotator_agreement.py`, `python analysis/violations_stats.py`, `python analysis/attention_budget.py`, `python analysis/detector_coverage.py`.
 4. `python -m pytest -q` runs the 751 tests.
+
+The other scripts in `analysis/` are the exploration history behind the rubric decisions: the candidate searches for the deserved verdict (`deserved_*.py`), the risk-condition sweep, the model bake-off, the recall gate and the threshold calibration. None is needed to reproduce a number in this writeup.
 
 ## References
 
