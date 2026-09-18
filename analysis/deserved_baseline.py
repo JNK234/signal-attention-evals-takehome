@@ -54,7 +54,7 @@ def pabak(pairs):
     return 2 * po - 1
 
 def boot_ci(pairs, fn, n_boot=2000, seed=7):
-    """Bootstrap whole rating rows (vault: the asymptotic CI is invalid off H0: k=0)."""
+    """Bootstrap whole rating rows: the asymptotic CI is invalid away from kappa = 0."""
     rng = random.Random(seed)
     vals = []
     for _ in range(n_boot):
@@ -116,7 +116,7 @@ score_policy(lambda s: ours[s], '>>> OUR EVALUATOR')
 
 print()
 print('=' * 78)
-print('4. PER-SLICE AGREEMENT — the vault: disagreement concentrates at the boundary')
+print('4. PER-SLICE AGREEMENT: disagreement concentrates at the decision boundary')
 print('=' * 78)
 def slices(name, keyfn):
     print(f'\n-- by {name} --')

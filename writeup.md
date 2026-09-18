@@ -125,7 +125,7 @@ A second entry point, `explain()`, returns the same result plus 31 recorded fact
 
 ### How the three scores were built
 
-All three scores came from one five-step loop. The loop comes from the rubric-iteration procedure in my research notes [8]. I ran it once for each score.
+All three scores came from one five-step loop. The loop follows EvalGen's grade-then-refine procedure [6] and the development/unseen split discipline of Tülu 3 [7]. I ran it once for each score.
 
 1. **Source criteria from breakage.** Write the score from the specification alone. Run it on all 629 dossiers. List where it breaks: a floor, a zero-agreement statistic, or a baseline that beats it. The checks come from observed failures.
 2. **Grade, and let the criteria move.** Score each candidate condition against the annotators' majority vote. Use an alignment measure with a false-failure ceiling fixed before scoring. Alignment is the harmonic mean of coverage and one minus the false-failure rate [6].
@@ -163,13 +163,13 @@ The specification never defines what deserves attention. It states two obligatio
 
 **Step 2: the two obligations, measured.** This version fired on 106. Against the three annotators its Cohen's kappa was 0.04, 0.10 and 0.02, all intervals crossing zero, which means no agreement. Its F1 against the majority vote was 0.19. Trivial baselines beat it: every P0 or P1 signal scored 0.57, every non-benign hypothesis 0.57, copying the agent's routing 0.40. Three additions were tested and rejected here. A materiality gate raised agreement five points but reads the agent's own ARR figure, which is wrong on 61 dossiers. A "severely below the floor" threshold degraded smoothly with no cliff to defend. A gate on high-quality dossiers chains three outputs into one.
 
-**Step 3: a pre-registered split, then candidates.** Before generating any candidate I split the 130 dossiers all three annotators labelled into 71 development and 59 held-out by hashing the signal id [8]. Candidates were scored with EvalGen's alignment, the harmonic mean of coverage and one minus the false-failure rate, under a false-failure ceiling of 0.55 fixed before scoring [6]. The first survivor scored 0.39 on development and 0.09 on held-out. Rejected: the split caught an overfit. A conjunction, P0 or P1 with a non-benign hypothesis, cleared the ceiling on both halves but failed two of the 18 golden verdicts, because §8.1 bounds a departure claim to 90 days before renewal.
+**Step 3: a pre-registered split, then candidates.** Before generating any candidate I split the 130 dossiers all three annotators labelled into 71 development and 59 held-out by hashing the signal id [7]. Candidates were scored with EvalGen's alignment, the harmonic mean of coverage and one minus the false-failure rate, under a false-failure ceiling of 0.55 fixed before scoring [6]. The first survivor scored 0.39 on development and 0.09 on held-out. Rejected: the split caught an overfit. A conjunction, P0 or P1 with a non-benign hypothesis, cleared the ceiling on both halves but failed two of the 18 golden verdicts, because §8.1 bounds a departure claim to 90 days before renewal.
 
 **Step 4: the full sweep.** Every one- and two-term combination of 14 predicates, OR'd onto the spec rule, 106 policies. Each was tested against the majority vote with a permutation test, which shuffles the labels 3,000 times to price chance. Survivors had to clear the ceiling on both halves and keep 18 of 18 goldens. Result: every evidence-only predicate was noise, p between 0.15 and 0.42. The only real signal was the agent's own severity. That is not circular, because §6.3 says P0 means act today and P1 means material risk with corroboration.
 
 **Step 5: the shipped row.** The agent assigned P0 or P1 with a non-benign hypothesis, and a departure claim sits inside the 90-day window. Result: F1 against the majority rose from 0.19 to 0.38 (permutation p = 0.026), 18 of 18 goldens held, kappa rose to 0.12, 0.32 and 0.23. Held-out alignment was 0.29, which clears no ceiling and is recorded as such. The code marks the row as an inference.
 
-**One predictor refused.** The agent's own ARR-at-risk figure, as "at risk is at least 10% of annual", was the strongest held-out signal (p below 0.001) and is wrong on 59 dossiers. Used as an AND it vetoes sig_0350, a golden true via §4.6. Reading a self-report to add coverage is safe. Reading one to withhold a required route is not [9]. A test asserts the verdict never reads the field.
+**One predictor refused.** The agent's own ARR-at-risk figure, as "at risk is at least 10% of annual", was the strongest held-out signal (p below 0.001) and is wrong on 59 dossiers. Used as an AND it vetoes sig_0350, a golden true via §4.6. Reading a self-report to add coverage is safe. Reading one to withhold a required route is not [8]. A test asserts the verdict never reads the field.
 
 ### The risk score
 
@@ -181,9 +181,9 @@ with p_i the tier probability and c_i the same certainty factor as above.
 
 **Step 1: what was rejected first.** Seven additive terms whose coefficients cited nothing. Fitting the coefficients to outcomes, because 16 complaints cannot support a weight per rule and an evaluator that runs on unseen dossiers must not encode one sample's accidents. A per-tier multiplier, because tier changes how expensive a missed churn is, not how likely, and the README defines the field as a probability. A sum, because 15 of the 16 complaints fire two conditions at once, so a sum charges one event twice.
 
-**Step 2: the noisy-OR and its conditions.** A noisy-OR combines independent causes of one outcome and stays in [0, 1]. It has a precedent in medical diagnosis [10] and in Signal Labs' own material [1]. A condition qualified if the specification forbids the thing it fires on and that thing can cause one of the three harms. Ten qualified: six containment and integrity rules (§8.2, §8.3, §8.4, §8.7, I6, §8.1), two materiality rules (M6, M4), and two judgments from the domain guide (a customer-visible play on an undeserving signal, a deserving signal no human saw). Five fire only if a human read the dossier, because 0 of the 389 dossiers with no customer-visible play drew a complaint.
+**Step 2: the noisy-OR and its conditions.** A noisy-OR combines independent causes of one outcome and stays in [0, 1]. It has a precedent in medical diagnosis [9] and in Signal Labs' own material [1]. A condition qualified if the specification forbids the thing it fires on and that thing can cause one of the three harms. Ten qualified: six containment and integrity rules (§8.2, §8.3, §8.4, §8.7, I6, §8.1), two materiality rules (M6, M4), and two judgments from the domain guide (a customer-visible play on an undeserving signal, a deserving signal no human saw). Five fire only if a human read the dossier, because 0 of the 389 dossiers with no customer-visible play drew a complaint.
 
-**Step 3: magnitudes without fitting.** The specification ranks the tiers but gives no numbers. Critical got 0.45 and high 0.20, a 2.25× step that borrows CVSS's 2.55× step between its high and low impact levels [4]. The two judgments started at 0.30, above high. GRADE treats inferred evidence only as a reason to rate confidence down [11], so they moved to 0.15. IEC 31010 says an ordinal scale is to some extent arbitrary and the remedy is validation against known cases [12].
+**Step 3: magnitudes without fitting.** The specification ranks the tiers but gives no numbers. Critical got 0.45 and high 0.20, a 2.25× step that borrows CVSS's 2.55× step between its high and low impact levels [4]. The two judgments started at 0.30, above high. GRADE treats inferred evidence only as a reason to rate confidence down [10], so they moved to 0.15. IEC 31010 says an ordinal scale is to some extent arbitrary and the remedy is validation against known cases [11].
 
 **Step 4: validation, unfitted.** Complaint rates by risk quartile were 0.0%, 0.0%, 3.2% and 7.0%, and all 16 complaints sat in the top half. Nothing below 0.3 drew a complaint. Kept.
 
@@ -304,9 +304,9 @@ I used the annotators as a check, never as a training label:
 
 - The majority vote is the reference for agreement statistics.
 - The pre-registered split from Methodology prevents tuning on the held-out half.
-- I report every agreement number per annotator and per slice. Plank's position paper on human label variation is the reason: disagreement concentrates at the decision boundary, and pooling hides where [13].
+- I report every agreement number per annotator and per slice. Plank's position paper on human label variation is the reason: disagreement concentrates at the decision boundary, and pooling hides where [12].
 
-The evaluator lands below the human band: kappa 0.12, 0.32 and 0.23 against the three annotators, with the first interval crossing zero. Human agreement is a reference and not a ceiling [14], so I report and explain the gap. PABAK is 0.40, 0.47 and 0.40. Severity explains the gap. The annotators say yes to 43% of P1 signals and 6% of P2, so they track the agent's severity label. The specification ignores that label.
+The evaluator lands below the human band: kappa 0.12, 0.32 and 0.23 against the three annotators, with the first interval crossing zero. Human agreement is a reference and not a ceiling [13], so I report and explain the gap. PABAK is 0.40, 0.47 and 0.40. Severity explains the gap. The annotators say yes to 43% of P1 signals and 6% of P2, so they track the agent's severity label. The specification ignores that label.
 
 Adding the evaluator to the panel raises quality alpha from 0.186 to 0.295. That figure is in-sample, because the slope comes from these annotators. It shows consistency with them and nothing more.
 
@@ -405,7 +405,7 @@ The rule is right about the dossiers, and the dossiers do not matter.
 
 ### A specification-anchored routing policy trades coverage for precision
 
-I ranked every signal into four tiers: specification obligation, verified decline, other, pipeline artefact. I routed the first two under the 5-per-owner-week cap. That measures precision at a fixed capacity [15], with no score threshold. Table 3 compares that policy with the agent on the populations where each measure exists.
+I ranked every signal into four tiers: specification obligation, verified decline, other, pipeline artefact. I routed the first two under the 5-per-owner-week cap. That measures precision at a fixed capacity [14], with no score threshold. Table 3 compares that policy with the agent on the populations where each measure exists.
 
 | measure                                                                             | agent | policy            |
 | ----------------------------------------------------------------------------------- | ----- | ----------------- |
@@ -453,9 +453,9 @@ The plan stays inside the evaluator. Three parts: better reference labels and ru
 
 Addresses limits 1, 2, 4, 5, 9 and 12.
 
-- About 30 fresh dossiers labelled a month, sampled from routed and unrouted, flagged and unflagged, and from the cases where the evaluator and the annotators disagree. Independent second ratings on a subset, adjudicated, with the original ratings kept [13].
+- About 30 fresh dossiers labelled a month, sampled from routed and unrouted, flagged and unflagged, and from the cases where the evaluator and the annotators disagree. Independent second ratings on a subset, adjudicated, with the original ratings kept [12].
 - Three separate references: mandatory routing, attention value, dossier quality. Labels written at decision time stay separate from labels written after the outcome is known.
-- A sealed evaluation cohort, split by account and time, frozen before any candidate. A test set that has been read becomes development material for the next revision [8].
+- A sealed evaluation cohort, split by account and time, frozen before any candidate. A test set that has been read becomes development material for the next revision [7].
 - Two rule namespaces. Spec rules keep their citations and authority. Empirical criteria are rules discovered from observed failures that the specification does not name, each with its supporting failures and validation status. An empirical criterion never gains mandatory-route or deploy-blocking status without a policy decision [6].
 - A requirement manifest: every "must" and "never" sentence in the specification maps to a rule id or a declared gap, and a specification edit changes the manifest or fails the build. An LLM proposes missing rows. A person accepts each one.
 - Exit test: one frozen reference release with documented provenance, every requirement mapped to a check or a declared gap, and an untouched evaluation cohort.
@@ -466,7 +466,7 @@ Addresses limits 6, 7, 8 and 10.
 
 - One hosted LLM judge trialled against the NLI model on the same tasks. It returns a structured label, the source span it used, and an abstention when unsure. Temperature 0, batch, versioned and pinned, outputs cached.
 - The four structural gates stay. Where quote provenance is ambiguous, the block is marked unknown and not read.
-- Fixtures that cover the weak spots: Q2 positives and negatives, multilingual text, long documents, quoted history, account attribution. Sensitivity, specificity and abstention reported per rule [16].
+- Fixtures that cover the weak spots: Q2 positives and negatives, multilingual text, long documents, quoted history, account attribution. Sensitivity, specificity and abstention reported per rule [15].
 - One-way rescue: the judge reviews only what the rules rejected and can flip a verdict in one direction. Passes are audited separately.
 - Exit test: the frozen judge beats a pre-declared error target on untouched fixtures, passes the structural regressions, and meets a cost and latency limit. Otherwise the NLI model stays.
 
@@ -475,12 +475,12 @@ Addresses limits 6, 7, 8 and 10.
 Addresses limits 1, 3, 4, 5, 7, 11 and 12, and answers the README's question on closing the loop.
 
 - One review queue for new dossiers, adjudicated labels, owner feedback and matured renewal outcomes. Each item carries its observation window. Original evaluations are never overwritten.
-- Each source has one role. Matured outcomes calibrate the risk score. Adjudicated labels tune text thresholds and the deserved verdict. Owner feedback informs usefulness on the routed population only, because it exists nowhere else [17].
+- Each source has one role. Matured outcomes calibrate the risk score. Adjudicated labels tune text thresholds and the deserved verdict. Owner feedback informs usefulness on the routed population only, because it exists nowhere else [16].
 - Automatic proposals, human releases. A cycle proposes a bounded change (a text threshold, an empirical condition, a scoring weight), shows the changed verdicts per slice with regressions and uncertainty, and a person accepts or rejects a versioned release. At most two revisions a quarter, goldens re-graded under each. The sealed cohort is never used to revise a candidate.
 - Risk calibrated on rolling outcomes only where event counts allow, Brier score beside AUC, one harm at a time. With 16 complaints, the analogy magnitudes stay and the writeup says so.
 - Two scheduled audits: a read of unflagged and high-scoring dossiers, because a rubric misses more than it over-flags, and a rubric-free comparison where humans pick the better of two dossiers with no rubric shown. If the rubric's winner loses, the rubric is wrong, not the reader.
 - Agreement tracked as a series on every labelled batch: kappa with bootstrap intervals, PABAK, alpha, pairwise, never pooling the evaluator into the human panel. Sensitivity and specificity on the labelled batch correct the evaluator's rates on the unlabelled rest.
-- The loop to the agent runs against a frozen evaluator. Accepted failure classes become evidence packets and regression cases for the agent team. Agent candidates replay on identical decision-time inputs, scored on attention labels, mandatory-route misses, critical violations and the five-slot owner-week capacity, with account-clustered uncertainty [18]. The two loops never move in one comparison.
+- The loop to the agent runs against a frozen evaluator. Accepted failure classes become evidence packets and regression cases for the agent team. Agent candidates replay on identical decision-time inputs, scored on attention labels, mandatory-route misses, critical violations and the five-slot owner-week capacity, with account-clustered uncertainty [17]. The two loops never move in one comparison.
 - Exit test: one human-reviewed rubric revision and one agent-candidate replay, each with a frozen comparison and an explicit accept, reject or inconclusive decision.
 
 ### Outside the evaluator
@@ -496,23 +496,20 @@ Cartogram supplies the adjudicators and fresh traces, logs every detector firing
 
 ## References
 
-Sources marked (vault) have a full reading note in my research vault. I cite the rest from the original.
-
 1. Signal Labs. Agent specification (`spec.pdf`) and domain guide (`docs/domain.md`), 2026. Signal Labs public material on noisy-OR: https://www.signallabs.ai/resources/blog/signal-labs-kickoff.
-2. Cohen, J. A coefficient of agreement for nominal scales. *Educational and Psychological Measurement* 20(1), 1960. doi:10.1177/001316446002000104. Byrt, T., Bishop, J., Carlin, J. Bias, prevalence and kappa. *J Clin Epidemiol* 46(5), 1993. doi:10.1016/0895-4356(93)90018-V. Krippendorff, K. *Content Analysis*, 4th ed., Sage, 2018. Zapf, A. et al. Measuring inter-rater reliability for nominal data. *BMC Med Res Methodol* 16, 2016. https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4974794/ (vault).
+2. Cohen, J. A coefficient of agreement for nominal scales. *Educational and Psychological Measurement* 20(1), 1960. doi:10.1177/001316446002000104. Byrt, T., Bishop, J., Carlin, J. Bias, prevalence and kappa. *J Clin Epidemiol* 46(5), 1993. doi:10.1016/0895-4356(93)90018-V. Krippendorff, K. *Content Analysis*, 4th ed., Sage, 2018. Zapf, A. et al. Measuring inter-rater reliability for nominal data. *BMC Med Res Methodol* 16, 2016. https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4974794/.
 3. Terwee, C. et al. Quality criteria were proposed for measurement properties of health status questionnaires. *J Clin Epidemiol* 60(1):34-42, 2007. doi:10.1016/j.jclinepi.2006.03.012.
 4. FIRST. Common Vulnerability Scoring System v3.1 specification, §7.4, 2019. https://www.first.org/cvss/v3.1/specification-document.
 5. Laurer, M. et al. DeBERTa-v3-base-zeroshot-v2.0, model card, 2024. https://huggingface.co/MoritzLaurer/deberta-v3-base-zeroshot-v2.0.
-6. Shankar, S., Zamfirescu-Pereira, J. D., Hartmann, B., Parameswaran, A., Arawjo, I. Who validates the validators? Aligning LLM-assisted evaluation of LLM outputs with human preferences. *UIST*, 2024. https://arxiv.org/abs/2404.12272 (vault).
-7. HUD. Verifier and reward design for RL environments, 2025. https://www.hud.ai/resources/verifier-reward-design-rl-environments (vault). Argues for a hard gate on critical failures. Read and set aside, see the quality score.
-8. Lambert, N. et al. Tülu 3: pushing frontiers in open language model post-training, 2024, §on dev and unseen evaluation splits. https://arxiv.org/abs/2411.15124 (vault). Phipson, B., Smyth, G. Permutation p-values should never be zero. *Stat Appl Genet Mol Biol* 9(1), 2010. doi:10.2202/1544-6115.1585.
-9. Everitt, T., Hutter, M., Kumar, R., Krakovna, V. Reward tampering problems and solutions. *Synthese*, 2021. https://arxiv.org/abs/1908.04734 (vault). Manheim, D., Garrabrant, S. Categorizing variants of Goodhart's law, 2018. https://arxiv.org/abs/1803.04585 (vault).
-10. Shwe, M. et al. Probabilistic diagnosis using a reformulation of the INTERNIST-1/QMR knowledge base. *Methods Inf Med* 30(4), 1991. doi:10.1055/s-0038-1634846.
-11. Guyatt, G. et al. GRADE guidelines: 8. Rating the quality of evidence, indirectness. *J Clin Epidemiol* 64(12), 2011. doi:10.1016/j.jclinepi.2011.04.014.
-12. IEC 31010:2019. Risk management, risk assessment techniques, Annex B.8.6. https://www.iso.org/standard/72140.html.
-13. Plank, B. The "problem" of human label variation. *EMNLP*, 2022. https://arxiv.org/abs/2211.02570 (vault).
-14. Richie, R., Grover, S., Tsui, F. Inter-annotator agreement is not the ceiling of machine learning performance. *BioNLP*, 2022. https://aclanthology.org/2022.bionlp-1.26.pdf (vault). Boguslav, M., Cohen, K. B. Inter-annotator agreement and the upper limit on machine performance. *Stud Health Technol Inform* 245, 2017. doi:10.3233/978-1-61499-830-3-298.
-15. Elkan, C. The foundations of cost-sensitive learning. *IJCAI*, 2001. https://cseweb.ucsd.edu/~elkan/rescale.pdf (vault). Manning, C., Raghavan, P., Schütze, H. *Introduction to Information Retrieval*, §8.4, 2008. https://nlp.stanford.edu/IR-book/ (vault). Used in `attention_budget.md` for the ranking under a per-owner budget.
-16. Husain, H. Creating a LLM-as-a-judge that drives business results, 2024. https://hamel.dev/blog/posts/llm-judge/ (vault). Husain, H. Frequently asked questions about AI evals, 2025. https://hamel.dev/blog/posts/evals-faq/ (vault).
-17. Adam, G. A. et al. Error amplification when updating deployed machine learning models. *MLHC*, 2022. https://arxiv.org/abs/2209.09188 (vault).
-18. Miller, E. Adding error bars to evals: a statistical approach to language model evaluations, 2024. https://arxiv.org/abs/2411.00640 (vault).
+6. Shankar, S., Zamfirescu-Pereira, J. D., Hartmann, B., Parameswaran, A., Arawjo, I. Who validates the validators? Aligning LLM-assisted evaluation of LLM outputs with human preferences. *UIST*, 2024. https://arxiv.org/abs/2404.12272.
+7. Lambert, N. et al. Tülu 3: pushing frontiers in open language model post-training, 2024, §on dev and unseen evaluation splits. https://arxiv.org/abs/2411.15124. Phipson, B., Smyth, G. Permutation p-values should never be zero. *Stat Appl Genet Mol Biol* 9(1), 2010. doi:10.2202/1544-6115.1585.
+8. Everitt, T., Hutter, M., Kumar, R., Krakovna, V. Reward tampering problems and solutions. *Synthese*, 2021. https://arxiv.org/abs/1908.04734. Manheim, D., Garrabrant, S. Categorizing variants of Goodhart's law, 2018. https://arxiv.org/abs/1803.04585.
+9. Shwe, M. et al. Probabilistic diagnosis using a reformulation of the INTERNIST-1/QMR knowledge base. *Methods Inf Med* 30(4), 1991. doi:10.1055/s-0038-1634846.
+10. Guyatt, G. et al. GRADE guidelines: 8. Rating the quality of evidence, indirectness. *J Clin Epidemiol* 64(12), 2011. doi:10.1016/j.jclinepi.2011.04.014.
+11. IEC 31010:2019. Risk management, risk assessment techniques, Annex B.8.6. https://www.iso.org/standard/72140.html.
+12. Plank, B. The "problem" of human label variation. *EMNLP*, 2022. https://arxiv.org/abs/2211.02570.
+13. Richie, R., Grover, S., Tsui, F. Inter-annotator agreement is not the ceiling of machine learning performance. *BioNLP*, 2022. https://aclanthology.org/2022.bionlp-1.26.pdf. Boguslav, M., Cohen, K. B. Inter-annotator agreement and the upper limit on machine performance. *Stud Health Technol Inform* 245, 2017. doi:10.3233/978-1-61499-830-3-298.
+14. Elkan, C. The foundations of cost-sensitive learning. *IJCAI*, 2001. https://cseweb.ucsd.edu/~elkan/rescale.pdf. Manning, C., Raghavan, P., Schütze, H. *Introduction to Information Retrieval*, §8.4, 2008. https://nlp.stanford.edu/IR-book/. Used in `attention_budget.md` for the ranking under a per-owner budget.
+15. Husain, H. Creating a LLM-as-a-judge that drives business results, 2024. https://hamel.dev/blog/posts/llm-judge/. Husain, H. Frequently asked questions about AI evals, 2025. https://hamel.dev/blog/posts/evals-faq/.
+16. Adam, G. A. et al. Error amplification when updating deployed machine learning models. *MLHC*, 2022. https://arxiv.org/abs/2209.09188.
+17. Miller, E. Adding error bars to evals: a statistical approach to language model evaluations, 2024. https://arxiv.org/abs/2411.00640.
