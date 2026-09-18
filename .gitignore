@@ -10,3 +10,8 @@ analysis/results.jsonl
 analysis/facts.csv
 analysis/runs/*
 !analysis/runs/manifest.jsonl
+
+.claude/
+.DS_Store
+.pytest_cache/
+tests/logs/
