@@ -1,5 +1,17 @@
 # Signal Labs — AI Engineer Take-Home
 
+## Submission
+
+Narasimha Jwalapuram, September 2026.
+
+- Evaluator: `eval_takehome.py` (package in `signal_eval/`, tests in `tests/`)
+- Reports: [writeup.md](writeup.md) · [violations.md](violations.md) · [attention_budget.md](attention_budget.md)
+- Walkthrough: [Loom, 5 min](https://www.loom.com/share/fac21e961f1747fd9ec2f246303669c4)
+- Reproduce: `pip install -r requirements.txt`, then `python analysis/run_all.py` and `python analysis/facts.py`. `python -m pytest -q` runs the tests. Everything runs offline from the committed score cache.
+- New dossiers outside this corpus need the text model once: `python analysis/download_model.py` (network, one time).
+
+The original assignment brief follows.
+
 ## About Signal Labs
 
 Signal Labs builds AI-native infrastructure that decides what deserves attention: signal

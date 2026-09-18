@@ -493,6 +493,7 @@ Cartogram supplies the adjudicators and fresh traces, logs every detector firing
 2. `python analysis/facts.py`.
 3. `python analysis/annotator_agreement.py`, `python analysis/violations_stats.py`, `python analysis/attention_budget.py`, `python analysis/detector_coverage.py`.
 4. `python -m pytest -q` runs the 755 tests.
+5. For dossiers outside this corpus, `python analysis/download_model.py` fetches the text model once (network). The evaluator itself never downloads.
 
 The other scripts in `analysis/` are the exploration history behind the rubric decisions: the candidate searches for the deserved verdict (`deserved_*.py`), the risk-condition sweep, the model bake-off, the recall gate and the threshold calibration. None is needed to reproduce a number in this writeup.
 
