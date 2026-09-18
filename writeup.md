@@ -143,182 +143,55 @@ The formula is
 
 where w is the class weight (1.0, 0.6, 0.3 or 0.1). c is 1 for a confirmed finding and 0.5 for an uncertain one. There is one penalty per rule.
 
-**The ranking came from the rules, before any annotator number entered.** I designed the rule table and the severity classes first, from the specification alone. With placeholder penalties the score already ranked dossiers the way the annotators did. Spearman was 0.34, 0.54 and 0.40 against the three. Each step below changed the scale of the score or its floor, and no step changed that ranking by more than 0.02. I used the annotators to check the scale at the end, not to build the score.
+**The ranking came from the rules first.** I designed the rule table and the severity classes from the specification alone. With placeholder penalties the score already ranked dossiers the way the annotators did: Spearman 0.34, 0.54 and 0.40. Each step below changed the scale or the floor. None changed that ranking by more than 0.02.
 
-**Step 1: placeholder penalties.**
+**Step 1: forms that traced to nothing.** Placeholder penalties chosen by feel, a hard zero on any critical violation, and a floor of 0.25. The gate was rejected on evidence: the annotators' minimum scores are 0.30, 0.27 and 0.88, and none of them ever scored zero, not even on fabricated evidence. It also merges quality (how well the dossier was built) with risk (how much harm it can cause). The other two had no source.
 
-- Tried: 0.45, 0.20, 0.10 and 0.05 per class, chosen by feel to get a working evaluator.
-- Result: the ranking above.
-- Decision: rejected. The four numbers traced to nothing.
+**Step 2: a sum of penalties, clipped at zero.** The annotators' own scoring suggested it. Regressing each annotator's quality on the severities they recorded gives a straight line, with slopes −0.161, −0.162 and −0.145 and R² 0.60, 0.82 and 0.70. Result: 134 of 629 dossiers (21%) sat at exactly 0.0, two with no critical violation. sig_0313 broke six soft rules and scored the same as a dossier with fabricated evidence. Terwee and colleagues [3] call more than 15% at the lowest value a floor effect. Rejected.
 
-**Step 2: a hard zero on any critical violation.**
+**Step 3: the product.** The form the Common Vulnerability Scoring System uses for its impact sub-score [4]. It can approach zero but cannot reach it by accumulation. Result: dossiers at the floor fell from 134 to 1, distinct values rose from 35 to 109, and Spearman against each annotator moved by less than 0.015. Kept.
 
-- Tried: the specification calls its invariants hard rules, so any critical finding set quality to 0.
-- Result: the annotators never do this. Their minimum quality scores are 0.30, 0.27 and 0.88. None of them scored zero, not even on dossiers with fabricated evidence.
-- Decision: rejected, for two reasons. A gate puts 0 where every human reader put 0.3. It also merges two axes the specification keeps apart. Quality is how well the agent built the dossier, and risk is how much harm it can cause. I read the notes that argue for a gate [7] and set them aside.
+**Step 4: the magnitude.** The product still charged 0.50 per critical finding, three times the annotators' slope, and the evaluator's median sat 0.29 below every annotator. I replaced the 0.50 with the one number the three annotators agree on, the slope 0.16, and kept the specification's 10:6:3:1 class ratios. Result: median 0.54 to 0.80 against annotator medians 0.80, 0.83 and 0.96. Mean absolute error 0.32 to 0.12, inside the 0.11 to 0.17 the annotators show against each other. Spearman between old and new scores is 0.96, so this was a rescale. The annotators agree on the cost of a finding to within 0.017 and disagree on their baseline by 0.15, which is why only the slope was borrowed.
 
-**Step 3: a floor of 0.25.**
-
-- Tried: a fixed floor that keeps scores off zero.
-- Result: it works, but the constant has no source. Every dossier below the floor gets the same score.
-- Decision: rejected as arbitrary.
-
-**Step 4: a sum of penalties, clipped at zero.**
-
-- Tried: the annotators' own scoring suggested this form. Regressing each annotator's quality score on the severities they recorded gives a straight line. The slopes are −0.161, −0.162 and −0.145. The R² values are 0.60, 0.82 and 0.70. Humans subtract a roughly fixed amount per finding, so I implemented the sum.
-- Result: 134 of 629 dossiers (21%) sat at 0.0. Two of them had no critical violation. sig_0313 broke six soft and medium rules and got the same score as a dossier with fabricated evidence.
-- Decision: rejected. Terwee and colleagues [3] set the bar. When more than 15% of scores sit at the lowest value, the instrument has a floor effect and cannot distinguish those cases.
-
-**Step 5: exponential decay, exp(−penalty).**
-
-- Tried: it removes the floor.
-- Result: two searches, in the vault and outside it, found the form only in search-relevance decay. It has no measurement-theory basis.
-- Decision: withdrawn before implementation.
-
-**Step 6: the product, Π(1 − penalty).**
-
-- Tried: the form the Common Vulnerability Scoring System uses for its impact sub-score, 1 − (1−C)(1−I)(1−A) [4]. It can approach zero but cannot reach it by accumulation.
-- Result: dossiers at the floor fell from 134 to 1. Distinct score values rose from 35 to 109. Spearman against each annotator moved by less than 0.015. The ranking from the rules did not change.
-- Decision: kept.
-
-**Step 7: the magnitude.**
-
-- Tried: the product still charged 0.50 per critical finding, three times the annotators' slope. The evaluator's median sat 0.29 below every annotator, with a mean absolute error of 0.32. I replaced the 0.50 with the one number the three annotators agree on: the slope, 0.16. The class ratios stayed the specification's 10:6:3:1.
-- Result: the median moved from 0.54 to 0.80, against annotator medians 0.80, 0.83 and 0.96. Mean absolute error moved from 0.32 to 0.12, inside the 0.11 to 0.17 the annotators show against each other. Spearman between the old and new scores is 0.96, so the change rescaled the scores and kept their order.
-- Decision: kept. The three annotators agree on the cost of a finding to within 0.017 and disagree on their baseline by 0.15. I borrowed only the slope.
-
-**What is in-sample and what is not.** I fitted the slope to these annotators. Any statistic that depends on scale is therefore partly in-sample: bias, mean absolute error, and Krippendorff's alpha. The rank statistic, Spearman, is not. The ranking came from the rules.
+**What is in-sample.** The slope was fitted to these annotators, so bias, mean absolute error and alpha are partly in-sample. Spearman is not, because the ranking came from the rules.
 
 ### The deserved-attention verdict
 
-The specification never defines what deserves attention. It states two obligations. §8.1 lists five triggers that must reach a human. §4.6 says a signal whose enrichment timed out must still reach a human.
+The specification never defines what deserves attention. It states two obligations: §8.1 lists five triggers that must reach a human, and §4.6 says a signal whose enrichment timed out must still reach a human. The shipped verdict is those two rows plus one inference from §6.3. It fires on 163 of 629 dossiers.
 
-The shipped verdict is a three-row table: those two obligations, plus one inference from §6.3. It fires on 163 of 629 dossiers. The steps below show how it got there.
+**Step 1: invented conditions.** The first version had eight conditions, one from the specification, and fired on 215 dossiers, including a 25-day-old feature request marked "not urgent". Rejected: an evaluator that invents obligations has no defence against the document it audits.
 
-**Step 1: eight conditions, one from the specification.**
+**Step 2: the two obligations, measured.** This version fired on 106. Against the three annotators its Cohen's kappa was 0.04, 0.10 and 0.02, all intervals crossing zero, which means no agreement. Its F1 against the majority vote was 0.19. Trivial baselines beat it: every P0 or P1 signal scored 0.57, every non-benign hypothesis 0.57, copying the agent's routing 0.40. Three additions were tested and rejected here. A materiality gate raised agreement five points but reads the agent's own ARR figure, which is wrong on 61 dossiers. A "severely below the floor" threshold degraded smoothly with no cliff to defend. A gate on high-quality dossiers chains three outputs into one.
 
-- Tried: any grounded decline or any non-benign customer text counted as deserving.
-- Result: it fired on 215 dossiers, including a 25-day-old feature request marked "not urgent". Seven of the eight conditions had no source in the specification.
-- Decision: rejected. An evaluator that invents obligations has no defence against the document it audits.
+**Step 3: a pre-registered split, then candidates.** Before generating any candidate I split the 130 dossiers all three annotators labelled into 71 development and 59 held-out by hashing the signal id [8]. Candidates were scored with EvalGen's alignment, the harmonic mean of coverage and one minus the false-failure rate, under a false-failure ceiling of 0.55 fixed before scoring [6]. The first survivor scored 0.39 on development and 0.09 on held-out. Rejected: the split caught an overfit. A conjunction, P0 or P1 with a non-benign hypothesis, cleared the ceiling on both halves but failed two of the 18 golden verdicts, because §8.1 bounds a departure claim to 90 days before renewal.
 
-**Step 2: the two obligations only, with three variants.**
+**Step 4: the full sweep.** Every one- and two-term combination of 14 predicates, OR'd onto the spec rule, 106 policies. Each was tested against the majority vote with a permutation test, which shuffles the labels 3,000 times to price chance. Survivors had to clear the ceiling on both halves and keep 18 of 18 goldens. Result: every evidence-only predicate was noise, p between 0.15 and 0.42. The only real signal was the agent's own severity. That is not circular, because §6.3 says P0 means act today and P1 means material risk with corroboration.
 
-- Tried: the two obligations alone fired on 106 dossiers. I tested three additions on top.
-- Variant A, a materiality gate: drop a signal whose ARR at risk is below the floor. It raised agreement with the annotators from 72/68/65% to 77/70/70%. But the ARR-at-risk figure is the agent's own estimate, and 61 dossiers carry one that is provably wrong (M1 and M5). The agent's number would veto a route the specification requires. Rejected: the agent must not grade itself, and the five points of agreement were the price.
-- Variant B, a "severely below the floor" threshold: agreement fell smoothly as the threshold moved from 1.0× to 0.1× of the floor, with no cliff. Rejected: there was no natural threshold to defend.
-- Variant C, a gate on high-quality dossiers only: it chains three outputs into one and scored between the other two. Rejected.
+**Step 5: the shipped row.** The agent assigned P0 or P1 with a non-benign hypothesis, and a departure claim sits inside the 90-day window. Result: F1 against the majority rose from 0.19 to 0.38 (permutation p = 0.026), 18 of 18 goldens held, kappa rose to 0.12, 0.32 and 0.23. Held-out alignment was 0.29, which clears no ceiling and is recorded as such. The code marks the row as an inference.
 
-**Step 3: measure version 2 properly.**
-
-- Tried: the full measurement from step 4 of the loop, against the annotators and the goldens.
-- Result: Cohen's kappa against the three annotators was 0.04, 0.10 and 0.02. All three 95% intervals crossed zero, which means no agreement. F1 against the majority vote was 0.19. Four trivial baselines beat it: every P0 or P1 signal (F1 0.57), every non-benign hypothesis (0.57), copy the agent's own routing (0.40), always yes (0.35). On the held-out half it caught 0 of 10 positives.
-- Decision: a spec-only verdict was measurably worse than reading the agent's own severity label. This result forced the search that follows.
-
-**Step 4: pre-register a split, then generate candidates.**
-
-- Tried: before generating candidates, I split the 130 dossiers all three annotators labelled into 71 development and 59 held-out, by hashing the signal identifier. This follows step 3 of the loop [8]: fix the held-out set before the first candidate, so nobody can tune a candidate on it. I then scored 12 candidates with the alignment measure from EvalGen [6]. Coverage is how many majority-yes dossiers the candidate catches. The false-failure rate is how often it says yes when the majority said no. I fixed the false-failure ceiling at 0.55 before scoring, because a false alarm burns one of a CSM's five weekly slots.
-- Result: one candidate, "uncertain trigger or unattributed departure", passed on development at 0.39. On held-out it scored 0.09.
-- Decision: rejected. The split caught an overfit.
-
-**Step 5: test vetoes and conjunctions.**
-
-- Tried: conditions that remove signals (renewal more than 90 days away, P2 or P3 severity, benign hypothesis) and conditions that combine.
-- Result: one conjunction, P0 or P1 and a non-benign hypothesis, aligned at 0.65 on development and 0.67 on held-out. It was the only candidate to clear the ceiling on both halves, with false-failure rates of 0.23 and 0.25. It failed two of the 18 golden verdicts. sig_0059 and sig_0441 claim a champion departure 197 and 109 days before renewal, and §8.1 bounds departure to 90 days. A global veto on renewals more than 90 days out fixed those two. It also broke sig_0202, a billing dispute 242 days out that §8.1 does require.
-- Decision: keep the spec-only rule for now, and record the near miss.
-
-**Step 6: the full sweep with a significance test.**
-
-- Tried: every one-term and two-term combination of 14 atomic predicates, OR'd onto the spec rule. That is 106 policies. I tagged each predicate as reading the agent (severity, confidence) or reading evidence (customer text, artefact claims, source count, fabricated evidence). I tested each policy against the majority vote with a permutation test. A permutation test shuffles the labels 3,000 times to see how often chance alone reaches the same score. Each survivor had to clear the false-failure ceiling on both halves and keep 18 of 18 goldens.
-- Result: every evidence-only predicate was noise, with p between 0.15 and 0.42. The only predicate with real signal was the agent's own severity.
-- Decision: use the severity, because §6.3 gives it meaning. P0 means act today. P1 means material risk with corroboration. The specification, not the agent, says a P1 signal is material. So the condition is not circular.
-
-**Step 7: the shipped row.**
-
-- Tried: a third row. The agent assigned P0 or P1 with a non-benign hypothesis, and a departure claim sits inside the 90-day window. The window clause makes the row consistent with the goldens.
-- Result: alignment on development rose from 0.30 to 0.44 (permutation p = 0.026). F1 against the majority rose from 0.19 to 0.38. All 18 goldens held. Kappa against the three annotators rose to 0.12, 0.32 and 0.23. On the held-out half alignment was 0.29. That clears no ceiling, and I record it as such.
-- Decision: kept. The code marks the row as an inference. A test asserts the marking.
-
-**One predictor refused on principle.**
-
-- Tried: the agent's own ARR-at-risk figure, as "at risk is at least 10% of annual".
-- Result: it was the strongest single signal on held-out data (p below 0.001). It is wrong on 59 dossiers. Used as an AND, it vetoes sig_0350, a golden true via §4.6 with ARR at risk at 7.6% of annual. Used as an OR, it re-breaks the departure window.
-- Decision: refused. Reading a self-report to add coverage is safe. Reading one to withhold a route the specification requires is not [9]. A test asserts that the verdict never reads the field.
+**One predictor refused.** The agent's own ARR-at-risk figure, as "at risk is at least 10% of annual", was the strongest held-out signal (p below 0.001) and is wrong on 59 dossiers. Used as an AND it vetoes sig_0350, a golden true via §4.6. Reading a self-report to add coverage is safe. Reading one to withhold a required route is not [9]. A test asserts the verdict never reads the field.
 
 ### The risk score
 
-The README defines risk as the probability that the dossier causes harm. The domain guide names three harms: a customer complaint, a wasted CSM slot, and a missed churn. The shipped score is a noisy-OR over ten conditions. Each condition has a probability tied to its severity tier. The steps below show how it got there.
+Risk is the probability that the dossier causes one of three harms: a customer complaint, a wasted CSM slot, or a missed churn. The shipped score is a noisy-OR over ten conditions,
 
-**Step 1: seven additive terms.**
+    risk = 1 − Π over fired conditions of (1 − p_i · c_i)
 
-- Tried: a sum of seven terms. Their conditions cited specification sentences. Their coefficients (0.5, 0.3, 0.4, 0.25, 0.2, 0.2, 0.15) cited nothing. It also had a 500,000-dollar ARR constant and a per-tier multiplier.
-- Decision: rejected. It has the same problem as the quality placeholders: no source for any number.
+with p_i the tier probability and c_i the same certainty factor as above.
 
-**Step 2: fit the coefficients to outcomes.**
+**Step 1: what was rejected first.** Seven additive terms whose coefficients cited nothing. Fitting the coefficients to outcomes, because 16 complaints cannot support a weight per rule and an evaluator that runs on unseen dossiers must not encode one sample's accidents. A per-tier multiplier, because tier changes how expensive a missed churn is, not how likely, and the README defines the field as a probability. A sum, because 15 of the 16 complaints fire two conditions at once, so a sum charges one event twice.
 
-- Tried: the obvious fix is to fit each coefficient to its measured lift, for example the 9.6× complaint lift on §8.2.
-- Result: the corpus has 16 complaints and 20 candidate rules. Sixteen events cannot support a weight per rule.
-- Decision: rejected before fitting. An evaluator that runs on dossiers nobody has seen must not encode one sample's accidents.
+**Step 2: the noisy-OR and its conditions.** A noisy-OR combines independent causes of one outcome and stays in [0, 1]. It has a precedent in medical diagnosis [10] and in Signal Labs' own material [1]. A condition qualified if the specification forbids the thing it fires on and that thing can cause one of the three harms. Ten qualified: six containment and integrity rules (§8.2, §8.3, §8.4, §8.7, I6, §8.1), two materiality rules (M6, M4), and two judgments from the domain guide (a customer-visible play on an undeserving signal, a deserving signal no human saw). Five fire only if a human read the dossier, because 0 of the 389 dossiers with no customer-visible play drew a complaint.
 
-**Step 3: drop the tier multiplier.**
+**Step 3: magnitudes without fitting.** The specification ranks the tiers but gives no numbers. Critical got 0.45 and high 0.20, a 2.25× step that borrows CVSS's 2.55× step between its high and low impact levels [4]. The two judgments started at 0.30, above high. GRADE treats inferred evidence only as a reason to rate confidence down [11], so they moved to 0.15. IEC 31010 says an ordinal scale is to some extent arbitrary and the remedy is validation against known cases [12].
 
-- Tried: account tier as a multiplier on the score.
-- Result: tier changes how expensive a missed churn is, not how likely one is. The README defines the field as a probability.
-- Decision: rejected here. The multiplier moved to the attention-budget ranking, where cost belongs.
+**Step 4: validation, unfitted.** Complaint rates by risk quartile were 0.0%, 0.0%, 3.2% and 7.0%, and all 16 complaints sat in the top half. Nothing below 0.3 drew a complaint. Kept.
 
-**Step 4: replace the sum with a noisy-OR.**
+**Step 5: the zeros and the missing condition.** 270 dossiers (43%) scored 0.0. 192 were unrouted and harmless, which is correct. 78 were routed, and 24 of those caused harm, including sig_0385 with zero violations. A weight-share audit showed why: the wasted-slot harm held 12% of the score's mass while the annotators raised it in 53% of their flags. A first sweep that chose conditions by outcome AUC failed: its best candidate, Q2 on a routed dossier, fired on 80% of the corpus and raised the AUC only by moving a block off zero. A second sweep used the specification as the filter, on a second pre-registered split of all 629. M4, routing below the materiality floor, was the only condition with an effect. Added.
 
-- Tried: a sum has no upper bound and double-charges. 111 of 629 dossiers fire two or more conditions. 15 of the 16 complaints fire two at once. A sum therefore charges one underlying event repeatedly. A noisy-OR combines independent causes of one outcome. If condition i causes harm with probability p_i, the probability that at least one does is
+**Step 6: double-charging.** A suppressed mandatory trigger and a deserving signal no human saw are one event and co-occur 5.0× chance, so they are grouped and charged once. Fabricated evidence and leaked contact details co-occur 10.2× chance and are not grouped, because they are different harms. The certainty factor now flows into risk: 35 of the 62 §8.1 findings were uncertain and had been charged in full.
 
-  risk = 1 − Π over fired conditions of (1 − p_i · c_i)
-
-  with c_i the certainty factor (1 confirmed, 0.5 uncertain).
-- Result: it stays in [0, 1]. It is the same algebra as the quality score. It has a precedent in medical diagnosis, the QMR-DT network [10]. Signal Labs' own public material also names noisy-OR, for combining alerts from models trained on the same data [1].
-- Decision: kept.
-
-**Step 5: choose which conditions can cause harm.**
-
-- Tried: a condition passed two tests. The specification must forbid the thing it fires on. That thing must plausibly cause one of the three harms.
-- Result: ten conditions.
-  - Six containment and integrity rules. §8.2: customer-visible play on a legal-hold or quiet-period account. §8.3: restricted artefact quoted to a human. §8.4: cross-tenant evidence. §8.7: contact details in a routed quote. I6: fabricated evidence a human read. §8.1: mandatory trigger suppressed.
-  - Two materiality rules. M6: a number that reproduces only on uncorrected data, read by a human. M4: routed below the materiality floor.
-  - Two judgments from the domain guide. A customer-visible play on an undeserving signal. A deserving signal that never reached a human.
-- Decision: kept. Five of these fire only if a human read the dossier. A fabricated quote nobody saw cannot cause a complaint: 0 of the 389 dossiers with no customer-visible play drew one.
-
-**Step 6: set the magnitudes without fitting.**
-
-- Tried: the specification's §11 table ranks the severity classes but gives no numbers. I needed three probabilities: one for the critical tier, one for the high tier, one for the two judgments.
-- Result: the critical tier got 0.45 and the high tier 0.20. The ratio between them, 2.25×, borrows the ratio between CVSS's high and low impact levels, 0.56 and 0.22, which is 2.55× [4]. CVSS is the one widely used standard that combines rated conditions with this algebra, so its step size is the closest precedent. The judgments started at 0.30, above the high tier, which was wrong. GRADE, the framework for grading evidence, treats indirect or inferred evidence only as a reason to rate confidence down, never up [11]. A condition the specification never rates cannot outweigh one it calls high, so the judgments moved to 0.15.
-- Decision: kept, with a stated limit. IEC 31010 says that the choice of an ordinal scale is to some extent arbitrary [12]. Its remedy is validation against known cases. That is the next step.
-
-**Step 7: validate the unfitted score.**
-
-- Tried: the score with no fitting, against the outcomes.
-- Result: the quartiles ordered the outcomes. Complaint rates were 0.0%, 0.0%, 3.2% and 7.0% from the lowest to the highest quartile. All 16 complaints were in the top half. The three dossiers at the highest value, 0.83, drew complaints at 67% against a 2.5% base. Nothing below 0.3 drew a complaint.
-- Decision: kept, form and magnitudes.
-
-**Step 8: diagnose the zeros.**
-
-- Tried: a count of dossiers at 0.0.
-- Result: 270 dossiers (43%) scored 0.0, with only 13 distinct values across the corpus. 192 of the zeros were unrouted dossiers that caused no harm, which is correct. 78 were routed, and 24 of those caused harm. One, sig_0385, was a wasted escalation with zero violations and a quality score of 1.00, which is a ceiling on any rule-based approach. A weight-share audit showed why the routed zeros existed: the wasted-slot harm held 12% of the score's mass, because only M6 could produce it. The annotators raised wasted attention in 53% of their flags.
-- Decision: search for the missing condition.
-
-**Step 9: two sweeps for the missing condition.**
-
-- Tried, first sweep: eight candidates in 93 combinations, with the outcome AUC as the target.
-- Result: it failed. All eight together scored 0.738, below the best pair at 0.741. The best single candidate, "Q2 on a routed dossier", fired on 80% of the corpus with a lift of 0.99 against the annotators' wasted flag. It raised the AUC only by moving a large block of dossiers off zero at once. Lesson recorded: choosing conditions by AUC finds the biggest block, not the cause.
-- Tried, second sweep: the specification as the filter. Only the four materiality rules forbid something a routed dossier can do, so only those four were candidates. They ran on a second pre-registered split of all 629 dossiers: 326 development, 303 held-out.
-- Result: M4 was the only one with an effect. On the held-out half, zeros fell from 43% to 41% and the wasted-escalation AUC rose from 0.62 to 0.64.
-- Decision: M4 added. Three candidates rejected by name. "Q2 routed" and "M5 routed": their only argument was the AUC gain. M1 and M3: they fire on 8 and 7 dossiers and change nothing.
-
-**Step 10: fix double-charging.**
-
-- Tried: a check of which conditions describe one event.
-- Result: a suppressed mandatory trigger (§8.1) and a deserving signal that reached no human co-occur 5.0× more often than independence predicts. They are one event. A second pair, fabricated evidence (I6) and leaked contact details (§8.7), co-occurs 10.2× chance. Those are different harms: one destroys trust, the other breaches containment. This step also exposed a bug: 35 of the 62 §8.1 findings were uncertain, but the score had charged them in full.
-- Decision: group the first pair and charge it once, at 0.45 instead of 0.62. Do not group the second pair. Make the certainty factor flow into risk as it does into quality.
-
-**Result.** Zeros fell from 270 to 255. Distinct values rose from 13 to 25. The AUC against wasted escalations rose from 0.65 to 0.68. The complaint AUC stayed at 0.80.
-
-**Two limits remain.** The noisy-OR assumes independence. The residual correlation between ungrouped conditions is a known overstatement. I chose which conditions exist partly by held-out performance. That is model selection, even though I never fitted a magnitude. Limitations records both.
+**Result.** Zeros fell from 270 to 255. Distinct values rose from 13 to 25. AUC against wasted escalations rose from 0.65 to 0.68 and the complaint AUC stayed at 0.80. The noisy-OR still assumes independence, and which conditions exist was chosen partly on held-out performance. Limitations records both.
 
 ### Validation design
 
@@ -580,35 +453,73 @@ The plan stays inside the evaluator. It has three parts: better reference labels
 
 Addresses limits 1, 2, 4, 5, 9 and 12.
 
-- **Collect fresh labels on a schedule.** About 30 dossiers a month, sampled from routed and unrouted, flagged and unflagged, and from the cases where the evaluator and the annotators disagree. Record the sampling probability of each dossier. Get an independent second rating on a subset, adjudicate the disagreements, and keep the original ratings. Adjudicated labels are a working reference, not truth, so the un-aggregated labels stay available [13].
-- **Separate the three references.** One label set for mandatory routing, one for attention value, one for dossier quality. Decision-time labels stay separate from labels written after the outcome is known, so later outcomes cannot leak into the reference.
-- **Seal an evaluation cohort.** Split by account and by time, not by hash, so no account appears on both sides. Freeze every candidate before it touches the sealed cohort. A test set that has been read becomes development material for the next revision [8]. This is the fix for limit 4: fresh splits need fresh labels, and re-partitioning the old corpus does not remove prior exposure.
-- **Two rule namespaces.** Spec rules keep their exact citations and their authority. Empirical criteria are rules discovered from observed failures that the specification does not name. Each empirical criterion carries its supporting failures, its counterexamples and its validation status. An empirical criterion never gains mandatory-route or deploy-blocking status without an explicit policy decision, so a discovered rule cannot be reported as a spec violation [6].
-- **A requirement manifest.** Every "must" and "never" sentence in the specification maps to a rule id or to a declared gap. A specification edit changes the manifest or fails the build. This replaces the unverified hand transcription in limit 9. An LLM can propose missing rows. A person accepts each one.
-- **Exit test.** One frozen reference release with documented provenance, every requirement mapped to a check or a declared gap, and an untouched evaluation cohort.
+#### Collect fresh labels on a schedule
+
+About 30 dossiers a month, sampled from routed and unrouted, flagged and unflagged, and from the cases where the evaluator and the annotators disagree. Record the sampling probability of each dossier. Get an independent second rating on a subset, adjudicate the disagreements, and keep the original ratings. Adjudicated labels are a working reference, not truth, so the un-aggregated labels stay available [13].
+#### Separate the three references
+
+One label set for mandatory routing, one for attention value, one for dossier quality. Decision-time labels stay separate from labels written after the outcome is known, so later outcomes cannot leak into the reference.
+#### Seal an evaluation cohort
+
+Split by account and by time, not by hash, so no account appears on both sides. Freeze every candidate before it touches the sealed cohort. A test set that has been read becomes development material for the next revision [8]. This is the fix for limit 4: fresh splits need fresh labels, and re-partitioning the old corpus does not remove prior exposure.
+#### Two rule namespaces
+
+Spec rules keep their exact citations and their authority. Empirical criteria are rules discovered from observed failures that the specification does not name. Each empirical criterion carries its supporting failures, its counterexamples and its validation status. An empirical criterion never gains mandatory-route or deploy-blocking status without an explicit policy decision, so a discovered rule cannot be reported as a spec violation [6].
+#### A requirement manifest
+
+Every "must" and "never" sentence in the specification maps to a rule id or to a declared gap. A specification edit changes the manifest or fails the build. This replaces the unverified hand transcription in limit 9. An LLM can propose missing rows. A person accepts each one.
+#### Exit test
+
+One frozen reference release with documented provenance, every requirement mapped to a check or a declared gap, and an untouched evaluation cohort.
 
 ### A stronger reader behind the same gates
 
 Addresses limits 6, 7, 8 and 10, and part of 1 and 5.
 
-- **Trial one hosted LLM judge against the NLI model on the same tasks.** It returns a structured label, the source span it relied on, and an abstention when unsure. It runs at temperature 0, in batch, versioned and pinned, with its outputs cached.
-- **Keep the four structural gates.** The judge sees only current text from a verified, account-matched, verbatim quote. Where quote provenance is ambiguous, the block is marked unknown rather than read, which is the fix for limit 8.
-- **Fixtures that cover the weak spots.** Q2 positives and negatives, multilingual text, long documents, quoted history, and account attribution. Measure sensitivity, specificity and abstention per rule, not one accuracy number [16].
-- **One-way rescue.** The judge reviews only the cases the rules rejected and can flip a verdict in one direction. Semantic passes are audited independently. This bounds a lenient judge.
-- **Exit test.** The frozen judge beats a pre-declared error target on untouched fixtures, passes the structural regressions, and meets a cost and latency limit. Otherwise the NLI model stays.
+#### Trial one hosted LLM judge against the NLI model on the same tasks
+
+It returns a structured label, the source span it relied on, and an abstention when unsure. It runs at temperature 0, in batch, versioned and pinned, with its outputs cached.
+#### Keep the four structural gates
+
+The judge sees only current text from a verified, account-matched, verbatim quote. Where quote provenance is ambiguous, the block is marked unknown rather than read, which is the fix for limit 8.
+#### Fixtures that cover the weak spots
+
+Q2 positives and negatives, multilingual text, long documents, quoted history, and account attribution. Measure sensitivity, specificity and abstention per rule, not one accuracy number [16].
+#### One-way rescue
+
+The judge reviews only the cases the rules rejected and can flip a verdict in one direction. Semantic passes are audited independently. This bounds a lenient judge.
+#### Exit test
+
+The frozen judge beats a pre-declared error target on untouched fixtures, passes the structural regressions, and meets a cost and latency limit. Otherwise the NLI model stays.
 
 ### A controlled loop from new information to the rubric
 
 Addresses limits 1, 3, 4, 5, 7, 11 and 12, and answers the README's question on closing the loop.
 
-- **A review queue.** New dossiers, adjudicated labels, owner feedback and matured renewal outcomes enter one queue. Each item carries its observation window and its eligibility, and unresolved outcome conflicts stay marked. Original evaluations are never overwritten, so every re-score is traceable.
-- **Each feedback source has one role.** Matured outcomes inform the risk score's calibration. Adjudicated labels inform text thresholds and the deserved verdict. Owner feedback informs usefulness on the routed population only, because it exists nowhere else [17]. No source validates the others.
-- **Automatic proposals, human releases.** An automated cycle proposes bounded changes: a text threshold, an empirical condition, a scoring weight. It shows the changed verdicts, the affected slices, the regressions and the uncertainty. A person accepts or rejects a versioned release. The sealed cohort is never used to revise a candidate. At most two rubric revisions a quarter, and the 27 goldens are re-graded under each [6].
-- **Calibrate risk only when the events allow.** Fit a calibration on rolling outcomes and report Brier score beside AUC, one harm at a time. Where event counts are too few, as with 16 complaints, keep the analogy magnitudes and say so.
-- **Two scheduled audits.** A read of unflagged and high-scoring dossiers each cycle, because a rubric misses more than it over-flags. And a rubric-free comparison, in which humans pick the better of two dossiers with no rubric shown. If the rubric's winner loses, the rubric is wrong, not the reader.
-- **Agreement as a series.** Kappa with bootstrap intervals, PABAK and alpha on every labelled batch, pairwise, never pooling the evaluator into the human panel. Sensitivity and specificity on the labelled batch correct the evaluator's rates on the unlabelled rest.
-- **Close the loop to the agent with a frozen evaluator.** Accepted failure classes become evidence packets and regression cases for the agent team. Agent candidates replay on identical decision-time inputs against a frozen evaluator, scored on attention labels, mandatory-route misses, critical violations and the five-slot owner-week capacity, with account-clustered uncertainty [18]. The two loops never move in the same comparison.
-- **Exit test.** One human-reviewed rubric revision and one agent-candidate replay, each with a frozen comparison, retained regressions, and an explicit accept, reject or inconclusive decision.
+#### A review queue
+
+New dossiers, adjudicated labels, owner feedback and matured renewal outcomes enter one queue. Each item carries its observation window and its eligibility, and unresolved outcome conflicts stay marked. Original evaluations are never overwritten, so every re-score is traceable.
+#### Each feedback source has one role
+
+Matured outcomes inform the risk score's calibration. Adjudicated labels inform text thresholds and the deserved verdict. Owner feedback informs usefulness on the routed population only, because it exists nowhere else [17]. No source validates the others.
+#### Automatic proposals, human releases
+
+An automated cycle proposes bounded changes: a text threshold, an empirical condition, a scoring weight. It shows the changed verdicts, the affected slices, the regressions and the uncertainty. A person accepts or rejects a versioned release. The sealed cohort is never used to revise a candidate. At most two rubric revisions a quarter, and the 27 goldens are re-graded under each [6].
+#### Calibrate risk only when the events allow
+
+Fit a calibration on rolling outcomes and report Brier score beside AUC, one harm at a time. Where event counts are too few, as with 16 complaints, keep the analogy magnitudes and say so.
+#### Two scheduled audits
+
+A read of unflagged and high-scoring dossiers each cycle, because a rubric misses more than it over-flags. And a rubric-free comparison, in which humans pick the better of two dossiers with no rubric shown. If the rubric's winner loses, the rubric is wrong, not the reader.
+#### Agreement as a series
+
+Kappa with bootstrap intervals, PABAK and alpha on every labelled batch, pairwise, never pooling the evaluator into the human panel. Sensitivity and specificity on the labelled batch correct the evaluator's rates on the unlabelled rest.
+#### Close the loop to the agent with a frozen evaluator
+
+Accepted failure classes become evidence packets and regression cases for the agent team. Agent candidates replay on identical decision-time inputs against a frozen evaluator, scored on attention labels, mandatory-route misses, critical violations and the five-slot owner-week capacity, with account-clustered uncertainty [18]. The two loops never move in the same comparison.
+#### Exit test
+
+One human-reviewed rubric revision and one agent-candidate replay, each with a frozen comparison, retained regressions, and an explicit accept, reject or inconclusive decision.
 
 ### Outside the evaluator
 
