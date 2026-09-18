@@ -447,83 +447,45 @@ Each limit below names what it affects, the evidence, and what it means for a re
 
 ## If you had 3 months
 
-The plan stays inside the evaluator. It has three parts: better reference labels and rule authority, a stronger reader, and a controlled loop that updates the rubric from new information. Each part names the limits it addresses, the changes, and the test that decides whether it worked.
+The plan stays inside the evaluator. Three parts: better reference labels and rule authority, a stronger reader, and a controlled loop from new information to the rubric. Each part names the limits it addresses and the test that decides whether it worked.
 
 ### More human labels, and two kinds of rules
 
 Addresses limits 1, 2, 4, 5, 9 and 12.
 
-#### Collect fresh labels on a schedule
-
-About 30 dossiers a month, sampled from routed and unrouted, flagged and unflagged, and from the cases where the evaluator and the annotators disagree. Record the sampling probability of each dossier. Get an independent second rating on a subset, adjudicate the disagreements, and keep the original ratings. Adjudicated labels are a working reference, not truth, so the un-aggregated labels stay available [13].
-#### Separate the three references
-
-One label set for mandatory routing, one for attention value, one for dossier quality. Decision-time labels stay separate from labels written after the outcome is known, so later outcomes cannot leak into the reference.
-#### Seal an evaluation cohort
-
-Split by account and by time, not by hash, so no account appears on both sides. Freeze every candidate before it touches the sealed cohort. A test set that has been read becomes development material for the next revision [8]. This is the fix for limit 4: fresh splits need fresh labels, and re-partitioning the old corpus does not remove prior exposure.
-#### Two rule namespaces
-
-Spec rules keep their exact citations and their authority. Empirical criteria are rules discovered from observed failures that the specification does not name. Each empirical criterion carries its supporting failures, its counterexamples and its validation status. An empirical criterion never gains mandatory-route or deploy-blocking status without an explicit policy decision, so a discovered rule cannot be reported as a spec violation [6].
-#### A requirement manifest
-
-Every "must" and "never" sentence in the specification maps to a rule id or to a declared gap. A specification edit changes the manifest or fails the build. This replaces the unverified hand transcription in limit 9. An LLM can propose missing rows. A person accepts each one.
-#### Exit test
-
-One frozen reference release with documented provenance, every requirement mapped to a check or a declared gap, and an untouched evaluation cohort.
+- About 30 fresh dossiers labelled a month, sampled from routed and unrouted, flagged and unflagged, and from the cases where the evaluator and the annotators disagree. Independent second ratings on a subset, adjudicated, with the original ratings kept [13].
+- Three separate references: mandatory routing, attention value, dossier quality. Labels written at decision time stay separate from labels written after the outcome is known.
+- A sealed evaluation cohort, split by account and time, frozen before any candidate. A test set that has been read becomes development material for the next revision [8].
+- Two rule namespaces. Spec rules keep their citations and authority. Empirical criteria are rules discovered from observed failures that the specification does not name, each with its supporting failures and validation status. An empirical criterion never gains mandatory-route or deploy-blocking status without a policy decision [6].
+- A requirement manifest: every "must" and "never" sentence in the specification maps to a rule id or a declared gap, and a specification edit changes the manifest or fails the build. An LLM proposes missing rows. A person accepts each one.
+- Exit test: one frozen reference release with documented provenance, every requirement mapped to a check or a declared gap, and an untouched evaluation cohort.
 
 ### A stronger reader behind the same gates
 
-Addresses limits 6, 7, 8 and 10, and part of 1 and 5.
+Addresses limits 6, 7, 8 and 10.
 
-#### Trial one hosted LLM judge against the NLI model on the same tasks
-
-It returns a structured label, the source span it relied on, and an abstention when unsure. It runs at temperature 0, in batch, versioned and pinned, with its outputs cached.
-#### Keep the four structural gates
-
-The judge sees only current text from a verified, account-matched, verbatim quote. Where quote provenance is ambiguous, the block is marked unknown rather than read, which is the fix for limit 8.
-#### Fixtures that cover the weak spots
-
-Q2 positives and negatives, multilingual text, long documents, quoted history, and account attribution. Measure sensitivity, specificity and abstention per rule, not one accuracy number [16].
-#### One-way rescue
-
-The judge reviews only the cases the rules rejected and can flip a verdict in one direction. Semantic passes are audited independently. This bounds a lenient judge.
-#### Exit test
-
-The frozen judge beats a pre-declared error target on untouched fixtures, passes the structural regressions, and meets a cost and latency limit. Otherwise the NLI model stays.
+- One hosted LLM judge trialled against the NLI model on the same tasks. It returns a structured label, the source span it used, and an abstention when unsure. Temperature 0, batch, versioned and pinned, outputs cached.
+- The four structural gates stay. Where quote provenance is ambiguous, the block is marked unknown and not read.
+- Fixtures that cover the weak spots: Q2 positives and negatives, multilingual text, long documents, quoted history, account attribution. Sensitivity, specificity and abstention reported per rule [16].
+- One-way rescue: the judge reviews only what the rules rejected and can flip a verdict in one direction. Passes are audited separately.
+- Exit test: the frozen judge beats a pre-declared error target on untouched fixtures, passes the structural regressions, and meets a cost and latency limit. Otherwise the NLI model stays.
 
 ### A controlled loop from new information to the rubric
 
 Addresses limits 1, 3, 4, 5, 7, 11 and 12, and answers the README's question on closing the loop.
 
-#### A review queue
-
-New dossiers, adjudicated labels, owner feedback and matured renewal outcomes enter one queue. Each item carries its observation window and its eligibility, and unresolved outcome conflicts stay marked. Original evaluations are never overwritten, so every re-score is traceable.
-#### Each feedback source has one role
-
-Matured outcomes inform the risk score's calibration. Adjudicated labels inform text thresholds and the deserved verdict. Owner feedback informs usefulness on the routed population only, because it exists nowhere else [17]. No source validates the others.
-#### Automatic proposals, human releases
-
-An automated cycle proposes bounded changes: a text threshold, an empirical condition, a scoring weight. It shows the changed verdicts, the affected slices, the regressions and the uncertainty. A person accepts or rejects a versioned release. The sealed cohort is never used to revise a candidate. At most two rubric revisions a quarter, and the 27 goldens are re-graded under each [6].
-#### Calibrate risk only when the events allow
-
-Fit a calibration on rolling outcomes and report Brier score beside AUC, one harm at a time. Where event counts are too few, as with 16 complaints, keep the analogy magnitudes and say so.
-#### Two scheduled audits
-
-A read of unflagged and high-scoring dossiers each cycle, because a rubric misses more than it over-flags. And a rubric-free comparison, in which humans pick the better of two dossiers with no rubric shown. If the rubric's winner loses, the rubric is wrong, not the reader.
-#### Agreement as a series
-
-Kappa with bootstrap intervals, PABAK and alpha on every labelled batch, pairwise, never pooling the evaluator into the human panel. Sensitivity and specificity on the labelled batch correct the evaluator's rates on the unlabelled rest.
-#### Close the loop to the agent with a frozen evaluator
-
-Accepted failure classes become evidence packets and regression cases for the agent team. Agent candidates replay on identical decision-time inputs against a frozen evaluator, scored on attention labels, mandatory-route misses, critical violations and the five-slot owner-week capacity, with account-clustered uncertainty [18]. The two loops never move in the same comparison.
-#### Exit test
-
-One human-reviewed rubric revision and one agent-candidate replay, each with a frozen comparison, retained regressions, and an explicit accept, reject or inconclusive decision.
+- One review queue for new dossiers, adjudicated labels, owner feedback and matured renewal outcomes. Each item carries its observation window. Original evaluations are never overwritten.
+- Each source has one role. Matured outcomes calibrate the risk score. Adjudicated labels tune text thresholds and the deserved verdict. Owner feedback informs usefulness on the routed population only, because it exists nowhere else [17].
+- Automatic proposals, human releases. A cycle proposes a bounded change (a text threshold, an empirical condition, a scoring weight), shows the changed verdicts per slice with regressions and uncertainty, and a person accepts or rejects a versioned release. At most two revisions a quarter, goldens re-graded under each. The sealed cohort is never used to revise a candidate.
+- Risk calibrated on rolling outcomes only where event counts allow, Brier score beside AUC, one harm at a time. With 16 complaints, the analogy magnitudes stay and the writeup says so.
+- Two scheduled audits: a read of unflagged and high-scoring dossiers, because a rubric misses more than it over-flags, and a rubric-free comparison where humans pick the better of two dossiers with no rubric shown. If the rubric's winner loses, the rubric is wrong, not the reader.
+- Agreement tracked as a series on every labelled batch: kappa with bootstrap intervals, PABAK, alpha, pairwise, never pooling the evaluator into the human panel. Sensitivity and specificity on the labelled batch correct the evaluator's rates on the unlabelled rest.
+- The loop to the agent runs against a frozen evaluator. Accepted failure classes become evidence packets and regression cases for the agent team. Agent candidates replay on identical decision-time inputs, scored on attention labels, mandatory-route misses, critical violations and the five-slot owner-week capacity, with account-clustered uncertainty [18]. The two loops never move in one comparison.
+- Exit test: one human-reviewed rubric revision and one agent-candidate replay, each with a frozen comparison and an explicit accept, reject or inconclusive decision.
 
 ### Outside the evaluator
 
-Cartogram supplies the adjudicators and the fresh traces, logs every detector firing, runs any randomised routing on the margin, and sets the value of an owner's slot against a missed churn. Without the last two, the evaluator's comparisons stay associational.
+Cartogram supplies the adjudicators and fresh traces, logs every detector firing, runs any randomised routing on the margin, and sets the value of an owner's slot against a missed churn. Without the last two, the evaluator's comparisons stay associational.
 
 ## Reproducing the numbers
 
